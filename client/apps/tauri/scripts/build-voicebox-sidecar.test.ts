@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildVoiceboxSidecar,
+  buildProfileFromArgs,
   copyBuiltVoiceboxSidecar,
+  extrasForBuildProfile,
+  pyinstallerCollectArgs,
   pyinstallerOutputPath,
   releaseModeFromArgs,
   targetTripleFromArgs,
@@ -25,6 +28,66 @@ describe("Voicebox sidecar build script", () => {
       "x86_64-pc-windows-msvc",
     );
     expect(() => targetTripleFromArgs(["--target"])).toThrow(/requires/);
+  });
+
+  it("parses explicit build profiles", () => {
+    expect(buildProfileFromArgs(["--profile", "tts"])).toBe("tts");
+    expect(buildProfileFromArgs(["--profile", "asr"])).toBe("asr");
+    expect(buildProfileFromArgs(["--profile", "smoke"])).toBe("smoke");
+    expect(() => buildProfileFromArgs(["--profile"])).toThrow(/requires/);
+    expect(() => buildProfileFromArgs(["--profile", "all"])).toThrow(/Unsupported/);
+  });
+
+  it("keeps Qwen TTS and ASR dependency profiles separate", () => {
+    expect(
+      extrasForBuildProfile({
+        profile: "tts",
+        targetTriple: "x86_64-unknown-linux-gnu",
+      }),
+    ).toEqual(["qwen-tts", "torch"]);
+    expect(
+      extrasForBuildProfile({
+        profile: "asr",
+        targetTriple: "x86_64-unknown-linux-gnu",
+      }),
+    ).toEqual(["qwen-asr", "torch"]);
+  });
+
+  it("adds MLX dependencies only for native Apple Silicon model profiles", () => {
+    expect(
+      extrasForBuildProfile({
+        profile: "tts",
+        targetTriple: "aarch64-apple-darwin",
+      }),
+    ).toEqual(["qwen-tts", "torch", "mlx"]);
+    expect(
+      extrasForBuildProfile({
+        profile: "smoke",
+        targetTriple: "aarch64-apple-darwin",
+      }),
+    ).toEqual([]);
+  });
+
+  it("collects only installed model modules for PyInstaller", () => {
+    const ttsArgs = pyinstallerCollectArgs({
+      profile: "tts",
+      targetTriple: "x86_64-unknown-linux-gnu",
+    });
+    const asrArgs = pyinstallerCollectArgs({
+      profile: "asr",
+      targetTriple: "x86_64-unknown-linux-gnu",
+    });
+
+    expect(ttsArgs).toContain("qwen_tts");
+    expect(ttsArgs).not.toContain("qwen_asr");
+    expect(asrArgs).toContain("qwen_asr");
+    expect(asrArgs).not.toContain("qwen_tts");
+    expect(
+      pyinstallerCollectArgs({
+        profile: "smoke",
+        targetTriple: "x86_64-unknown-linux-gnu",
+      }),
+    ).toEqual([]);
   });
 
   it("uses platform-specific venv Python paths", () => {

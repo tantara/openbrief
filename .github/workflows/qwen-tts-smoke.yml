@@ -116,7 +116,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node client/apps/tauri/scripts/build-voicebox-sidecar.js --release
+          node client/apps/tauri/scripts/build-voicebox-sidecar.js --release --profile tts
           node --input-type=module <<'NODE' >> "$GITHUB_ENV"
           import { sidecarFileName, getHostTriple } from "./client/apps/tauri/scripts/setup-dev-sidecars.js";
           const targetTriple = getHostTriple();

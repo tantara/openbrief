@@ -10,14 +10,19 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
-qwen = [
+qwen-tts = [
   "accelerate>=0.26",
   "huggingface_hub>=0.34",
   "numpy>=1.26",
-  "qwen-asr",
   "qwen-tts>=0.0.5",
   "soundfile>=0.12",
-  "transformers>=4.50,<=4.57.6",
+]
+qwen-asr = [
+  "accelerate>=0.26",
+  "huggingface_hub>=0.34",
+  "numpy>=1.26",
+  "qwen-asr>=0.0.6",
+  "soundfile>=0.12",
 ]
 torch = [
   "torch>=2.4",
