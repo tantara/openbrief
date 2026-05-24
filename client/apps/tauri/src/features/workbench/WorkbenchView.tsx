@@ -83,6 +83,7 @@ import {
   RotateCcw,
   Sparkles,
   Subtitles,
+  Trash2,
   Volume2,
   X,
 } from "lucide-react";
@@ -100,6 +101,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@acme/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@acme/ui/dropdown-menu";
 import { Input } from "@acme/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@acme/ui/popover";
 import {
@@ -1146,20 +1153,29 @@ export function WorkbenchView({
                   />
                 ) : null}
                 {briefMode === "podcast" && podcast ? (
-                  <PodcastGenerateDialog
-                    open={isPodcastGenerateDialogOpen}
-                    podcastHistoryCount={podcastHistory.length}
-                    settings={podcastSettings}
-                    sourceKind={podcastSourceKind}
-                    canGenerate={Boolean(onGeneratePodcast && video)}
-                    hasSummary={Boolean(activeSummary)}
-                    hasTranscript={transcript.length > 0}
-                    isGenerating={isGeneratingPodcast}
-                    triggerVariant="outline"
-                    onOpenChange={setIsPodcastGenerateDialogOpen}
-                    onSettingsChange={setPodcastSettings}
-                    onSourceKindChange={setPodcastSourceKind}
-                    onGenerate={submitPodcastGeneration}
+                  <PodcastHeaderActions
+                    podcast={podcast}
+                    generateAction={
+                      <PodcastGenerateDialog
+                        open={isPodcastGenerateDialogOpen}
+                        podcastHistoryCount={podcastHistory.length}
+                        settings={podcastSettings}
+                        sourceKind={podcastSourceKind}
+                        canGenerate={Boolean(onGeneratePodcast && video)}
+                        hasSummary={Boolean(activeSummary)}
+                        hasTranscript={transcript.length > 0}
+                        isGenerating={isGeneratingPodcast}
+                        triggerVariant="outline"
+                        onOpenChange={setIsPodcastGenerateDialogOpen}
+                        onSettingsChange={setPodcastSettings}
+                        onSourceKindChange={setPodcastSourceKind}
+                        onGenerate={submitPodcastGeneration}
+                      />
+                    }
+                    onPlayPodcast={onPlayPodcast}
+                    onDownloadPodcastAudio={onDownloadPodcastAudio}
+                    onDownloadPodcastScript={onDownloadPodcastScript}
+                    onDeletePodcast={onDeletePodcast}
                   />
                 ) : null}
               </div>
@@ -1267,10 +1283,6 @@ export function WorkbenchView({
                       ? () => onPauseVideo(podcast.sourceAssetId)
                       : undefined
                   }
-                  onPlayPodcast={onPlayPodcast}
-                  onDownloadPodcastAudio={onDownloadPodcastAudio}
-                  onDownloadPodcastScript={onDownloadPodcastScript}
-                  onDeletePodcast={onDeletePodcast}
                 />
               )}
             </CardContent>
@@ -1510,6 +1522,106 @@ function BriefEmptyState({
   );
 }
 
+function PodcastHeaderActions({
+  podcast,
+  generateAction,
+  onPlayPodcast,
+  onDownloadPodcastAudio,
+  onDownloadPodcastScript,
+  onDeletePodcast,
+}: {
+  podcast: PodcastDocument;
+  generateAction: ReactNode;
+  onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastScript?(
+    podcast: PodcastDocument,
+  ): Promise<unknown> | unknown;
+  onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
+}) {
+  const { t } = useI18n();
+  const hasDownloadAction = Boolean(
+    onDownloadPodcastAudio || onDownloadPodcastScript,
+  );
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className="flex flex-wrap items-center gap-2">
+        {generateAction}
+        {onPlayPodcast ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void onPlayPodcast(podcast)}
+          >
+            <Play className="h-4 w-4" aria-hidden="true" />
+            {t("workbench.podcast.play")}
+          </Button>
+        ) : null}
+        {hasDownloadAction ? (
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9"
+                    aria-label={t("workbench.podcast.download")}
+                  >
+                    <Download className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {t("workbench.podcast.download")}
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent side="bottom" align="end" className="w-44">
+              {onDownloadPodcastAudio ? (
+                <DropdownMenuItem
+                  onClick={() => void onDownloadPodcastAudio(podcast)}
+                >
+                  <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("workbench.podcast.downloadAudio")}
+                </DropdownMenuItem>
+              ) : null}
+              {onDownloadPodcastScript ? (
+                <DropdownMenuItem
+                  onClick={() => void onDownloadPodcastScript(podcast)}
+                >
+                  <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("workbench.podcast.downloadScript")}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {onDeletePodcast ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-destructive hover:text-destructive"
+                aria-label={t("workbench.podcast.delete")}
+                onClick={() => void onDeletePodcast(podcast)}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {t("workbench.podcast.delete")}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
+    </TooltipProvider>
+  );
+}
+
 function PodcastBriefPanel({
   podcast,
   podcastHistory,
@@ -1520,10 +1632,6 @@ function PodcastBriefPanel({
   hasTranscript,
   generateAction,
   onAudioPlay,
-  onPlayPodcast,
-  onDownloadPodcastAudio,
-  onDownloadPodcastScript,
-  onDeletePodcast,
 }: {
   podcast?: PodcastDocument;
   podcastHistory: PodcastDocument[];
@@ -1534,12 +1642,6 @@ function PodcastBriefPanel({
   hasTranscript: boolean;
   generateAction: ReactNode;
   onAudioPlay?(): void;
-  onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
-  onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
-  onDownloadPodcastScript?(
-    podcast: PodcastDocument,
-  ): Promise<unknown> | unknown;
-  onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
 }) {
   const { t } = useI18n();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1615,52 +1717,6 @@ function PodcastBriefPanel({
                 ? t(podcastStageLabelKey(podcastJob.stage))
                 : t("workbench.podcast.failed")}
             </span>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {podcast ? (
-            <>
-              {onPlayPodcast ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void onPlayPodcast(podcast)}
-                >
-                  <Play className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {t("workbench.podcast.play")}
-                </Button>
-              ) : null}
-              {onDownloadPodcastAudio ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void onDownloadPodcastAudio(podcast)}
-                >
-                  <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {t("workbench.podcast.downloadAudio")}
-                </Button>
-              ) : null}
-              {onDownloadPodcastScript ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void onDownloadPodcastScript(podcast)}
-                >
-                  <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {t("workbench.podcast.downloadScript")}
-                </Button>
-              ) : null}
-              {onDeletePodcast ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => void onDeletePodcast(podcast)}
-                >
-                  <X className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {t("workbench.podcast.delete")}
-                </Button>
-              ) : null}
-            </>
           ) : null}
         </div>
         {podcast && podcastAudioUrl ? (

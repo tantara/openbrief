@@ -325,6 +325,7 @@ export const en_us = {
   "workbench.podcast.empty":
     "Generate a podcast to create narrated audio and a turn-by-turn script.",
   "workbench.podcast.play": "Play",
+  "workbench.podcast.download": "Download podcast",
   "workbench.podcast.downloadAudio": "Download audio",
   "workbench.podcast.downloadScript": "Download script",
   "workbench.podcast.delete": "Delete",

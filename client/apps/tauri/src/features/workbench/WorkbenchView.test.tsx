@@ -60,8 +60,12 @@ describe("WorkbenchView", () => {
     );
   });
 
-  it("switches the brief column to podcast audio and script turns", () => {
+  it("switches the brief column to podcast audio and script turns", async () => {
     const onPauseVideo = vi.fn();
+    const onPlayPodcast = vi.fn();
+    const onDownloadPodcastAudio = vi.fn();
+    const onDownloadPodcastScript = vi.fn();
+    const onDeletePodcast = vi.fn();
     const { container } = render(
       <WorkbenchView
         {...defaultProps({
@@ -71,11 +75,66 @@ describe("WorkbenchView", () => {
           podcastHistory: [podcastFixture],
           podcastAudioUrl: "asset://podcast.wav",
           onPauseVideo,
+          onPlayPodcast,
+          onDownloadPodcastAudio,
+          onDownloadPodcastScript,
+          onDeletePodcast,
         })}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Podcast" }));
+
+    const generateButton = screen.getByRole("button", {
+      name: /generate podcast/i,
+    });
+    const podcastActions = generateButton.parentElement;
+    expect(podcastActions).not.toBeNull();
+    expect(
+      within(podcastActions as HTMLElement).getByRole("button", {
+        name: "Play",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(podcastActions as HTMLElement).getByRole("button", {
+        name: "Download podcast",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(podcastActions as HTMLElement).getByRole("button", {
+        name: "Delete",
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    expect(onPlayPodcast).toHaveBeenCalledWith(podcastFixture);
+
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Download podcast" }),
+      {
+        key: "Enter",
+        code: "Enter",
+      },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Download audio" }),
+    );
+    expect(onDownloadPodcastAudio).toHaveBeenCalledWith(podcastFixture);
+
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Download podcast" }),
+      {
+        key: "Enter",
+        code: "Enter",
+      },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Download script" }),
+    );
+    expect(onDownloadPodcastScript).toHaveBeenCalledWith(podcastFixture);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(onDeletePodcast).toHaveBeenCalledWith(podcastFixture);
 
     const audio = container.querySelector("audio");
     expect(audio).toHaveAttribute("src", "asset://podcast.wav");
