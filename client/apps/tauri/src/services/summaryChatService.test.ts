@@ -5,6 +5,7 @@ import type {
 } from "@/domain/media-library";
 import { createSummaryChatService } from "@/services/summaryChatService";
 import { defaultSystemPromptSettings } from "@/services/systemPromptSettingsService";
+import { sanitizeChatMessageTtsPathSegment } from "@/domain/chat";
 import { createProviderRequestPlan } from "@/domain/provider";
 import type {
   ProviderCompletionRequest,
@@ -97,6 +98,9 @@ describe("summary chat service", () => {
 
     expect(messages).toHaveLength(2);
     expect(messages[0]).toMatchObject({ role: "user", contextMode: "summary" });
+    expect(messages[0].id).not.toBe(messages[1].id);
+    expect(sanitizeChatMessageTtsPathSegment(messages[0].id)).toBe(messages[0].id);
+    expect(sanitizeChatMessageTtsPathSegment(messages[1].id)).toBe(messages[1].id);
     expect(messages[1]).toMatchObject({
       role: "assistant",
       contextMode: "summary",

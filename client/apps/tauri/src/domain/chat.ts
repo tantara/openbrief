@@ -19,6 +19,46 @@ export type ChatPrompt = {
 export const DEFAULT_CHAT_SYSTEM_PROMPT =
   "Answer only from the provided local video context. Say when the context is insufficient.";
 
+export function createChatMessageId({
+  videoId,
+  role,
+  nowIso = new Date().toISOString(),
+  randomSegment = createRandomIdSegment(),
+}: {
+  videoId: string;
+  role: ChatMessage["role"];
+  nowIso?: string;
+  randomSegment?: string;
+}) {
+  const videoSegment = sanitizeChatMessageTtsPathSegment(videoId).slice(0, 32);
+  const parsedTime = Date.parse(nowIso);
+  const timeSegment = Number.isFinite(parsedTime)
+    ? parsedTime.toString(36)
+    : sanitizeChatMessageTtsPathSegment(nowIso).slice(0, 12);
+  const safeRandomSegment = sanitizeChatMessageTtsPathSegment(randomSegment)
+    .slice(0, 16);
+
+  return [
+    "chat",
+    role,
+    videoSegment,
+    timeSegment,
+    safeRandomSegment || createRandomIdSegment(),
+  ].join("-");
+}
+
+export function sanitizeChatMessageTtsPathSegment(value: string) {
+  const sanitized = value
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase()
+    .slice(0, 96);
+
+  return sanitized || "item";
+}
+
 export function createChatPrompt({
   video,
   question,
@@ -56,6 +96,7 @@ export function createChatPrompt({
 }
 
 export function createChatMessage({
+  id,
   videoId,
   role,
   content,
@@ -66,6 +107,7 @@ export function createChatMessage({
   tokenUsage,
   nowIso = new Date().toISOString(),
 }: {
+  id?: string;
   videoId: string;
   role: ChatMessage["role"];
   content: string;
@@ -77,7 +119,7 @@ export function createChatMessage({
   nowIso?: string;
 }): ChatMessage {
   return {
-    id: `chat-${videoId}-${role}-${nowIso}`,
+    id: id ?? createChatMessageId({ videoId, role, nowIso }),
     videoId,
     role,
     content,
@@ -88,4 +130,13 @@ export function createChatMessage({
     tokenUsage,
     createdAtIso: nowIso,
   };
+}
+
+function createRandomIdSegment() {
+  const crypto = globalThis.crypto;
+  if (crypto && "randomUUID" in crypto) {
+    return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  }
+
+  return Math.random().toString(36).slice(2, 14);
 }

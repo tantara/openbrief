@@ -4,7 +4,12 @@ import type {
   TranscriptSegment,
   VideoAsset,
 } from "@/domain/media-library";
-import { createChatMessage, createChatPrompt } from "@/domain/chat";
+import {
+  createChatMessage,
+  createChatMessageId,
+  createChatPrompt,
+  sanitizeChatMessageTtsPathSegment,
+} from "@/domain/chat";
 
 const video: VideoAsset = {
   id: "video-1",
@@ -74,19 +79,43 @@ describe("chat domain", () => {
     expect(prompt.systemPrompt).toBe("Answer in a concise analyst voice.");
   });
 
-  it("creates timestamped chat messages", () => {
+  it("creates TTS-safe unique chat message ids", () => {
     const message = createChatMessage({
       videoId: "video-1",
       role: "user",
       content: "Question",
       contextMode: "summary",
       nowIso: "2026-05-21T00:00:00.000Z",
+      id: createChatMessageId({
+        videoId: "video-1",
+        role: "user",
+        nowIso: "2026-05-21T00:00:00.000Z",
+        randomSegment: "message-1",
+      }),
     });
 
     expect(message).toMatchObject({
-      id: "chat-video-1-user-2026-05-21T00:00:00.000Z",
+      id: "chat-user-video-1-mpeq51c0-message-1",
       contextMode: "summary",
       sessionId: "default",
     });
+    expect(sanitizeChatMessageTtsPathSegment(message.id)).toBe(message.id);
+  });
+
+  it("adds entropy so messages created in the same millisecond do not share ids", () => {
+    const first = createChatMessageId({
+      videoId: "video-1",
+      role: "assistant",
+      nowIso: "2026-05-21T00:00:00.000Z",
+      randomSegment: "first",
+    });
+    const second = createChatMessageId({
+      videoId: "video-1",
+      role: "assistant",
+      nowIso: "2026-05-21T00:00:00.000Z",
+      randomSegment: "second",
+    });
+
+    expect(first).not.toBe(second);
   });
 });

@@ -1,4 +1,7 @@
-import type { ChatContextMode } from "@/domain/chat";
+import {
+  sanitizeChatMessageTtsPathSegment,
+  type ChatContextMode,
+} from "@/domain/chat";
 import type { DownloadRecoveryActionKind } from "@/domain/download-error";
 import type { CaptionLanguage } from "@/domain/helper-protocol";
 import type {
@@ -552,7 +555,10 @@ export function AppShell() {
     ? (activeTranscriptVariantIdsByVideoId[selectedVideo.id] ?? "original")
     : "original";
   const selectedChatTtsLookupKey = selectedChatMessages
-    .map((message) => message.id)
+    .map(
+      (message) =>
+        `${message.id}:${sanitizeChatMessageTtsPathSegment(message.id)}`,
+    )
     .join("\n");
 
   useEffect(() => {
@@ -564,9 +570,19 @@ export function AppShell() {
     let disposed = false;
     const video = selectedVideo;
     const messages = selectedChatMessages;
+    const ttsPathKeyCounts = messages.reduce((counts, message) => {
+      const key = sanitizeChatMessageTtsPathSegment(message.id);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>());
 
     void Promise.all(
       messages.map(async (message) => {
+        const ttsPathKey = sanitizeChatMessageTtsPathSegment(message.id);
+        if ((ttsPathKeyCounts.get(ttsPathKey) ?? 0) > 1) {
+          return [message.id, undefined] as const;
+        }
+
         try {
           const artifact = await findLatestChatBubbleSupertonicAudio({
             video,
