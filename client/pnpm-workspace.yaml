@@ -5,7 +5,24 @@ packages:
 
 allowBuilds:
   '@ffmpeg-installer/darwin-arm64': true
+  '@ffmpeg-installer/darwin-x64': true
+  '@ffmpeg-installer/ffmpeg': true
+  '@ffmpeg-installer/linux-arm': true
+  '@ffmpeg-installer/linux-arm64': true
+  '@ffmpeg-installer/linux-ia32': true
+  '@ffmpeg-installer/linux-x64': true
+  '@ffmpeg-installer/win32-ia32': true
+  '@ffmpeg-installer/win32-x64': true
   '@ffprobe-installer/darwin-arm64': true
+  '@ffprobe-installer/darwin-x64': true
+  '@ffprobe-installer/ffprobe': true
+  '@ffprobe-installer/linux-arm': true
+  '@ffprobe-installer/linux-arm64': true
+  '@ffprobe-installer/linux-ia32': true
+  '@ffprobe-installer/linux-x64': true
+  '@ffprobe-installer/win32-ia32': true
+  '@ffprobe-installer/win32-x64': true
+  '@tailwindcss/oxide': true
   '@prisma/client': true
   '@prisma/engines': true
   better-sqlite3: true
@@ -46,28 +63,6 @@ catalogs:
     react-dom: 19.1.4
 
 linkWorkspacePackages: true
-
-onlyBuiltDependencies:
-  - "@ffmpeg-installer/ffmpeg"
-  - "@ffmpeg-installer/darwin-arm64"
-  - "@ffmpeg-installer/darwin-x64"
-  - "@ffmpeg-installer/linux-arm"
-  - "@ffmpeg-installer/linux-arm64"
-  - "@ffmpeg-installer/linux-ia32"
-  - "@ffmpeg-installer/linux-x64"
-  - "@ffmpeg-installer/win32-ia32"
-  - "@ffmpeg-installer/win32-x64"
-  - "@ffprobe-installer/ffprobe"
-  - "@ffprobe-installer/darwin-arm64"
-  - "@ffprobe-installer/darwin-x64"
-  - "@ffprobe-installer/linux-arm"
-  - "@ffprobe-installer/linux-arm64"
-  - "@ffprobe-installer/linux-ia32"
-  - "@ffprobe-installer/linux-x64"
-  - "@ffprobe-installer/win32-ia32"
-  - "@ffprobe-installer/win32-x64"
-  - "@tailwindcss/oxide"
-  - esbuild
 
 overrides:
   "@types/minimatch": 5.1.2
