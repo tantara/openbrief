@@ -8,10 +8,13 @@ import { describe, expect, it, vi } from "vitest";
 describe("voiceService", () => {
   it("uses the first 20 preview characters for the default WAV filename", () => {
     expect(
-      createTtsPreviewDefaultFileName("Generate this simple preview."),
-    ).toBe("Generate this simple.wav");
-    expect(createTtsPreviewDefaultFileName(" / bad:name? ")).toBe(
-      "bad name.wav",
+      createTtsPreviewDefaultFileName(
+        "Generate this simple preview.",
+        "Default",
+      ),
+    ).toBe("Generate this simple_Default.wav");
+    expect(createTtsPreviewDefaultFileName(" / bad:name? ", "Voice/One")).toBe(
+      "bad name_Voice One.wav",
     );
   });
 
@@ -38,14 +41,14 @@ describe("voiceService", () => {
     const result = await saveTtsPreviewAudio(
       {
         audioBytes: new Uint8Array([1, 2, 3]),
-        defaultFileName: "Generate this simple.wav",
+        defaultFileName: "Generate this simple_Default.wav",
       },
       { invokeCommand: trackedInvokeCommand, fileDialogService },
     );
 
     expect(fileDialogService.selectSavePath).toHaveBeenCalledWith({
       title: "Export voice preview",
-      defaultPath: "Generate this simple.wav",
+      defaultPath: "Generate this simple_Default.wav",
       filters: [{ name: "Audio", extensions: ["wav"] }],
     });
     expect(invokeMock).toHaveBeenCalledWith("export_tts_preview_audio", {

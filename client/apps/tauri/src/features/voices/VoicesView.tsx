@@ -76,6 +76,7 @@ export function VoicesView({
   const [text, setText] = useState(defaultPreviewText);
   const [preview, setPreview] = useState<TtsPreviewResult>();
   const [previewText, setPreviewText] = useState("");
+  const [previewVoiceName, setPreviewVoiceName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
@@ -188,6 +189,7 @@ export function VoicesView({
       revokeObjectUrl(preview?.audioUrl);
       setPreview(nextPreview);
       setPreviewText(text);
+      setPreviewVoiceName(selectedVoice.voice.label);
       setCatalog(await loadVoices());
     } catch (error) {
       setErrorMessage(errorMessageFromUnknown(error));
@@ -204,7 +206,10 @@ export function VoicesView({
     try {
       await onSavePreviewAudio({
         audioBytes: preview.audioBytes,
-        defaultFileName: createTtsPreviewDefaultFileName(previewText || text),
+        defaultFileName: createTtsPreviewDefaultFileName(
+          previewText || text,
+          previewVoiceName,
+        ),
       });
     } catch (error) {
       setErrorMessage(errorMessageFromUnknown(error));

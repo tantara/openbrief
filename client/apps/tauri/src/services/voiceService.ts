@@ -130,16 +130,28 @@ export async function saveTtsPreviewAudio(
   });
 }
 
-export function createTtsPreviewDefaultFileName(text: string) {
-  const stem = Array.from(text.trim())
-    .slice(0, 20)
-    .join("")
+export function createTtsPreviewDefaultFileName(
+  text: string,
+  voiceName?: string,
+) {
+  const promptStem = sanitizeFileNamePart(text, 20);
+  const voiceStem = sanitizeFileNamePart(voiceName ?? "");
+  const stem = [promptStem, voiceStem].filter(Boolean).join("_");
+
+  return `${stem || "voice-preview"}.wav`;
+}
+
+function sanitizeFileNamePart(value: string, maxCharacters?: number) {
+  const limited =
+    typeof maxCharacters === "number"
+      ? Array.from(value.trim()).slice(0, maxCharacters).join("")
+      : value.trim();
+
+  return limited
     .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^[.\s-]+|[.\s-]+$/g, "");
-
-  return `${stem || "voice-preview"}.wav`;
 }
 
 function ensureWavFileName(fileName: string) {
