@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { AddVideoForm } from "@/features/finder/AddVideoForm";
 import { Button } from "@acme/ui/button";
 import {
@@ -37,9 +37,13 @@ export function AddVideoDialog({
   const { t } = useI18n();
   const [tab, setTab] = useState<"new" | "library">("new");
   const [librarySearch, setLibrarySearch] = useState("");
-  const playlistVideoIds = new Set(playlist?.videoIds ?? []);
+  const deferredLibrarySearch = useDeferredValue(librarySearch);
+  const playlistVideoIds = useMemo(
+    () => new Set(playlist?.videoIds ?? []),
+    [playlist?.videoIds],
+  );
   const matchingVideos = useMemo(() => {
-    const needle = librarySearch.trim().toLowerCase();
+    const needle = deferredLibrarySearch.trim().toLowerCase();
 
     return videos.filter((video) => {
       if (playlistVideoIds.has(video.id)) return false;
@@ -49,7 +53,7 @@ export function AddVideoDialog({
         .toLowerCase()
         .includes(needle);
     });
-  }, [librarySearch, playlistVideoIds, videos]);
+  }, [deferredLibrarySearch, playlistVideoIds, videos]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -138,6 +138,29 @@ const PARAKEET_V3_MODEL: SttModelDefinition = SttModelDefinition {
     recommended: true,
 };
 
+const QWEN_ASR_MODELS: [SttModelDefinition; 2] = [
+    SttModelDefinition {
+        id: crate::qwen_asr::QWEN_ASR_06B_MODEL_ID,
+        name: "Qwen3-ASR 0.6B + ForcedAligner",
+        engine: crate::qwen_asr::QWEN_ASR_ENGINE,
+        file_name: crate::qwen_asr::QWEN_ASR_06B_MODEL_DIR,
+        download_url: "Qwen/Qwen3-ASR-0.6B + Qwen/Qwen3-ForcedAligner-0.6B",
+        sha1: "sidecar-downloads-on-demand",
+        size_mb: crate::qwen_asr::QWEN_ASR_06B_SIZE_MB,
+        recommended: true,
+    },
+    SttModelDefinition {
+        id: crate::qwen_asr::QWEN_ASR_17B_MODEL_ID,
+        name: "Qwen3-ASR 1.7B + ForcedAligner",
+        engine: crate::qwen_asr::QWEN_ASR_ENGINE,
+        file_name: crate::qwen_asr::QWEN_ASR_17B_MODEL_DIR,
+        download_url: "Qwen/Qwen3-ASR-1.7B + Qwen/Qwen3-ForcedAligner-0.6B",
+        sha1: "sidecar-downloads-on-demand",
+        size_mb: crate::qwen_asr::QWEN_ASR_17B_SIZE_MB,
+        recommended: false,
+    },
+];
+
 #[tauri::command]
 pub fn stt_model_catalog<R: Runtime>(app: AppHandle<R>) -> Result<SttModelCatalog, String> {
     let models_dir = models_dir_for_app(&app)?;
@@ -171,6 +194,18 @@ fn catalog_for_models_dir_with_fluidaudio(
     parakeet_available: bool,
 ) -> SttModelCatalog {
     let mut models = Vec::new();
+    models.extend(QWEN_ASR_MODELS.iter().map(|model| SttModelInfo {
+        id: model.id,
+        name: model.name,
+        engine: model.engine,
+        file_name: model.file_name,
+        download_url: model.download_url,
+        sha1: model.sha1,
+        size_mb: model.size_mb,
+        downloaded: crate::qwen_asr::qwen_asr_model_downloaded(models_dir, model.id),
+        recommended: model.recommended,
+    }));
+
     if parakeet_available {
         models.push(SttModelInfo {
             id: PARAKEET_V3_MODEL.id,
@@ -181,7 +216,7 @@ fn catalog_for_models_dir_with_fluidaudio(
             sha1: PARAKEET_V3_MODEL.sha1,
             size_mb: PARAKEET_V3_MODEL.size_mb,
             downloaded: crate::fluidaudio::parakeet_model_downloaded(models_dir),
-            recommended: true,
+            recommended: false,
         });
     }
 
@@ -194,7 +229,7 @@ fn catalog_for_models_dir_with_fluidaudio(
         sha1: model.sha1,
         size_mb: model.size_mb,
         downloaded: models_dir.join(model.file_name).is_file(),
-        recommended: !parakeet_available && model.recommended,
+        recommended: false,
     }));
 
     SttModelCatalog {
@@ -214,6 +249,10 @@ fn model_by_id_with_fluidaudio(
 ) -> Result<&'static SttModelDefinition, String> {
     if parakeet_available && model_id == PARAKEET_V3_MODEL.id {
         return Ok(&PARAKEET_V3_MODEL);
+    }
+
+    if let Some(model) = QWEN_ASR_MODELS.iter().find(|model| model.id == model_id) {
+        return Ok(model);
     }
 
     WHISPER_MODELS
@@ -245,6 +284,19 @@ async fn download_model_to_dir(
     if model.id == crate::fluidaudio::PARAKEET_V3_MODEL_ID {
         let (sha1, size_bytes) =
             crate::fluidaudio::download_parakeet_model(app, models_dir).await?;
+        emit_download_progress(app, model, size_bytes, Some(size_bytes));
+        return Ok(SttModelDownloadResult {
+            model_id: model.id,
+            file_name: model.file_name,
+            downloaded: true,
+            sha1,
+            size_bytes,
+        });
+    }
+
+    if crate::qwen_asr::is_qwen_asr_model_id(Some(model.id)) {
+        let (sha1, size_bytes) =
+            crate::qwen_asr::mark_qwen_asr_model_ready(models_dir, model.id).await?;
         emit_download_progress(app, model, size_bytes, Some(size_bytes));
         return Ok(SttModelDownloadResult {
             model_id: model.id,
@@ -362,15 +414,10 @@ mod tests {
             .iter()
             .find(|model| model.recommended)
             .unwrap();
-        if crate::fluidaudio::can_use_fluidaudio_sidecar() {
-            assert_eq!(default_model.engine, "fluidaudio");
-            assert_eq!(default_model.id, "parakeet-tdt-0.6b-v3");
-        } else {
-            assert_eq!(default_model.engine, "whisper.cpp");
-            assert_eq!(default_model.id, "whisper-small");
-        }
+        assert_eq!(default_model.engine, crate::qwen_asr::QWEN_ASR_ENGINE);
+        assert_eq!(default_model.id, crate::qwen_asr::QWEN_ASR_06B_MODEL_ID);
         assert!(default_model.recommended);
-        assert!(!default_model.downloaded);
+        assert!(default_model.downloaded);
     }
 
     #[test]
@@ -445,12 +492,20 @@ mod tests {
                 .find(|model| model.recommended)
                 .unwrap();
             if expected_parakeet {
-                assert_eq!(recommended.id, crate::fluidaudio::PARAKEET_V3_MODEL_ID);
-                assert_eq!(recommended.engine, crate::fluidaudio::PARAKEET_V3_ENGINE);
+                assert!(has_parakeet);
             } else {
-                assert_eq!(recommended.id, "whisper-small", "{label}");
-                assert_eq!(recommended.engine, "whisper.cpp", "{label}");
+                assert!(!has_parakeet);
             }
+            assert_eq!(
+                recommended.id,
+                crate::qwen_asr::QWEN_ASR_06B_MODEL_ID,
+                "{label}"
+            );
+            assert_eq!(
+                recommended.engine,
+                crate::qwen_asr::QWEN_ASR_ENGINE,
+                "{label}"
+            );
 
             fs::remove_dir_all(root).unwrap();
         }

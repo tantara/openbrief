@@ -1,8 +1,13 @@
-import type { Supertonic3LanguageCode } from "@acme/model-card";
+import type { Qwen3TtsLanguageCode, Supertonic3LanguageCode } from "@acme/model-card";
 import { isSynthesisLanguageSupportedByModel } from "@acme/model-card";
+import type { PodcastLengthMode, PodcastOutputMode } from "@/domain/podcast";
 
-export type TtsEngine = "supertonic";
-export type TtsModelId = "Supertone/supertonic-3";
+export type TtsEngine = "supertonic" | "qwen";
+export type TtsModelId =
+  | "Supertone/supertonic-3"
+  | "qwen-tts-0.6B"
+  | "qwen-tts-1.7B";
+export type TtsLanguageCode = Supertonic3LanguageCode | Qwen3TtsLanguageCode;
 export type SupertonicVoiceStyleId =
   | "M1"
   | "M2"
@@ -20,36 +25,66 @@ export type SupertonicPresetVoiceStyle = {
   label: string;
 };
 
+export type QwenPresetVoiceId = "default";
+
+export type QwenPresetVoice = {
+  id: QwenPresetVoiceId;
+  label: string;
+};
+
 export type TtsSettings = {
   engine: TtsEngine;
   modelId: TtsModelId;
   voiceStyleId: SupertonicVoiceStyleId;
-  languageCode: Supertonic3LanguageCode;
+  qwenPresetVoiceId: QwenPresetVoiceId;
+  languageCode: TtsLanguageCode;
   hasSelectedVoice: boolean;
 };
 
+export type PodcastTtsSettings = {
+  mode: PodcastOutputMode;
+  lengthMode: PodcastLengthMode;
+  speakerAVoiceStyleId: SupertonicVoiceStyleId;
+  speakerBVoiceStyleId: SupertonicVoiceStyleId;
+  languageCode: TtsLanguageCode;
+};
+
 export const supertonicPresetVoiceStyles: SupertonicPresetVoiceStyle[] = [
-  { id: "M1", label: "M1" },
-  { id: "M2", label: "M2" },
-  { id: "M3", label: "M3" },
-  { id: "M4", label: "M4" },
-  { id: "M5", label: "M5" },
-  { id: "F1", label: "F1" },
-  { id: "F2", label: "F2" },
-  { id: "F3", label: "F3" },
-  { id: "F4", label: "F4" },
-  { id: "F5", label: "F5" },
+  { id: "M1", label: "Mark (M1)" },
+  { id: "M2", label: "David (M2)" },
+  { id: "M3", label: "Daniel (M3)" },
+  { id: "M4", label: "James (M4)" },
+  { id: "M5", label: "Lucas (M5)" },
+  { id: "F1", label: "Emma (F1)" },
+  { id: "F2", label: "Sophia (F2)" },
+  { id: "F3", label: "Olivia (F3)" },
+  { id: "F4", label: "Ava (F4)" },
+  { id: "F5", label: "Mia (F5)" },
+];
+
+export const qwenPresetVoices: QwenPresetVoice[] = [
+  { id: "default", label: "Default" },
 ];
 
 export const defaultTtsSettings: TtsSettings = {
-  engine: "supertonic",
-  modelId: "Supertone/supertonic-3",
+  engine: "qwen",
+  modelId: "qwen-tts-0.6B",
   voiceStyleId: "M1",
+  qwenPresetVoiceId: "default",
   languageCode: "en",
   hasSelectedVoice: false,
 };
 
+export const defaultPodcastTtsSettings: PodcastTtsSettings = {
+  mode: "podcast-summary",
+  lengthMode: "default",
+  speakerAVoiceStyleId: "M1",
+  speakerBVoiceStyleId: "F2",
+  languageCode: "en",
+};
+
 const storageKey = "openbrief.tts-settings";
+const podcastStorageKey = "openbrief.podcast-tts-settings";
 
 export function loadTtsSettings(storage = browserLocalStorage()): TtsSettings {
   if (!storage) return defaultTtsSettings;
@@ -70,24 +105,84 @@ export function saveTtsSettings(
   return normalized;
 }
 
+export function loadPodcastTtsSettings(
+  storage = browserLocalStorage(),
+): PodcastTtsSettings {
+  if (!storage) return defaultPodcastTtsSettings;
+
+  try {
+    return normalizePodcastTtsSettings(
+      JSON.parse(storage.getItem(podcastStorageKey) ?? "{}"),
+    );
+  } catch {
+    return defaultPodcastTtsSettings;
+  }
+}
+
+export function savePodcastTtsSettings(
+  settings: PodcastTtsSettings,
+  storage = browserLocalStorage(),
+): PodcastTtsSettings {
+  const normalized = normalizePodcastTtsSettings(settings);
+  storage?.setItem(podcastStorageKey, JSON.stringify(normalized));
+  return normalized;
+}
+
 function normalizeTtsSettings(value: unknown): TtsSettings {
   if (!value || typeof value !== "object") return defaultTtsSettings;
 
   const candidate = value as Partial<Record<keyof TtsSettings, unknown>>;
+  const rawModelId = candidate.modelId;
+  const modelWasValid = isTtsModelId(rawModelId);
+  const modelId: TtsModelId = modelWasValid
+    ? rawModelId
+    : defaultTtsSettings.modelId;
 
   return {
-    engine: "supertonic",
-    modelId: "Supertone/supertonic-3",
+    engine: ttsEngineForModel(modelId),
+    modelId,
     voiceStyleId: isSupertonicVoiceStyleId(candidate.voiceStyleId)
       ? candidate.voiceStyleId
       : defaultTtsSettings.voiceStyleId,
-    languageCode: isSupertonicLanguageCode(candidate.languageCode)
+    qwenPresetVoiceId: isQwenPresetVoiceId(candidate.qwenPresetVoiceId)
+      ? candidate.qwenPresetVoiceId
+      : defaultTtsSettings.qwenPresetVoiceId,
+    languageCode: modelWasValid && isTtsLanguageCode(modelId, candidate.languageCode)
       ? candidate.languageCode
-      : defaultTtsSettings.languageCode,
+      : defaultLanguageForModel(modelId),
     hasSelectedVoice:
       typeof candidate.hasSelectedVoice === "boolean"
         ? candidate.hasSelectedVoice
         : defaultTtsSettings.hasSelectedVoice,
+  };
+}
+
+function normalizePodcastTtsSettings(value: unknown): PodcastTtsSettings {
+  if (!value || typeof value !== "object") return defaultPodcastTtsSettings;
+
+  const candidate = value as Partial<Record<keyof PodcastTtsSettings, unknown>>;
+
+  return {
+    mode:
+      candidate.mode === "audiobook-brief" ||
+      candidate.mode === "podcast-summary"
+        ? candidate.mode
+        : defaultPodcastTtsSettings.mode,
+    lengthMode:
+      candidate.lengthMode === "short" ||
+      candidate.lengthMode === "default" ||
+      candidate.lengthMode === "long"
+        ? candidate.lengthMode
+        : defaultPodcastTtsSettings.lengthMode,
+    speakerAVoiceStyleId: isSupertonicVoiceStyleId(candidate.speakerAVoiceStyleId)
+      ? candidate.speakerAVoiceStyleId
+      : defaultPodcastTtsSettings.speakerAVoiceStyleId,
+    speakerBVoiceStyleId: isSupertonicVoiceStyleId(candidate.speakerBVoiceStyleId)
+      ? candidate.speakerBVoiceStyleId
+      : defaultPodcastTtsSettings.speakerBVoiceStyleId,
+    languageCode: isTtsLanguageCode("Supertone/supertonic-3", candidate.languageCode)
+      ? candidate.languageCode
+      : defaultPodcastTtsSettings.languageCode,
   };
 }
 
@@ -97,12 +192,44 @@ function isSupertonicVoiceStyleId(
   return supertonicPresetVoiceStyles.some((voice) => voice.id === value);
 }
 
-function isSupertonicLanguageCode(
+function isQwenPresetVoiceId(value: unknown): value is QwenPresetVoiceId {
+  return qwenPresetVoices.some((voice) => voice.id === value);
+}
+
+function isTtsModelId(value: unknown): value is TtsModelId {
+  return (
+    value === "Supertone/supertonic-3" ||
+    value === "qwen-tts-0.6B" ||
+    value === "qwen-tts-1.7B"
+  );
+}
+
+export function ttsEngineForModel(modelId: TtsModelId): TtsEngine {
+  return modelId.startsWith("qwen-") ? "qwen" : "supertonic";
+}
+
+export function supertonicPresetVoiceStyleLabel(
+  voiceStyleId: SupertonicVoiceStyleId,
+): string {
+  return (
+    supertonicPresetVoiceStyles.find((voice) => voice.id === voiceStyleId)
+      ?.label ?? voiceStyleId
+  );
+}
+
+export function defaultLanguageForModel(modelId: TtsModelId): TtsLanguageCode {
+  return isSynthesisLanguageSupportedByModel(modelId, "en")
+    ? "en"
+    : defaultTtsSettings.languageCode;
+}
+
+function isTtsLanguageCode(
+  modelId: TtsModelId,
   value: unknown,
-): value is Supertonic3LanguageCode {
+): value is TtsLanguageCode {
   return (
     typeof value === "string" &&
-    isSynthesisLanguageSupportedByModel("Supertone/supertonic-3", value)
+    isSynthesisLanguageSupportedByModel(modelId, value)
   );
 }
 

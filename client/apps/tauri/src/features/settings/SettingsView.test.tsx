@@ -122,6 +122,42 @@ const settings: SettingsSnapshot = {
       },
     ],
   },
+  storage: {
+    totalBytes: 1_536,
+    measuredAtIso: "2026-05-24T00:00:00.000Z",
+    items: [
+      {
+        category: "database",
+        label: "Database",
+        sizeBytes: 512,
+        percentage: 33.3,
+      },
+      {
+        category: "video",
+        label: "Video",
+        sizeBytes: 1_024,
+        percentage: 66.7,
+      },
+      {
+        category: "audio",
+        label: "Audio",
+        sizeBytes: 0,
+        percentage: 0,
+      },
+      {
+        category: "pdf",
+        label: "PDF",
+        sizeBytes: 0,
+        percentage: 0,
+      },
+      {
+        category: "model-checkpoint",
+        label: "Model checkpoint",
+        sizeBytes: 0,
+        percentage: 0,
+      },
+    ],
+  },
   compatibility: createPlatformCompatibilityReport({
     platform: "macos",
     architecture: "aarch64",
@@ -145,6 +181,7 @@ describe("SettingsView", () => {
 
     expect(screen.getByText("Appearance")).toBeInTheDocument();
     expect(screen.getByText("Version Info")).toBeInTheDocument();
+    expect(screen.getAllByText("Storage").length).toBeGreaterThan(0);
     expect(screen.getByText("Compatibility")).toBeInTheDocument();
     expect(screen.getByText("Video Download")).toBeInTheDocument();
     expect(screen.getByText("STT")).toBeInTheDocument();
@@ -159,6 +196,7 @@ describe("SettingsView", () => {
 
     expect(screen.getByText("Appearance")).toBeInTheDocument();
     expect(screen.getByText("Version Info")).toBeInTheDocument();
+    expect(screen.getAllByText("Storage").length).toBeGreaterThan(0);
     expect(screen.getByText("Compatibility")).toBeInTheDocument();
     expect(screen.getByText("Video Download")).toBeInTheDocument();
     expect(screen.getByText("STT")).toBeInTheDocument();
@@ -168,6 +206,15 @@ describe("SettingsView", () => {
     expect(screen.queryByText("2.11.2")).not.toBeInTheDocument();
     expect(screen.getAllByText("update available").length).toBeGreaterThan(0);
     expect(screen.getByText("0.2.0")).toBeInTheDocument();
+    expect(screen.getByText("Total: 1.5 KB")).toBeInTheDocument();
+    expect(screen.getByText("Database")).toBeInTheDocument();
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(screen.getByText("Audio")).toBeInTheDocument();
+    expect(screen.getByText("PDF")).toBeInTheDocument();
+    expect(screen.getByText("Model checkpoint")).toBeInTheDocument();
+    expect(screen.getByText("512 B")).toBeInTheDocument();
+    expect(screen.getByText("1.0 KB")).toBeInTheDocument();
+    expect(screen.getByText("67%")).toBeInTheDocument();
     expect(screen.getByText("macOS ARM64")).toBeInTheDocument();
     expect(screen.getAllByText("supported").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Update" })).toBeInTheDocument();
@@ -182,9 +229,9 @@ describe("SettingsView", () => {
     expect(screen.getByText("Whisper Small")).toBeInTheDocument();
     expect(screen.getByText("Advanced models")).toBeInTheDocument();
     expect(screen.getAllByText("not downloaded").length).toBeGreaterThan(0);
-    expect(screen.getByText("Supertone/supertonic-3")).toBeInTheDocument();
+    expect(screen.getAllByText("Qwen3-TTS 0.6B").length).toBeGreaterThan(0);
     expect(screen.getAllByText("English (en)").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("M1 preset").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Default").length).toBeGreaterThan(0);
     expect(screen.getAllByText("OpenAI").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Claude").length).toBeGreaterThan(0);
     expect(screen.getAllByText("configured").length).toBeGreaterThan(0);
@@ -205,6 +252,42 @@ describe("SettingsView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
 
     expect(onThemeChange).toHaveBeenCalledWith("dark");
+  });
+
+  it("refreshes storage usage from settings", async () => {
+    const onRefreshStorage = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SettingsView
+        settings={settings}
+        onRefreshStorage={onRefreshStorage}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+    await waitFor(() => expect(onRefreshStorage).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows storage errors without hiding the rest of settings", () => {
+    render(
+      <SettingsView
+        settings={{
+          ...settings,
+          storage: {
+            ...settings.storage,
+            errorMessage: "storage_read_dir_failed:denied",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Storage usage unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByText("storage_read_dir_failed:denied"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Video Download")).toBeInTheDocument();
+    expect(screen.getByText("AI Providers")).toBeInTheDocument();
   });
 
   it("surfaces platform compatibility warnings", () => {
@@ -333,27 +416,38 @@ describe("SettingsView", () => {
 
   it("changes the default TTS voice from settings", () => {
     const onTtsSettingsChange = vi.fn();
+    const ttsSettings = {
+      ...defaultTtsSettings,
+      engine: "supertonic" as const,
+      modelId: "Supertone/supertonic-3" as const,
+      languageCode: "en" as const,
+    };
 
     render(
       <SettingsView
         settings={settings}
-        ttsSettings={defaultTtsSettings}
+        ttsSettings={ttsSettings}
         onTtsSettingsChange={onTtsSettingsChange}
       />,
     );
+
+    expect(screen.getAllByText("Mark (M1)").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("option", { name: "Sophia (F2)" }),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Voice"), {
       target: { value: "F2" },
     });
 
     expect(onTtsSettingsChange).toHaveBeenCalledWith({
-      ...defaultTtsSettings,
+      ...ttsSettings,
       voiceStyleId: "F2",
       hasSelectedVoice: true,
     });
   });
 
-  it("changes the default TTS language from settings", () => {
+  it("changes the Qwen3-TTS model and language from settings", () => {
     const onTtsSettingsChange = vi.fn();
 
     render(
@@ -364,13 +458,23 @@ describe("SettingsView", () => {
       />,
     );
 
+    fireEvent.change(screen.getByLabelText("Model", { selector: "#settings-tts-model" }), {
+      target: { value: "qwen-tts-1.7B" },
+    });
     fireEvent.change(screen.getByLabelText("Speech language"), {
-      target: { value: "ko" },
+      target: { value: "zh" },
     });
 
-    expect(onTtsSettingsChange).toHaveBeenCalledWith({
+    expect(onTtsSettingsChange).toHaveBeenNthCalledWith(1, {
       ...defaultTtsSettings,
-      languageCode: "ko",
+      engine: "qwen",
+      modelId: "qwen-tts-1.7B",
+      languageCode: "en",
+      hasSelectedVoice: true,
+    });
+    expect(onTtsSettingsChange).toHaveBeenNthCalledWith(2, {
+      ...defaultTtsSettings,
+      languageCode: "zh",
       hasSelectedVoice: true,
     });
   });

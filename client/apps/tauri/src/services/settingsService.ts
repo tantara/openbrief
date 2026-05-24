@@ -8,9 +8,11 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppUpdaterStatus,
   SettingsSnapshot,
+  StorageUsageSnapshot,
   VideoDownloadStatus,
   YtDlpUpdateStatus,
 } from "@/domain/settings";
+import { createZeroStorageUsageSnapshot } from "@/domain/settings";
 import { createPlatformCompatibilityReport } from "@/domain/compatibility";
 import type { ProviderKind } from "@/domain/media-library";
 import {
@@ -49,6 +51,8 @@ type RawProviderApiKeyStatus = {
   credentialRef: string;
 };
 
+type RawStorageUsageSnapshot = StorageUsageSnapshot;
+
 export async function loadSettingsSnapshot(
   invokeCommand: TauriInvoke = invoke,
   platformPluginService: PlatformPluginService = createPlatformPluginService(),
@@ -66,6 +70,7 @@ export async function loadSettingsSnapshot(
     sttCatalog,
     providerStatuses,
     ytdlpUpdate,
+    storage,
   ] =
     await Promise.all([
       getName(),
@@ -75,6 +80,7 @@ export async function loadSettingsSnapshot(
       invokeCommand<RawSttModelCatalog>("stt_model_catalog"),
       invokeCommand<RawProviderApiKeyStatus[]>("provider_api_key_statuses"),
       invokeCommand<YtDlpUpdateStatus>("yt_dlp_update_status"),
+      loadStorageUsageSnapshot(invokeCommand),
     ]);
 
   const updater = options.checkAppUpdate
@@ -115,6 +121,7 @@ export async function loadSettingsSnapshot(
     videoDownload,
     stt,
     llm: createLlmSettings(providerStatuses),
+    storage,
   });
 }
 
@@ -195,7 +202,20 @@ function createFallbackSettingsSnapshot(): SettingsSnapshot {
       ],
     },
     llm: createLlmSettings([]),
+    storage: createZeroStorageUsageSnapshot(),
   });
+}
+
+async function loadStorageUsageSnapshot(
+  invokeCommand: TauriInvoke,
+): Promise<StorageUsageSnapshot> {
+  try {
+    return await invokeCommand<RawStorageUsageSnapshot>("storage_usage_snapshot");
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "storage_usage_failed");
+    return createZeroStorageUsageSnapshot(new Date().toISOString(), message);
+  }
 }
 
 function createDefaultVideoDownloadAccessStatus() {

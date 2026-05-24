@@ -778,6 +778,7 @@ describe("useMediaLibrary", () => {
         .fn()
         .mockResolvedValueOnce(firstSummary)
         .mockResolvedValueOnce(secondSummary),
+      generatePodcastScript: vi.fn(),
       sendChat: vi.fn().mockResolvedValue([]),
       reviewTranscript: vi.fn().mockResolvedValue([]),
       translateTranscript: vi.fn(),
@@ -843,6 +844,7 @@ describe("useMediaLibrary", () => {
     const chatResult = deferred<ChatMessage[]>();
     const summaryChatService: SummaryChatService = {
       generateSummary: vi.fn(() => summaryResult.promise),
+      generatePodcastScript: vi.fn(),
       sendChat: vi.fn(() => chatResult.promise),
       reviewTranscript: vi.fn().mockResolvedValue([]),
       translateTranscript: vi.fn(),
@@ -954,6 +956,7 @@ describe("useMediaLibrary", () => {
     const chatResult = deferred<ChatMessage[]>();
     const summaryChatService: SummaryChatService = {
       generateSummary: vi.fn(),
+      generatePodcastScript: vi.fn(),
       sendChat: vi.fn((request) => {
         request.onTextSnapshot?.("Draft chat answer");
         return chatResult.promise;

@@ -19,6 +19,20 @@ import type {
   SummaryLengthMode,
   VideoSummaryTemplateId,
 } from "@/domain/summary";
+import {
+  createPodcastDocument,
+  createPodcastId,
+  type PodcastDocument,
+  type PodcastGenerationJob,
+  type PodcastLengthMode,
+  type PodcastOutputMode,
+  type PodcastSourceKind,
+  type PodcastSpeakerConfig,
+} from "@/domain/podcast";
+import {
+  generatePodcastTts,
+  type GeneratePodcastTtsRequest,
+} from "@/services/podcastService";
 import type { HelperCommandName } from "@/domain/helper-protocol";
 import type {
   IngestResult,
@@ -71,6 +85,7 @@ export type LibraryView =
   | "finder"
   | "workbench"
   | "playlists"
+  | "voices"
   | "settings"
   | "tutorial"
   | "faq"
@@ -89,9 +104,16 @@ export type MediaLibraryState = {
   summariesByVideoId: Record<string, SummaryDocument>;
   summaryHistoryByVideoId: Record<string, SummaryDocument[]>;
   chatMessagesByVideoId: Record<string, ChatMessage[]>;
+  podcastsByVideoId: Record<string, PodcastDocument>;
+  podcastHistoryByVideoId: Record<string, PodcastDocument[]>;
+  podcastJobsByVideoId: Record<string, PodcastGenerationJob>;
   activeChatSessionIdsByVideoId: Record<string, string>;
   playlists: VideoPlaylist[];
 };
+
+export type PodcastTtsGenerator = (
+  request: GeneratePodcastTtsRequest,
+) => ReturnType<typeof generatePodcastTts>;
 
 export type AiGenerationJob = {
   videoId: string;
@@ -111,6 +133,7 @@ export function useMediaLibrary(
     createDefaultProviderService(),
   ),
   repositoryOverride?: MediaLibraryRepository,
+  podcastTtsGenerator: PodcastTtsGenerator = generatePodcastTts,
 ) {
   const [activeView, setActiveView] = useState<LibraryView>("finder");
   const [librarySnapshot, setLibrarySnapshot] = useState<MediaLibrarySnapshot>({
@@ -122,6 +145,9 @@ export function useMediaLibrary(
   >({});
   const [chatJobsByVideoId, setChatJobsByVideoId] = useState<
     Record<string, AiGenerationJob>
+  >({});
+  const [podcastJobsByVideoId, setPodcastJobsByVideoId] = useState<
+    Record<string, PodcastGenerationJob>
   >({});
   const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>(
     initialVideos[0]?.id,
@@ -183,6 +209,15 @@ export function useMediaLibrary(
   const selectedChatJob = selectedVideoId
     ? chatJobsByVideoId[selectedVideoId]
     : undefined;
+  const selectedPodcastJob = selectedVideoId
+    ? podcastJobsByVideoId[selectedVideoId]
+    : undefined;
+  const selectedPodcast = selectedVideoId
+    ? librarySnapshot.podcastsByVideoId[selectedVideoId]
+    : undefined;
+  const selectedPodcastHistory = selectedVideoId
+    ? librarySnapshot.podcastHistoryByVideoId[selectedVideoId] ?? []
+    : [];
   const selectedChatMessages = selectedVideoId
     ? (librarySnapshot.chatMessagesByVideoId[selectedVideoId] ?? []).filter(
         (message) =>
@@ -542,6 +577,167 @@ export function useMediaLibrary(
     }
   }
 
+  async function generatePodcast({
+    videoId,
+    provider = "openai",
+    model,
+    mode,
+    sourceKind,
+    lengthMode,
+    outputLanguage,
+    speakers,
+    tts,
+    transcript,
+    transcriptVariantId,
+    summaryId,
+  }: {
+    videoId: string;
+    provider?: ProviderKind;
+    model?: string;
+    mode: PodcastOutputMode;
+    sourceKind: PodcastSourceKind;
+    lengthMode: PodcastLengthMode;
+    outputLanguage?: string;
+    speakers: [PodcastSpeakerConfig, PodcastSpeakerConfig];
+    tts: PodcastDocument["tts"];
+    transcript?: TranscriptSegment[];
+    transcriptVariantId?: string;
+    summaryId?: string;
+  }) {
+    const video = findVideo(videoId);
+    const resolvedTranscript =
+      transcript ?? librarySnapshotRef.current.transcriptsByVideoId[videoId] ?? [];
+    const transcriptVariant = transcriptVariantId
+      ? (librarySnapshotRef.current.transcriptVariantsByVideoId[videoId] ?? []).find(
+          (variant) => variant.id === transcriptVariantId,
+        )
+      : undefined;
+    const summary =
+      summaryById(librarySnapshotRef.current, videoId, summaryId) ??
+      latestSummaryForVideo(librarySnapshotRef.current, videoId);
+
+    setPodcastJob(videoId, {
+      videoId,
+      status: "running",
+      stage: "script",
+      provider,
+      model,
+    });
+
+    try {
+      const script = await summaryChatService.generatePodcastScript({
+        video,
+        sourceKind,
+        summary,
+        transcript: resolvedTranscript,
+        transcriptVariant,
+        mode,
+        lengthMode,
+        outputLanguage,
+        speakers,
+        provider,
+        model,
+      });
+      const podcastId = createPodcastId(videoId);
+      const basePodcast = createPodcastDocument({
+        video,
+        id: podcastId,
+        mode,
+        sourceKind,
+        lengthMode,
+        outputLanguage,
+        provider,
+        model,
+        script,
+        tts,
+        sourceSummaryId: summary?.id,
+        sourceTranscriptVariantId: transcriptVariant?.id,
+      });
+
+      setPodcastJob(videoId, {
+        videoId,
+        status: "running",
+        stage: "tts",
+        provider,
+        model,
+      });
+      const ttsResult = await podcastTtsGenerator({
+        video,
+        podcast: basePodcast,
+      });
+      const podcast = {
+        ...basePodcast,
+        artifacts: {
+          ...basePodcast.artifacts,
+          manifestPath: ttsResult.manifestPath,
+          scriptPath: ttsResult.scriptPath,
+          podcastAudioPath: ttsResult.audioPath,
+          turnAudioPaths: ttsResult.turnAudioPaths,
+        },
+        durationSeconds: ttsResult.durationSeconds,
+        sizeBytes: ttsResult.sizeBytes,
+      } satisfies PodcastDocument;
+
+      updateLibrarySnapshot(
+        (current) => ({
+          ...current,
+          podcastsByVideoId: {
+            ...current.podcastsByVideoId,
+            [videoId]: podcast,
+          },
+          podcastHistoryByVideoId: {
+            ...current.podcastHistoryByVideoId,
+            [videoId]: upsertPodcastDocument(
+              current.podcastHistoryByVideoId[videoId] ?? [],
+              podcast,
+            ),
+          },
+        }),
+        true,
+      );
+      clearPodcastJob(videoId);
+      return podcast;
+    } catch (error) {
+      setPodcastJob(videoId, {
+        videoId,
+        status: "failed",
+        stage: "tts",
+        provider,
+        model,
+        errorMessage:
+          error instanceof Error ? error.message : "podcast_generation_failed",
+      });
+      throw error;
+    }
+  }
+
+  function deletePodcast(videoId: string, podcastId: string) {
+    updateLibrarySnapshot(
+      (current) => {
+        const history = (current.podcastHistoryByVideoId[videoId] ?? []).filter(
+          (podcast) => podcast.id !== podcastId,
+        );
+        return {
+          ...current,
+          podcastsByVideoId:
+            current.podcastsByVideoId[videoId]?.id === podcastId
+              ? history[0]
+                ? {
+                    ...current.podcastsByVideoId,
+                    [videoId]: history[0],
+                  }
+                : omitRecordKey(current.podcastsByVideoId, videoId)
+              : current.podcastsByVideoId,
+          podcastHistoryByVideoId: {
+            ...current.podcastHistoryByVideoId,
+            [videoId]: history,
+          },
+        };
+      },
+      true,
+    );
+  }
+
   function resetChatSession(videoId: string) {
     const nextSessionId = `session-${Date.now().toString(36)}-${Math.random()
       .toString(36)
@@ -685,11 +881,17 @@ export function useMediaLibrary(
           current.chatMessagesByVideoId,
           videoId,
         ),
+        podcastsByVideoId: omitRecordKey(current.podcastsByVideoId, videoId),
+        podcastHistoryByVideoId: omitRecordKey(
+          current.podcastHistoryByVideoId,
+          videoId,
+        ),
       }),
       true,
     );
     clearSummaryJob(videoId);
     clearChatJob(videoId);
+    clearPodcastJob(videoId);
     setSelectedVideoId((current) => {
       if (current !== videoId) return current;
 
@@ -953,6 +1155,9 @@ export function useMediaLibrary(
       summariesByVideoId: librarySnapshot.summariesByVideoId,
       summaryHistoryByVideoId: librarySnapshot.summaryHistoryByVideoId,
       chatMessagesByVideoId: librarySnapshot.chatMessagesByVideoId,
+      podcastsByVideoId: librarySnapshot.podcastsByVideoId,
+      podcastHistoryByVideoId: librarySnapshot.podcastHistoryByVideoId,
+      podcastJobsByVideoId,
       activeChatSessionIdsByVideoId,
       playlists: librarySnapshot.playlists,
     } satisfies MediaLibraryState,
@@ -963,6 +1168,9 @@ export function useMediaLibrary(
     selectedSummaryHistory,
     selectedSummaryJob,
     selectedChatJob,
+    selectedPodcast,
+    selectedPodcastHistory,
+    selectedPodcastJob,
     selectedChatMessages,
     importLocalFile,
     importYoutubeUrl,
@@ -970,6 +1178,8 @@ export function useMediaLibrary(
     listCaptionLanguages,
     generateSummary,
     sendChat,
+    generatePodcast,
+    deletePodcast,
     resetChatSession,
     reviewTranscript,
     translateTranscript,
@@ -1020,6 +1230,14 @@ export function useMediaLibrary(
   function clearChatJob(videoId: string) {
     setChatJobsByVideoId((current) => omitRecordKey(current, videoId));
   }
+
+  function setPodcastJob(videoId: string, job: PodcastGenerationJob) {
+    setPodcastJobsByVideoId((current) => ({ ...current, [videoId]: job }));
+  }
+
+  function clearPodcastJob(videoId: string) {
+    setPodcastJobsByVideoId((current) => omitRecordKey(current, videoId));
+  }
 }
 
 function omitRecordKey<TValue>(record: Record<string, TValue>, key: string) {
@@ -1050,6 +1268,16 @@ function upsertTranscriptVariant(
       (Date.parse(left.createdAtIso) || 0)
     );
   });
+}
+
+function upsertPodcastDocument(
+  podcasts: PodcastDocument[],
+  podcast: PodcastDocument,
+) {
+  return [
+    podcast,
+    ...podcasts.filter((candidate) => candidate.id !== podcast.id),
+  ].sort(comparePodcastCreatedAtDesc);
 }
 
 function summaryHistoryForVideo(
@@ -1088,6 +1316,16 @@ function summaryById(
 function compareSummaryCreatedAtDesc(
   left: SummaryDocument,
   right: SummaryDocument,
+) {
+  return (
+    (Date.parse(right.createdAtIso) || 0) -
+    (Date.parse(left.createdAtIso) || 0)
+  );
+}
+
+function comparePodcastCreatedAtDesc(
+  left: PodcastDocument,
+  right: PodcastDocument,
 ) {
   return (
     (Date.parse(right.createdAtIso) || 0) -

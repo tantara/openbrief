@@ -3,6 +3,7 @@
     "externalBin": [
       "binaries/openbrief-helper",
       "binaries/openbrief-supertonic",
+      "binaries/openbrief-voicebox",
       "binaries/openbrief-fluidaudio"
     ]
   }

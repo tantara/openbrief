@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openbrief-voicebox"
+version = "0.1.0"
+description = "OpenBrief Voicebox sidecar for Qwen3-TTS"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+qwen = [
+  "accelerate>=0.26",
+  "huggingface_hub>=0.34",
+  "numpy>=1.26",
+  "qwen-asr",
+  "qwen-tts>=0.0.5",
+  "soundfile>=0.12",
+  "transformers>=4.50,<=4.57.6",
+]
+torch = [
+  "torch>=2.4",
+]
+mlx = [
+  "mlx>=0.25; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "mlx-audio>=0.2; platform_system == 'Darwin' and platform_machine == 'arm64'",
+]
+
+[project.scripts]
+openbrief-voicebox = "openbrief_voicebox:main"
+
+[tool.setuptools]
+py-modules = ["openbrief_voicebox"]

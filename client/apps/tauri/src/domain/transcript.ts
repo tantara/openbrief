@@ -112,6 +112,7 @@ export function createTranscribeAudioCommand({
 }): TranscribeAudioCommand {
   const requestedModelPath = request.whisperModelPath ?? "models/whisper-small-default.bin";
   const prefersParakeet = requestedModelPath.includes("fluidaudio/parakeet-tdt-0.6b-v3");
+  const qwenAsrModelId = qwenAsrModelIdForPath(requestedModelPath);
   const language = request.whisperLanguage ?? request.languages?.[0] ?? "en";
 
   return {
@@ -119,12 +120,23 @@ export function createTranscribeAudioCommand({
     command: "transcribe_audio",
     jobId: createTranscriptJobId(request.video.id, "stt"),
     audioPath,
-    enginePreference: "auto",
+    enginePreference: qwenAsrModelId ? "qwen3-asr" : "auto",
     ...(prefersParakeet ? { modelId: "parakeet-tdt-0.6b-v3" } : {}),
+    ...(qwenAsrModelId ? { modelId: qwenAsrModelId } : {}),
     modelPath: prefersParakeet ? "models/ggml-small.bin" : requestedModelPath,
     outputPath: createVideoTranscriptJsonArtifactPath(request.video.id),
     ...(language ? { language } : {}),
   };
+}
+
+function qwenAsrModelIdForPath(modelPath: string) {
+  if (modelPath.includes("voicebox/qwen3-asr-1.7B")) {
+    return "qwen3-asr-1.7B";
+  }
+  if (modelPath.includes("voicebox/qwen3-asr-0.6B")) {
+    return "qwen3-asr-0.6B";
+  }
+  return undefined;
 }
 
 export function createCompletedTranscriptJob({

@@ -323,6 +323,10 @@ function createMockCompletionText(request: ProviderCompletionRequest) {
     return createMockTranscriptTransform(request.userPrompt);
   }
 
+  if (request.operation === "podcast_script") {
+    return createMockPodcastScript();
+  }
+
   return createMockChatReply(request.userPrompt);
 }
 
@@ -341,6 +345,31 @@ function createMockSummary(prompt: string) {
 
 function createMockChatReply(prompt: string) {
   return `I used the selected local context to answer: ${prompt.slice(0, 160)}`;
+}
+
+function createMockPodcastScript() {
+  return JSON.stringify({
+    title: "OpenBrief podcast",
+    description: "A two-speaker audio brief generated from the current media.",
+    turns: [
+      {
+        speakerId: "A",
+        text: "Welcome to this OpenBrief audio overview. We will highlight the main ideas from the source.",
+      },
+      {
+        speakerId: "B",
+        text: "The key point is that the material has been condensed into a focused, listenable script.",
+      },
+      {
+        speakerId: "A",
+        text: "We will keep the discussion grounded in the transcript and summary instead of adding unrelated context.",
+      },
+      {
+        speakerId: "B",
+        text: "That makes this useful as a quick recap before returning to the original media.",
+      },
+    ],
+  });
 }
 
 function createMockTokenUsage(

@@ -4,15 +4,15 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
     "./client": {
-      "types": "./dist/client.d.ts",
+      "types": "./src/client.ts",
       "default": "./src/client.ts"
     },
     "./schema": {
-      "types": "./dist/schema.d.ts",
+      "types": "./src/schema.ts",
       "default": "./src/schema.ts"
     }
   },
@@ -29,6 +29,7 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
+    "@acme/openbrief-content": "workspace:*",
     "@vercel/postgres": "^0.10.0",
     "drizzle-orm": "^0.44.7",
     "drizzle-zod": "^0.8.3",

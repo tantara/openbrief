@@ -68,7 +68,7 @@ export type TranscodeVideoCommand = HelperCommandBase<"transcode_video"> & {
 
 export type TranscribeAudioCommand = HelperCommandBase<"transcribe_audio"> & {
   audioPath: string;
-  enginePreference?: "auto" | "whisper" | "fluidaudio";
+  enginePreference?: "auto" | "whisper" | "fluidaudio" | "qwen3-asr";
   modelId?: string;
   modelPath: string;
   outputPath: string;
@@ -174,7 +174,7 @@ export type HelperCommandResult =
       transcriptPath: string;
       text?: string;
       segments?: TranscriptSegment[];
-      engine?: "whisper" | "fluidaudio";
+      engine?: "whisper" | "fluidaudio" | "qwen3-asr";
       modelId?: string;
       language?: string;
     }

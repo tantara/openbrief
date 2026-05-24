@@ -24,6 +24,7 @@ export type TranscriptionLanguageCode =
   | "eu"
   | "fa"
   | "fi"
+  | "fil"
   | "fo"
   | "fr"
   | "gl"
@@ -106,7 +107,7 @@ export interface TranscriptionLanguage {
   label: string;
 }
 
-export type LocalSttEngine = "fluidaudio" | "whisper.cpp";
+export type LocalSttEngine = "fluidaudio" | "whisper.cpp" | "qwen3-asr";
 
 export interface LocalSttModelCard {
   id: string;
@@ -115,7 +116,19 @@ export interface LocalSttModelCard {
   supportedLanguages: readonly TranscriptionLanguage[];
 }
 
-export type LocalTtsEngine = "supertonic";
+export type Qwen3TtsLanguageCode =
+  | "zh"
+  | "en"
+  | "ja"
+  | "ko"
+  | "de"
+  | "fr"
+  | "ru"
+  | "pt"
+  | "es"
+  | "it";
+
+export type LocalTtsEngine = "supertonic" | "qwen";
 
 export interface LocalTtsModelCard {
   id: string;
@@ -155,6 +168,20 @@ export const parakeetV3Languages = [
   { code: "sv", label: "Swedish" },
   { code: "ru", label: "Russian" },
   { code: "uk", label: "Ukrainian" },
+] as const satisfies readonly TranscriptionLanguage[];
+
+export const qwen3AsrLanguages = [
+  { code: "zh", label: "Chinese" },
+  { code: "en", label: "English" },
+  { code: "yue", label: "Cantonese" },
+  { code: "fr", label: "French" },
+  { code: "de", label: "German" },
+  { code: "it", label: "Italian" },
+  { code: "ja", label: "Japanese" },
+  { code: "ko", label: "Korean" },
+  { code: "pt", label: "Portuguese" },
+  { code: "ru", label: "Russian" },
+  { code: "es", label: "Spanish" },
 ] as const satisfies readonly TranscriptionLanguage[];
 
 export const whisperLanguages = [
@@ -297,6 +324,19 @@ export const supertonic3Languages = [
 export type Supertonic3LanguageCode =
   (typeof supertonic3Languages)[number]["code"];
 
+export const qwen3TtsLanguages = [
+  { code: "zh", label: "Chinese" },
+  { code: "en", label: "English" },
+  { code: "ja", label: "Japanese" },
+  { code: "ko", label: "Korean" },
+  { code: "de", label: "German" },
+  { code: "fr", label: "French" },
+  { code: "ru", label: "Russian" },
+  { code: "pt", label: "Portuguese" },
+  { code: "es", label: "Spanish" },
+  { code: "it", label: "Italian" },
+] as const satisfies readonly TranscriptionLanguage[];
+
 const whisperModelIds = new Set([
   "whisper-tiny",
   "whisper-base",
@@ -306,7 +346,15 @@ const whisperModelIds = new Set([
   "whisper-large-v3-turbo",
 ]);
 
+const qwen3AsrModelIds = new Set(["qwen3-asr-0.6B", "qwen3-asr-1.7B"]);
+
 export const localSttModelCards = [
+  {
+    id: "qwen3-asr",
+    name: "Qwen3-ASR + ForcedAligner",
+    engine: "qwen3-asr",
+    supportedLanguages: qwen3AsrLanguages,
+  },
   {
     id: "parakeet-tdt-0.6b-v3",
     name: "Parakeet v3",
@@ -321,8 +369,9 @@ export const localSttModelCards = [
   },
 ] as const satisfies readonly LocalSttModelCard[];
 
-const parakeetV3ModelCard = localSttModelCards[0];
-const whisperModelCard = localSttModelCards[1];
+const qwen3AsrModelCard = localSttModelCards[0];
+const parakeetV3ModelCard = localSttModelCards[1];
+const whisperModelCard = localSttModelCards[2];
 
 export const localTtsModelCards = [
   {
@@ -331,11 +380,26 @@ export const localTtsModelCards = [
     engine: "supertonic",
     supportedLanguages: supertonic3Languages,
   },
+  {
+    id: "qwen-tts-0.6B",
+    name: "Qwen3-TTS 0.6B",
+    engine: "qwen",
+    supportedLanguages: qwen3TtsLanguages,
+  },
+  {
+    id: "qwen-tts-1.7B",
+    name: "Qwen3-TTS 1.7B",
+    engine: "qwen",
+    supportedLanguages: qwen3TtsLanguages,
+  },
 ] as const satisfies readonly LocalTtsModelCard[];
 
 const supertonic3ModelCard = localTtsModelCards[0];
+const qwen3Tts06BModelCard = localTtsModelCards[1];
+const qwen3Tts17BModelCard = localTtsModelCards[2];
 
 export function localSttModelCardForModel(modelId?: string): LocalSttModelCard {
+  if (modelId && qwen3AsrModelIds.has(modelId)) return qwen3AsrModelCard;
   if (modelId === parakeetV3ModelCard.id) return parakeetV3ModelCard;
   if (!modelId || whisperModelIds.has(modelId)) return whisperModelCard;
   return whisperModelCard;
@@ -362,6 +426,8 @@ export function localTtsModelCardForModel(modelId?: string): LocalTtsModelCard {
   if (!modelId || modelId === supertonic3ModelCard.id) {
     return supertonic3ModelCard;
   }
+  if (modelId === qwen3Tts06BModelCard.id) return qwen3Tts06BModelCard;
+  if (modelId === qwen3Tts17BModelCard.id) return qwen3Tts17BModelCard;
   return supertonic3ModelCard;
 }
 

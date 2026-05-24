@@ -9,6 +9,7 @@ import type {
   VideoAsset,
 } from "@/domain/media-library";
 import {
+  nextVoiceCloneTranscriptSegmentSelection,
   shortProviderModelName,
   WorkbenchView,
 } from "@/features/workbench/WorkbenchView";
@@ -16,6 +17,64 @@ import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
 import { createInitialVideoPlaybackState } from "@/hooks/useVideoPlayback";
 
 describe("WorkbenchView", () => {
+  it("renders podcast controls and submits preset Supertonic speakers", async () => {
+    const onGeneratePodcast = vi.fn().mockResolvedValue(undefined);
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          summary: summaryFixture,
+          onGeneratePodcast,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /generate podcast/i }));
+
+    await waitFor(() => expect(onGeneratePodcast).toHaveBeenCalledTimes(1));
+    expect(onGeneratePodcast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "podcast-summary",
+        sourceKind: "current-summary",
+        lengthMode: "default",
+        languageCode: "en",
+        speakers: [
+          expect.objectContaining({ id: "A", voiceStyleId: "M1" }),
+          expect.objectContaining({ id: "B", voiceStyleId: "F2" }),
+        ],
+      }),
+    );
+  });
+
+  it("limits voice clone transcript selection to three contiguous blocks", () => {
+    const transcript: TranscriptSegment[] = [
+      { id: "s1", startSeconds: 0, endSeconds: 5, text: "One", sourceKind: "local-stt" },
+      { id: "s2", startSeconds: 5, endSeconds: 10, text: "Two", sourceKind: "local-stt" },
+      { id: "s3", startSeconds: 10, endSeconds: 15, text: "Three", sourceKind: "local-stt" },
+      { id: "s4", startSeconds: 15, endSeconds: 20, text: "Four", sourceKind: "local-stt" },
+    ];
+
+    expect(nextVoiceCloneTranscriptSegmentSelection(transcript, [], "s1")).toEqual([
+      "s1",
+    ]);
+    expect(
+      nextVoiceCloneTranscriptSegmentSelection(transcript, ["s1"], "s2"),
+    ).toEqual(["s1", "s2"]);
+    expect(
+      nextVoiceCloneTranscriptSegmentSelection(transcript, ["s1", "s2"], "s3"),
+    ).toEqual(["s1", "s2", "s3"]);
+    expect(
+      nextVoiceCloneTranscriptSegmentSelection(
+        transcript,
+        ["s1", "s2", "s3"],
+        "s4",
+      ),
+    ).toEqual(["s4"]);
+    expect(
+      nextVoiceCloneTranscriptSegmentSelection(transcript, ["s1"], "s3"),
+    ).toEqual(["s3"]);
+  });
+
   it("renders a selection prompt without a video", () => {
     const onAddVideo = vi.fn();
 
@@ -1187,6 +1246,43 @@ describe("WorkbenchView", () => {
     );
   });
 
+  it("shows a global chat speech generation as the active read state", () => {
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: chatFixture,
+          generatingChatTtsMessageId: "chat-1",
+          onReadChatMessage: vi.fn().mockResolvedValue(undefined),
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Read message" }))
+      .toBeDisabled();
+  });
+
+  it("keeps other chat bubbles clickable while a different message is generating", () => {
+    const latestMessage = {
+      ...chatFixture[0],
+      id: "chat-2",
+      content: "Second answer",
+      tokenUsage: undefined,
+    };
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: [chatFixture[0], latestMessage],
+          generatingChatTtsMessageId: "chat-1",
+          onReadChatMessage: vi.fn().mockResolvedValue(undefined),
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Read message" }))
+      .not.toBeDisabled();
+  });
+
   it("shows a download action when generated chat speech exists", () => {
     const onDownloadChatTtsAudio = vi.fn();
     const audio = {
@@ -1257,6 +1353,88 @@ describe("WorkbenchView", () => {
       expect.objectContaining({ id: "chat-1" }),
       audio,
     );
+  });
+
+  it("only shows generated speech controls for the owning chat bubble", () => {
+    const onPlayChatTtsAudio = vi.fn();
+    const onReadChatMessage = vi.fn().mockResolvedValue(undefined);
+    const onDownloadChatTtsAudio = vi.fn();
+    const audio = {
+      audioPath:
+        "videos/video-1/chat/tts/chat-1/voice-message-123/voice-message-123.wav",
+      generationId: "voice-message-123",
+      sizeBytes: 12,
+    };
+    const secondMessage = {
+      ...chatFixture[0],
+      id: "chat-2",
+      content: "Second answer",
+      tokenUsage: undefined,
+    };
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: [chatFixture[0], secondMessage],
+          chatTtsAudioByMessageId: {
+            "chat-1": audio,
+            "chat-2": audio,
+          },
+          onPlayChatTtsAudio,
+          onReadChatMessage,
+          onDownloadChatTtsAudio,
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Play voice message" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download voice message" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read message" }))
+      .toBeInTheDocument();
+
+    const olderBubble = screen.getByText("Answer from transcript").closest("li");
+    expect(olderBubble).not.toBeNull();
+    fireEvent.pointerEnter(olderBubble as HTMLElement);
+
+    expect(screen.getByRole("button", { name: "Play voice message" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download voice message" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Regenerate voice message" }))
+      .toBeInTheDocument();
+  });
+
+  it("shows pause action for the currently playing chat speech", () => {
+    const onPlayChatTtsAudio = vi.fn();
+    const onPauseChatTtsAudio = vi.fn();
+    const audio = {
+      audioPath:
+        "videos/video-1/chat/tts/chat-1/voice-message-123/voice-message-123.wav",
+      generationId: "voice-message-123",
+      sizeBytes: 12,
+    };
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: chatFixture,
+          chatTtsAudioByMessageId: { "chat-1": audio },
+          playingChatTtsMessageId: "chat-1",
+          onPlayChatTtsAudio,
+          onPauseChatTtsAudio,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause voice message" }));
+
+    expect(onPauseChatTtsAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "chat-1" }),
+      audio,
+    );
+    expect(onPlayChatTtsAudio).not.toHaveBeenCalled();
   });
 
   it("reveals older chat bubble actions only on hover or focus", () => {

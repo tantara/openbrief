@@ -1,0 +1,201 @@
+name: Qwen3 ASR 0.6B Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to test"
+        required: true
+        type: choice
+        default: "all"
+        options:
+          - all
+          - macos-arm64
+          - macos-intel
+          - windows-x64
+          - linux-x64
+      language:
+        description: "Transcription language code"
+        required: true
+        type: choice
+        default: "en"
+        options:
+          - auto
+          - zh
+          - en
+          - yue
+          - fr
+          - de
+          - it
+          - ja
+          - ko
+          - pt
+          - ru
+          - es
+
+permissions:
+  contents: read
+
+jobs:
+  select-platforms:
+    name: Select platforms
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          macos_arm64='{"name":"macos-arm64","os":"macos-latest"}'
+          macos_intel='{"name":"macos-intel","os":"macos-15-intel"}'
+          windows_x64='{"name":"windows-x64","os":"windows-latest"}'
+          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04"}'
+
+          case "${{ inputs.platform }}" in
+            all)
+              matrix="{\"include\":[${macos_arm64},${macos_intel},${windows_x64},${linux_x64}]}"
+              ;;
+            macos-arm64)
+              matrix="{\"include\":[${macos_arm64}]}"
+              ;;
+            macos-intel)
+              matrix="{\"include\":[${macos_intel}]}"
+              ;;
+            windows-x64)
+              matrix="{\"include\":[${windows_x64}]}"
+              ;;
+            linux-x64)
+              matrix="{\"include\":[${linux_x64}]}"
+              ;;
+            *)
+              echo "Unsupported platform: ${{ inputs.platform }}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Qwen3 ASR 0.6B ${{ matrix.name }}
+    needs: select-platforms
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: client/apps/tauri/src-tauri/sidecars/voicebox-python/pyproject.toml
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Voicebox PyInstaller sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          node client/apps/tauri/scripts/build-voicebox-sidecar.js --release
+          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
+          import { sidecarFileName, getHostTriple } from "./client/apps/tauri/scripts/setup-dev-sidecars.js";
+          const targetTriple = getHostTriple();
+          const fileName = sidecarFileName("openbrief-voicebox", targetTriple);
+          console.log(`OPENBRIEF_VOICEBOX_TARGET=${targetTriple}`);
+          console.log(`OPENBRIEF_VOICEBOX_SIDECAR=client/apps/tauri/src-tauri/binaries/${fileName}`);
+          NODE
+
+      - name: Verify sidecar command surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$OPENBRIEF_VOICEBOX_SIDECAR"
+          "$OPENBRIEF_VOICEBOX_SIDECAR" runtime
+          "$OPENBRIEF_VOICEBOX_SIDECAR" models
+          "$OPENBRIEF_VOICEBOX_SIDECAR" transcribe --help
+
+      - name: Generate timestamped ASR smoke transcript
+        shell: bash
+        env:
+          OPENBRIEF_QWEN_ASR_SMOKE: "1"
+          OPENBRIEF_QWEN_ASR_MODEL: qwen3-asr-0.6B
+          OPENBRIEF_QWEN_ASR_LANGUAGE: ${{ inputs.language }}
+        run: |
+          set -euo pipefail
+          mkdir -p smoke-output
+          audio="smoke-output/openbrief-qwen-asr-input-${{ matrix.name }}.wav"
+          result="smoke-output/openbrief-qwen-asr-${{ matrix.name }}.json"
+          transcript="smoke-output/openbrief-qwen-asr-transcript-${{ matrix.name }}.json"
+          cache="smoke-output/cache"
+
+          python - <<'PY' "$audio"
+          import math
+          import struct
+          import sys
+          import wave
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          sample_rate = 16000
+          path.parent.mkdir(parents=True, exist_ok=True)
+          with wave.open(str(path), "wb") as wav:
+              wav.setnchannels(1)
+              wav.setsampwidth(2)
+              wav.setframerate(sample_rate)
+              for index in range(int(sample_rate * 0.9)):
+                  value = int(0.08 * 32767 * math.sin(2 * math.pi * 440 * index / sample_rate))
+                  wav.writeframesraw(struct.pack("<h", value))
+          PY
+
+          "$OPENBRIEF_VOICEBOX_SIDECAR" transcribe \
+            --model "$OPENBRIEF_QWEN_ASR_MODEL" \
+            --aligner qwen3-forced-aligner-0.6B \
+            --audio "$audio" \
+            --output "$transcript" \
+            --language "$OPENBRIEF_QWEN_ASR_LANGUAGE" \
+            --cache-dir "$cache" | tee "$result"
+
+          python - <<'PY' "$result" "$transcript"
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          result = json.loads(Path(sys.argv[1]).read_text())
+          transcript = json.loads(Path(sys.argv[2]).read_text())
+
+          if result["engine"] != "qwen3-asr":
+              raise SystemExit(f"unexpected engine: {result['engine']}")
+          if result["modelId"] != os.environ["OPENBRIEF_QWEN_ASR_MODEL"]:
+              raise SystemExit(f"unexpected model: {result['modelId']}")
+          if result["backend"] != "smoke":
+              raise SystemExit(f"unexpected backend: {result['backend']}")
+          if not result["forcedAligner"]["enabled"]:
+              raise SystemExit("forced aligner must be enabled")
+          words = result["segments"][0].get("words") or []
+          if not words or not {"text", "startSeconds", "endSeconds"} <= set(words[0]):
+              raise SystemExit("missing word timestamps")
+          if transcript["segments"][0]["words"] != words:
+              raise SystemExit("written transcript does not match command output")
+
+          print(json.dumps({"target": os.environ["OPENBRIEF_VOICEBOX_TARGET"], "words": len(words)}))
+          PY
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-asr-smoke-${{ matrix.name }}
+          path: |
+            smoke-output/openbrief-qwen-asr-${{ matrix.name }}.json
+            smoke-output/openbrief-qwen-asr-transcript-${{ matrix.name }}.json
+            smoke-output/openbrief-qwen-asr-input-${{ matrix.name }}.wav
+          if-no-files-found: error

@@ -1,0 +1,198 @@
+name: Qwen3 TTS Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to test"
+        required: true
+        type: choice
+        default: "all"
+        options:
+          - all
+          - macos-arm64
+          - macos-intel
+          - windows-x64
+          - linux-x64
+      model:
+        description: "Qwen3-TTS model"
+        required: true
+        type: choice
+        default: "qwen-tts-0.6B"
+        options:
+          - qwen-tts-0.6B
+          - qwen-tts-1.7B
+      language:
+        description: "Speech language code"
+        required: true
+        type: choice
+        default: "en"
+        options:
+          - zh
+          - en
+          - ja
+          - ko
+          - de
+          - fr
+          - ru
+          - pt
+          - es
+          - it
+      text:
+        description: "Text to synthesize"
+        required: true
+        type: string
+        default: "Welcome to OpenBrief"
+
+permissions:
+  contents: read
+
+jobs:
+  select-platforms:
+    name: Select platforms
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          macos_arm64='{"name":"macos-arm64","os":"macos-latest"}'
+          macos_intel='{"name":"macos-intel","os":"macos-15-intel"}'
+          windows_x64='{"name":"windows-x64","os":"windows-latest"}'
+          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04"}'
+
+          case "${{ inputs.platform }}" in
+            all)
+              matrix="{\"include\":[${macos_arm64},${macos_intel},${windows_x64},${linux_x64}]}"
+              ;;
+            macos-arm64)
+              matrix="{\"include\":[${macos_arm64}]}"
+              ;;
+            macos-intel)
+              matrix="{\"include\":[${macos_intel}]}"
+              ;;
+            windows-x64)
+              matrix="{\"include\":[${windows_x64}]}"
+              ;;
+            linux-x64)
+              matrix="{\"include\":[${linux_x64}]}"
+              ;;
+            *)
+              echo "Unsupported platform: ${{ inputs.platform }}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Qwen3 TTS ${{ matrix.name }}
+    needs: select-platforms
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: client/apps/tauri/src-tauri/sidecars/voicebox-python/pyproject.toml
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Voicebox PyInstaller sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          node client/apps/tauri/scripts/build-voicebox-sidecar.js --release
+          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
+          import { sidecarFileName, getHostTriple } from "./client/apps/tauri/scripts/setup-dev-sidecars.js";
+          const targetTriple = getHostTriple();
+          const fileName = sidecarFileName("openbrief-voicebox", targetTriple);
+          console.log(`OPENBRIEF_VOICEBOX_TARGET=${targetTriple}`);
+          console.log(`OPENBRIEF_VOICEBOX_SIDECAR=client/apps/tauri/src-tauri/binaries/${fileName}`);
+          NODE
+
+      - name: Verify sidecar command surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$OPENBRIEF_VOICEBOX_SIDECAR"
+          "$OPENBRIEF_VOICEBOX_SIDECAR" runtime
+          "$OPENBRIEF_VOICEBOX_SIDECAR" models
+          "$OPENBRIEF_VOICEBOX_SIDECAR" read --help
+
+      - name: Generate preset-voice smoke audio
+        shell: bash
+        env:
+          OPENBRIEF_QWEN_TTS_SMOKE: "1"
+          OPENBRIEF_QWEN_TTS_MODEL: ${{ inputs.model }}
+          OPENBRIEF_QWEN_TTS_LANGUAGE: ${{ inputs.language }}
+          OPENBRIEF_QWEN_TTS_TEXT: ${{ inputs.text }}
+        run: |
+          set -euo pipefail
+          mkdir -p smoke-output
+          out="smoke-output/openbrief-qwen-tts-${{ matrix.name }}.wav"
+          cache="smoke-output/cache"
+          result="smoke-output/openbrief-qwen-tts-${{ matrix.name }}.json"
+
+          "$OPENBRIEF_VOICEBOX_SIDECAR" read \
+            --model "$OPENBRIEF_QWEN_TTS_MODEL" \
+            --language "$OPENBRIEF_QWEN_TTS_LANGUAGE" \
+            --preset-voice default \
+            --cache-dir "$cache" \
+            --output "$out" \
+            "$OPENBRIEF_QWEN_TTS_TEXT" | tee "$result"
+
+          python - <<'PY' "$result" "$out"
+          import json
+          import os
+          import sys
+          import wave
+          from pathlib import Path
+
+          result_path = Path(sys.argv[1])
+          audio_path = Path(sys.argv[2])
+          result = json.loads(result_path.read_text())
+
+          if result["model"] != os.environ["OPENBRIEF_QWEN_TTS_MODEL"]:
+              raise SystemExit(f"unexpected model: {result['model']}")
+          if result["language"] != os.environ["OPENBRIEF_QWEN_TTS_LANGUAGE"]:
+              raise SystemExit(f"unexpected language: {result['language']}")
+          if result["backend"] != "smoke":
+              raise SystemExit(f"unexpected backend: {result['backend']}")
+          if result["voiceClone"]:
+              raise SystemExit("preset smoke must not use voice cloning")
+          if not audio_path.is_file() or audio_path.stat().st_size <= 44:
+              raise SystemExit("missing or empty wav output")
+
+          with wave.open(str(audio_path), "rb") as wav:
+              if wav.getframerate() != 24000:
+                  raise SystemExit(f"unexpected wav framerate: {wav.getframerate()}")
+              frames = wav.getnframes()
+              if frames <= 0:
+                  raise SystemExit("wav has no frames")
+
+          print(json.dumps({"target": os.environ["OPENBRIEF_VOICEBOX_TARGET"], "wavBytes": audio_path.stat().st_size, "frames": frames}))
+          PY
+
+      - name: Upload smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-tts-smoke-${{ matrix.name }}
+          path: |
+            smoke-output/openbrief-qwen-tts-${{ matrix.name }}.wav
+            smoke-output/openbrief-qwen-tts-${{ matrix.name }}.json
+          if-no-files-found: error

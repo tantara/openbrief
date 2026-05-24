@@ -8,6 +8,7 @@ import {
   Languages,
   Loader2,
   MessageSquareText,
+  Pause,
   Pencil,
   Play,
   Plus,
@@ -17,7 +18,14 @@ import {
   Volume2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { CopyActionButton } from "@/components/CopyAction";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
 import { badgeVariants } from "@acme/ui/badge";
@@ -69,9 +77,21 @@ import type {
   TranscriptSegment,
   VideoAsset,
 } from "@/domain/media-library";
-import { mediaSourceTypeForAsset } from "@/domain/media-library";
+import {
+  mediaSourceTypeForAsset,
+  sanitizePathSegment,
+} from "@/domain/media-library";
 import type { ChatContextMode } from "@/domain/chat";
 import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
+import type {
+  PodcastDocument,
+  PodcastGenerationJob,
+  PodcastLengthMode,
+  PodcastOutputMode,
+  PodcastSourceKind,
+  PodcastSpeakerConfig,
+} from "@/domain/podcast";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { VideoPlaybackState } from "@/hooks/useVideoPlayback";
 import type { SupertonicChatTtsArtifact } from "@/services/supertonicService";
 import {
@@ -95,7 +115,15 @@ import {
   type VideoSummaryTemplateId,
 } from "@/domain/summary";
 import type { AiWorkflowProviderConfig } from "@/services/aiProviderPreferencesService";
-import { useI18n } from "@/i18n";
+import {
+  loadPodcastTtsSettings,
+  savePodcastTtsSettings,
+  supertonicPresetVoiceStyles,
+  supertonicPresetVoiceStyleLabel,
+  type PodcastTtsSettings,
+  type TtsLanguageCode,
+} from "@/services/ttsSettingsService";
+import { useI18n, type TranslationKey } from "@/i18n";
 import { cn } from "@acme/ui";
 
 type WorkbenchViewProps = {
@@ -111,6 +139,10 @@ type WorkbenchViewProps = {
   activeSummaryId?: string;
   summaryJob?: AiGenerationJob;
   chatJob?: AiGenerationJob;
+  podcast?: PodcastDocument;
+  podcastHistory?: PodcastDocument[];
+  podcastJob?: PodcastGenerationJob;
+  podcastAudioUrl?: string;
   chatMessages: ChatMessage[];
   onAddVideo?(): void;
   onSelectVideoTab?(videoId: string): void;
@@ -143,15 +175,33 @@ type WorkbenchViewProps = {
     streamingMode: boolean;
   }): Promise<unknown>;
   onReadChatMessage?(message: ChatMessage, renderedText: string): Promise<unknown>;
+  onGeneratePodcast?(request: {
+    mode: PodcastOutputMode;
+    sourceKind: PodcastSourceKind;
+    lengthMode: PodcastLengthMode;
+    outputLanguage?: string;
+    speakers: [PodcastSpeakerConfig, PodcastSpeakerConfig];
+    languageCode: TtsLanguageCode;
+  }): Promise<unknown>;
+  onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastScript?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
   chatTtsAudioByMessageId?: Record<
     string,
     SupertonicChatTtsArtifact | undefined
   >;
+  generatingChatTtsMessageId?: string;
+  playingChatTtsMessageId?: string;
   onDownloadChatTtsAudio?(
     message: ChatMessage,
     audio: SupertonicChatTtsArtifact,
   ): Promise<unknown> | unknown;
   onPlayChatTtsAudio?(
+    message: ChatMessage,
+    audio: SupertonicChatTtsArtifact,
+  ): Promise<unknown> | unknown;
+  onPauseChatTtsAudio?(
     message: ChatMessage,
     audio: SupertonicChatTtsArtifact,
   ): Promise<unknown> | unknown;
@@ -189,6 +239,10 @@ export function WorkbenchView({
   activeSummaryId,
   summaryJob,
   chatJob,
+  podcast,
+  podcastHistory = [],
+  podcastJob,
+  podcastAudioUrl,
   chatMessages,
   onAddVideo,
   onSelectVideoTab,
@@ -202,9 +256,17 @@ export function WorkbenchView({
   onGenerateSummary,
   onSendChat,
   onReadChatMessage,
+  onGeneratePodcast,
+  onPlayPodcast,
+  onDownloadPodcastAudio,
+  onDownloadPodcastScript,
+  onDeletePodcast,
   chatTtsAudioByMessageId = {},
+  generatingChatTtsMessageId,
+  playingChatTtsMessageId,
   onDownloadChatTtsAudio,
   onPlayChatTtsAudio,
+  onPauseChatTtsAudio,
   onResetChat,
   summaryProvider = "openai",
   summaryProviderModel = defaultProviderModels[summaryProvider],
@@ -232,6 +294,11 @@ export function WorkbenchView({
     useState<SummaryLengthMode>("default");
   const [summaryLanguage, setSummaryLanguage] =
     useState<SummaryOutputLanguageOption>(summaryOutputLanguageOptions[0]);
+  const [podcastSettings, setPodcastSettings] = useState(() =>
+    loadPodcastTtsSettings(),
+  );
+  const [podcastSourceKind, setPodcastSourceKind] =
+    useState<PodcastSourceKind>("current-summary");
   const [contextMode, setContextMode] = useState<ChatContextMode>("summary");
   const [localSummaryProviderConfig, setLocalSummaryProviderConfig] =
     useState<AiWorkflowProviderConfig>({
@@ -245,12 +312,11 @@ export function WorkbenchView({
       model: chatProviderModel,
       streamingMode: chatStreamingMode,
     });
-  const [question, setQuestion] = useState("");
   const [pendingChatMessage, setPendingChatMessage] = useState<ChatMessage>();
   const [readingChatMessageId, setReadingChatMessageId] = useState<string>();
   const [downloadingChatTtsMessageId, setDownloadingChatTtsMessageId] =
     useState<string>();
-  const [playingChatTtsMessageId, setPlayingChatTtsMessageId] =
+  const [startingChatTtsMessageId, setStartingChatTtsMessageId] =
     useState<string>();
   const [isExtractingTranscript, setIsExtractingTranscript] = useState(false);
   const [isReviewingTranscript, setIsReviewingTranscript] = useState(false);
@@ -260,16 +326,18 @@ export function WorkbenchView({
     useState<TranscriptLanguageOption>(transcriptTranslationLanguages[0]);
   const [editingTranscriptSegmentId, setEditingTranscriptSegmentId] =
     useState<string>();
-  const [transcriptDraft, setTranscriptDraft] = useState("");
   const [focusedTranscriptSegmentId, setFocusedTranscriptSegmentId] =
     useState<string>();
   const [hoveredTranscriptSegmentId, setHoveredTranscriptSegmentId] =
     useState<string>();
+  const [voiceCloneTranscriptSegmentIds, setVoiceCloneTranscriptSegmentIds] =
+    useState<string[]>([]);
   const transcriptItemRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const transcriptListRef = useRef<HTMLOListElement | null>(null);
   const isTranscribing = transcriptJob?.status === "running";
   const isSummarizing = summaryJob?.status === "running";
   const isSendingChat = chatJob?.status === "running";
+  const isGeneratingPodcast = podcastJob?.status === "running";
   const summaryProviderConfig = onSummaryProviderPreferenceChange
     ? {
         provider: summaryProvider,
@@ -362,6 +430,14 @@ export function WorkbenchView({
       block: "nearest",
     });
   }, [activeTranscriptSegmentId]);
+
+  useEffect(() => {
+    setVoiceCloneTranscriptSegmentIds((current) =>
+      current.filter((segmentId) =>
+        renderedTranscript.some((segment) => segment.id === segmentId),
+      ),
+    );
+  }, [renderedTranscript]);
 
   useEffect(() => {
     if (!focusedTranscriptSegmentId) return;
@@ -496,8 +572,7 @@ export function WorkbenchView({
     }
   }
 
-  async function submitChat() {
-    const submittedQuestion = question.trim();
+  async function submitChat(submittedQuestion: string) {
     if (!submittedQuestion || isSendingChat) return;
     const pendingMessage: ChatMessage | undefined = video
       ? {
@@ -513,7 +588,6 @@ export function WorkbenchView({
     if (pendingMessage) {
       setPendingChatMessage(pendingMessage);
     }
-    setQuestion("");
     try {
       await onSendChat({
         question: submittedQuestion,
@@ -545,6 +619,34 @@ export function WorkbenchView({
     }
   }
 
+  async function generatePodcast() {
+    if (!onGeneratePodcast || isGeneratingPodcast) return;
+
+    const nextSettings = savePodcastTtsSettings(podcastSettings);
+    setPodcastSettings(nextSettings);
+    const speakers: [PodcastSpeakerConfig, PodcastSpeakerConfig] = [
+      {
+        id: "A",
+        label: supertonicPresetVoiceStyleLabel(nextSettings.speakerAVoiceStyleId),
+        voiceStyleId: nextSettings.speakerAVoiceStyleId,
+      },
+      {
+        id: "B",
+        label: supertonicPresetVoiceStyleLabel(nextSettings.speakerBVoiceStyleId),
+        voiceStyleId: nextSettings.speakerBVoiceStyleId,
+      },
+    ];
+
+    await onGeneratePodcast({
+      mode: nextSettings.mode,
+      sourceKind: podcastSourceKind,
+      lengthMode: nextSettings.lengthMode,
+      outputLanguage: summaryLanguage.outputLanguage,
+      speakers,
+      languageCode: nextSettings.languageCode,
+    });
+  }
+
   async function downloadChatTtsAudio(
     message: ChatMessage,
     audio: SupertonicChatTtsArtifact,
@@ -563,14 +665,21 @@ export function WorkbenchView({
     message: ChatMessage,
     audio: SupertonicChatTtsArtifact,
   ) {
-    if (!onPlayChatTtsAudio || playingChatTtsMessageId) return;
+    if (!onPlayChatTtsAudio || startingChatTtsMessageId) return;
 
-    setPlayingChatTtsMessageId(message.id);
+    setStartingChatTtsMessageId(message.id);
     try {
       await onPlayChatTtsAudio(message, audio);
     } finally {
-      setPlayingChatTtsMessageId(undefined);
+      setStartingChatTtsMessageId(undefined);
     }
+  }
+
+  async function pauseChatTtsAudio(
+    message: ChatMessage,
+    audio: SupertonicChatTtsArtifact,
+  ) {
+    await onPauseChatTtsAudio?.(message, audio);
   }
 
   function seekToSegment(segment: TranscriptSegment) {
@@ -582,7 +691,6 @@ export function WorkbenchView({
 
   function startTranscriptEdit(segment: TranscriptSegment) {
     setEditingTranscriptSegmentId(segment.id);
-    setTranscriptDraft(segment.text);
   }
 
   function hideTranscriptEditAction() {
@@ -592,12 +700,11 @@ export function WorkbenchView({
 
   function cancelTranscriptEdit() {
     setEditingTranscriptSegmentId(undefined);
-    setTranscriptDraft("");
     hideTranscriptEditAction();
   }
 
-  function saveTranscriptEdit(segment: TranscriptSegment) {
-    const nextText = transcriptDraft.trim();
+  function saveTranscriptEdit(segment: TranscriptSegment, text: string) {
+    const nextText = text.trim();
     if (!nextText) return;
 
     onUpdateTranscriptSegment?.(segment.id, nextText);
@@ -733,13 +840,34 @@ export function WorkbenchView({
                 ) : null}
               </div>
             ) : (
-              <ol ref={transcriptListRef} className="space-y-3">
+              <>
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
+                  <span>
+                    {t("workbench.transcript.voiceCloneSelection", {
+                      count: voiceCloneTranscriptSegmentIds.length,
+                    })}
+                  </span>
+                  {voiceCloneTranscriptSegmentIds.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setVoiceCloneTranscriptSegmentIds([])}
+                    >
+                      {t("workbench.transcript.voiceCloneClear")}
+                    </Button>
+                  ) : null}
+                </div>
+                <ol ref={transcriptListRef} className="space-y-3">
                 {renderedTranscript.map((segment) => {
                   const sourceSegment = activeTranslationVariant
                     ? sourceTranscriptBySegmentId.get(segment.id)
                     : undefined;
                   const isActive = segment.id === activeTranscriptSegmentId;
                   const isEditing = segment.id === editingTranscriptSegmentId;
+                  const isSelectedForVoiceClone =
+                    voiceCloneTranscriptSegmentIds.includes(segment.id);
                   const showActiveEditButton =
                     focusedTranscriptSegmentId === segment.id ||
                     hoveredTranscriptSegmentId === segment.id;
@@ -795,50 +923,34 @@ export function WorkbenchView({
                         >
                           {formatTime(segment.startSeconds)}
                         </button>
-                        {isEditing ? (
-                          <form
-                            className="min-w-0 flex-1 space-y-2"
-                            onSubmit={(event) => {
-                              event.preventDefault();
-                              saveTranscriptEdit(segment);
-                            }}
-                          >
-                            <Textarea
-                              autoFocus
-                              value={transcriptDraft}
-                              aria-label={t("workbench.transcript.editLabel", {
+                        <label className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={isSelectedForVoiceClone}
+                            aria-label={t(
+                              "workbench.transcript.voiceCloneToggle",
+                              {
                                 time: formatTime(segment.startSeconds),
-                              })}
-                              className="min-h-20 resize-y bg-background text-sm"
-                              onChange={(event) =>
-                                setTranscriptDraft(event.target.value)
-                              }
-                              onKeyDown={(event) => {
-                                if (event.key === "Escape") {
-                                  event.preventDefault();
-                                  cancelTranscriptEdit();
-                                }
-                              }}
-                            />
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={cancelTranscriptEdit}
-                              >
-                                {t("workbench.transcript.cancelEdit")}
-                              </Button>
-                              <Button
-                                type="submit"
-                                size="sm"
-                                disabled={!transcriptDraft.trim()}
-                              >
-                                <Check className="h-4 w-4" aria-hidden="true" />
-                                {t("workbench.transcript.saveEdit")}
-                              </Button>
-                            </div>
-                          </form>
+                              },
+                            )}
+                            onChange={() =>
+                              setVoiceCloneTranscriptSegmentIds((current) =>
+                                nextVoiceCloneTranscriptSegmentSelection(
+                                  renderedTranscript,
+                                  current,
+                                  segment.id,
+                                ),
+                              )
+                            }
+                          />
+                        </label>
+                        {isEditing ? (
+                          <TranscriptSegmentEditForm
+                            segment={segment}
+                            onCancel={cancelTranscriptEdit}
+                            onSave={(text) => saveTranscriptEdit(segment, text)}
+                          />
                         ) : (
                           <>
                             <button
@@ -889,7 +1001,8 @@ export function WorkbenchView({
                     </li>
                   );
                 })}
-              </ol>
+                </ol>
+              </>
             )}
           </div>
         </CardContent>
@@ -1019,15 +1132,12 @@ export function WorkbenchView({
               />
             ) : null}
             {summaryMarkdown ? (
-              <MarkdownSummaryEditor
+              <SummaryMarkdownPanel
+                summaryId={activeSummary?.id}
                 markdown={summaryMarkdown}
                 editable={Boolean(activeSummary && onUpdateSummaryMarkdown)}
                 ariaLabel={t("workbench.summary.editor")}
-                onMarkdownChange={(markdown) =>
-                  activeSummary
-                    ? onUpdateSummaryMarkdown?.(activeSummary.id, markdown)
-                    : undefined
-                }
+                onCommitMarkdown={onUpdateSummaryMarkdown}
               />
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -1035,6 +1145,25 @@ export function WorkbenchView({
               </p>
             )}
           </div>
+          <PodcastPanel
+            podcast={podcast}
+            podcastHistory={podcastHistory}
+            podcastJob={podcastJob}
+            podcastAudioUrl={podcastAudioUrl}
+            settings={podcastSettings}
+            sourceKind={podcastSourceKind}
+            canGenerate={Boolean(onGeneratePodcast && video)}
+            hasSummary={Boolean(activeSummary)}
+            hasTranscript={transcript.length > 0}
+            isGenerating={isGeneratingPodcast}
+            onSettingsChange={setPodcastSettings}
+            onSourceKindChange={setPodcastSourceKind}
+            onGenerate={() => void generatePodcast().catch(() => {})}
+            onPlayPodcast={onPlayPodcast}
+            onDownloadPodcastAudio={onDownloadPodcastAudio}
+            onDownloadPodcastScript={onDownloadPodcastScript}
+            onDeletePodcast={onDeletePodcast}
+          />
         </CardContent>
       </Card>
         </ResizablePanel>
@@ -1090,35 +1219,55 @@ export function WorkbenchView({
               </p>
             ) : (
               <ol className="space-y-4">
-                {displayedChatMessages.map((message, index) => (
-                  <ChatBubble
-                    key={message.id}
-                    message={message}
-                    isLast={index === displayedChatMessages.length - 1}
-                    isReading={readingChatMessageId === message.id}
-                    ttsAudio={chatTtsAudioByMessageId[message.id]}
-                    isPlayingTts={playingChatTtsMessageId === message.id}
-                    isDownloadingTts={
-                      downloadingChatTtsMessageId === message.id
-                    }
-                    onRead={
-                      onReadChatMessage
-                        ? (renderedText) =>
-                            void readChatMessage(message, renderedText)
-                        : undefined
-                    }
-                    onPlayTtsAudio={
-                      onPlayChatTtsAudio
-                        ? (audio) => void playChatTtsAudio(message, audio)
-                        : undefined
-                    }
-                    onDownloadTtsAudio={
-                      onDownloadChatTtsAudio
-                        ? (audio) => void downloadChatTtsAudio(message, audio)
-                        : undefined
-                    }
-                  />
-                ))}
+                {displayedChatMessages.map((message, index) => {
+                  const ttsAudio = chatTtsAudioForMessage(
+                    chatTtsAudioByMessageId[message.id],
+                    message,
+                  );
+                  const isGeneratingTts =
+                    generatingChatTtsMessageId === message.id;
+
+                  return (
+                    <ChatBubble
+                      key={message.id}
+                      message={message}
+                      isLast={index === displayedChatMessages.length - 1}
+                      isReading={
+                        readingChatMessageId === message.id || isGeneratingTts
+                      }
+                      ttsAudio={ttsAudio}
+                      isPlayingTts={
+                        Boolean(ttsAudio) &&
+                        playingChatTtsMessageId === message.id
+                      }
+                      isStartingTts={startingChatTtsMessageId === message.id}
+                      isDownloadingTts={
+                        downloadingChatTtsMessageId === message.id
+                      }
+                      onRead={
+                        onReadChatMessage
+                          ? (renderedText) =>
+                              void readChatMessage(message, renderedText)
+                          : undefined
+                      }
+                      onPlayTtsAudio={
+                        onPlayChatTtsAudio
+                          ? (audio) => void playChatTtsAudio(message, audio)
+                          : undefined
+                      }
+                      onPauseTtsAudio={
+                        onPauseChatTtsAudio
+                          ? (audio) => void pauseChatTtsAudio(message, audio)
+                          : undefined
+                      }
+                      onDownloadTtsAudio={
+                        onDownloadChatTtsAudio
+                          ? (audio) => void downloadChatTtsAudio(message, audio)
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </ol>
             )}
             {chatJob ? (
@@ -1159,27 +1308,12 @@ export function WorkbenchView({
                 })
               }
             />
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submitChat();
-              }}
-            >
-              <label className="sr-only" htmlFor="chat-question">
-                {t("workbench.chat.question")}
-              </label>
-              <Input
-                id="chat-question"
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                placeholder={t("workbench.chat.placeholder")}
-                className="min-w-0 flex-1"
-              />
-              <Button type="submit" disabled={isSendingChat || !question.trim()}>
-                {isSendingChat ? t("workbench.chat.sending") : t("workbench.chat.send")}
-              </Button>
-            </form>
+            <ChatQuestionForm
+              isSending={isSendingChat}
+              onSubmitQuestion={(submittedQuestion) =>
+                void submitChat(submittedQuestion)
+              }
+            />
           </div>
         </CardContent>
       </Card>
@@ -1189,25 +1323,470 @@ export function WorkbenchView({
   );
 }
 
+function TranscriptSegmentEditForm({
+  segment,
+  onCancel,
+  onSave,
+}: {
+  segment: TranscriptSegment;
+  onCancel(): void;
+  onSave(text: string): void;
+}) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(segment.text);
+  const trimmedDraft = draft.trim();
+
+  return (
+    <form
+      className="min-w-0 flex-1 space-y-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!trimmedDraft) return;
+
+        onSave(trimmedDraft);
+      }}
+    >
+      <Textarea
+        autoFocus
+        value={draft}
+        aria-label={t("workbench.transcript.editLabel", {
+          time: formatTime(segment.startSeconds),
+        })}
+        className="min-h-20 resize-y bg-background text-sm"
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onCancel();
+          }
+        }}
+      />
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          {t("workbench.transcript.cancelEdit")}
+        </Button>
+        <Button type="submit" size="sm" disabled={!trimmedDraft}>
+          <Check className="h-4 w-4" aria-hidden="true" />
+          {t("workbench.transcript.saveEdit")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function PodcastPanel({
+  podcast,
+  podcastHistory,
+  podcastJob,
+  podcastAudioUrl,
+  settings,
+  sourceKind,
+  canGenerate,
+  hasSummary,
+  hasTranscript,
+  isGenerating,
+  onSettingsChange,
+  onSourceKindChange,
+  onGenerate,
+  onPlayPodcast,
+  onDownloadPodcastAudio,
+  onDownloadPodcastScript,
+  onDeletePodcast,
+}: {
+  podcast?: PodcastDocument;
+  podcastHistory: PodcastDocument[];
+  podcastJob?: PodcastGenerationJob;
+  podcastAudioUrl?: string;
+  settings: PodcastTtsSettings;
+  sourceKind: PodcastSourceKind;
+  canGenerate: boolean;
+  hasSummary: boolean;
+  hasTranscript: boolean;
+  isGenerating: boolean;
+  onSettingsChange(settings: PodcastTtsSettings): void;
+  onSourceKindChange(sourceKind: PodcastSourceKind): void;
+  onGenerate(): void;
+  onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastScript?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
+}) {
+  const { t } = useI18n();
+  const sourceAvailable =
+    sourceKind === "current-summary" ? hasSummary : hasTranscript;
+  const hasDistinctSpeakers =
+    settings.speakerAVoiceStyleId !== settings.speakerBVoiceStyleId;
+  const disabled =
+    !canGenerate || !sourceAvailable || !hasDistinctSpeakers || isGenerating;
+
+  return (
+    <div className="grid gap-3 border-t pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="font-medium">{t("workbench.podcast.title")}</span>
+          {podcastHistory.length > 1 ? (
+            <span className="text-xs text-muted-foreground">
+              {t("workbench.podcast.history", { count: podcastHistory.length })}
+            </span>
+          ) : null}
+        </div>
+        {podcastJob ? (
+          <span className="text-xs text-muted-foreground">
+            {podcastJob.status === "running"
+              ? t(podcastStageLabelKey(podcastJob.stage))
+              : t("workbench.podcast.failed")}
+          </span>
+        ) : null}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <PodcastSelect
+          label={t("workbench.podcast.mode")}
+          value={settings.mode}
+          options={[
+            { value: "podcast-summary", label: t("workbench.podcast.mode.summary") },
+            { value: "audiobook-brief", label: t("workbench.podcast.mode.audiobook") },
+          ]}
+          onChange={(mode) =>
+            onSettingsChange({ ...settings, mode: mode as PodcastOutputMode })
+          }
+        />
+        <PodcastSelect
+          label={t("workbench.podcast.source")}
+          value={sourceKind}
+          options={[
+            {
+              value: "current-summary",
+              label: t("workbench.podcast.source.summary"),
+            },
+            { value: "transcript", label: t("workbench.podcast.source.transcript") },
+            {
+              value: "active-transcript-translation",
+              label: t("workbench.podcast.source.translation"),
+            },
+          ]}
+          onChange={(value) => onSourceKindChange(value as PodcastSourceKind)}
+        />
+        <PodcastSelect
+          label={t("workbench.podcast.length")}
+          value={settings.lengthMode}
+          options={[
+            { value: "short", label: t("workbench.podcast.length.short") },
+            { value: "default", label: t("workbench.podcast.length.default") },
+            { value: "long", label: t("workbench.podcast.length.long") },
+          ]}
+          onChange={(lengthMode) =>
+            onSettingsChange({
+              ...settings,
+              lengthMode: lengthMode as PodcastLengthMode,
+            })
+          }
+        />
+        <PodcastSelect
+          label={t("workbench.podcast.language")}
+          value={settings.languageCode}
+          options={[
+            { value: "en", label: "English" },
+            { value: "ko", label: "Korean" },
+            { value: "ja", label: "Japanese" },
+            { value: "es", label: "Spanish" },
+            { value: "fr", label: "French" },
+            { value: "de", label: "German" },
+          ]}
+          onChange={(languageCode) =>
+            onSettingsChange({
+              ...settings,
+              languageCode: languageCode as TtsLanguageCode,
+            })
+          }
+        />
+        <PodcastSelect
+          label={t("workbench.podcast.speakerA")}
+          value={settings.speakerAVoiceStyleId}
+          options={supertonicPresetVoiceStyles.map((voice) => ({
+            value: voice.id,
+            label: voice.label,
+          }))}
+          onChange={(speakerAVoiceStyleId) =>
+            onSettingsChange({
+              ...settings,
+              speakerAVoiceStyleId: speakerAVoiceStyleId as PodcastTtsSettings["speakerAVoiceStyleId"],
+            })
+          }
+        />
+        <PodcastSelect
+          label={t("workbench.podcast.speakerB")}
+          value={settings.speakerBVoiceStyleId}
+          options={supertonicPresetVoiceStyles.map((voice) => ({
+            value: voice.id,
+            label: voice.label,
+          }))}
+          onChange={(speakerBVoiceStyleId) =>
+            onSettingsChange({
+              ...settings,
+              speakerBVoiceStyleId: speakerBVoiceStyleId as PodcastTtsSettings["speakerBVoiceStyleId"],
+            })
+          }
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" disabled={disabled} onClick={onGenerate}>
+          {isGenerating ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Bot className="mr-2 h-4 w-4" aria-hidden="true" />
+          )}
+          {isGenerating
+            ? t("workbench.podcast.generating")
+            : t("workbench.podcast.generate")}
+        </Button>
+        {podcast ? (
+          <>
+            {onPlayPodcast ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void onPlayPodcast(podcast)}
+              >
+                <Play className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("workbench.podcast.play")}
+              </Button>
+            ) : null}
+            {onDownloadPodcastAudio ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void onDownloadPodcastAudio(podcast)}
+              >
+                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("workbench.podcast.downloadAudio")}
+              </Button>
+            ) : null}
+            {onDownloadPodcastScript ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void onDownloadPodcastScript(podcast)}
+              >
+                <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("workbench.podcast.downloadScript")}
+              </Button>
+            ) : null}
+            {onDeletePodcast ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void onDeletePodcast(podcast)}
+              >
+                <X className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("workbench.podcast.delete")}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+      {podcast && podcastAudioUrl ? (
+        <audio
+          className="w-full"
+          controls
+          preload="metadata"
+          src={podcastAudioUrl}
+        />
+      ) : null}
+      {!sourceAvailable ? (
+        <p className="text-xs text-muted-foreground">
+          {sourceKind === "current-summary"
+            ? t("workbench.podcast.summaryRequired")
+            : t("workbench.podcast.transcriptRequired")}
+        </p>
+      ) : null}
+      {sourceAvailable && !hasDistinctSpeakers ? (
+        <p className="text-xs text-muted-foreground">
+          {t("workbench.podcast.distinctVoicesRequired")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function PodcastSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange(value: string): void;
+}) {
+  return (
+    <label className="grid gap-1 text-xs text-muted-foreground">
+      <span>{label}</span>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-9">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  );
+}
+
+function podcastStageLabelKey(stage: PodcastGenerationJob["stage"]): TranslationKey {
+  switch (stage) {
+    case "script":
+      return "workbench.podcast.stage.script";
+    case "tts":
+      return "workbench.podcast.stage.tts";
+    case "complete":
+      return "workbench.podcast.stage.complete";
+  }
+}
+
+function SummaryMarkdownPanel({
+  summaryId,
+  markdown,
+  editable,
+  ariaLabel,
+  onCommitMarkdown,
+}: {
+  summaryId?: string;
+  markdown: string;
+  editable: boolean;
+  ariaLabel: string;
+  onCommitMarkdown?(summaryId: string, markdown: string): void;
+}) {
+  const [draftMarkdown, setDraftMarkdown] = useState(markdown);
+  const debouncedDraftMarkdown = useDebouncedValue(draftMarkdown, 250);
+  const lastCommittedRef = useRef({ summaryId, markdown });
+
+  useEffect(() => {
+    setDraftMarkdown((current) => {
+      const lastCommitted = lastCommittedRef.current;
+      const isLocalCommitEcho =
+        lastCommitted.summaryId === summaryId &&
+        lastCommitted.markdown === markdown;
+
+      return isLocalCommitEcho ? current : markdown;
+    });
+    lastCommittedRef.current = { summaryId, markdown };
+  }, [markdown, summaryId]);
+
+  const commitMarkdown = useCallback(
+    (nextMarkdown: string) => {
+      if (!editable || !summaryId || !onCommitMarkdown) return;
+      const lastCommitted = lastCommittedRef.current;
+      if (
+        lastCommitted.summaryId === summaryId &&
+        lastCommitted.markdown === nextMarkdown
+      ) {
+        return;
+      }
+
+      lastCommittedRef.current = { summaryId, markdown: nextMarkdown };
+      onCommitMarkdown(summaryId, nextMarkdown);
+    },
+    [editable, onCommitMarkdown, summaryId],
+  );
+
+  useEffect(() => {
+    commitMarkdown(debouncedDraftMarkdown);
+  }, [commitMarkdown, debouncedDraftMarkdown]);
+
+  return (
+    <div
+      className="min-h-full"
+      onBlur={(event) => {
+        const nextFocusTarget = event.relatedTarget;
+        if (
+          nextFocusTarget instanceof Node &&
+          event.currentTarget.contains(nextFocusTarget)
+        ) {
+          return;
+        }
+
+        commitMarkdown(draftMarkdown);
+      }}
+    >
+      <MarkdownSummaryEditor
+        markdown={draftMarkdown}
+        editable={editable}
+        ariaLabel={ariaLabel}
+        onMarkdownChange={setDraftMarkdown}
+      />
+    </div>
+  );
+}
+
+function ChatQuestionForm({
+  isSending,
+  onSubmitQuestion,
+}: {
+  isSending: boolean;
+  onSubmitQuestion(question: string): void;
+}) {
+  const { t } = useI18n();
+  const [question, setQuestion] = useState("");
+  const trimmedQuestion = question.trim();
+
+  return (
+    <form
+      className="flex gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!trimmedQuestion || isSending) return;
+
+        onSubmitQuestion(trimmedQuestion);
+        setQuestion("");
+      }}
+    >
+      <label className="sr-only" htmlFor="chat-question">
+        {t("workbench.chat.question")}
+      </label>
+      <Input
+        id="chat-question"
+        value={question}
+        onChange={(event) => setQuestion(event.target.value)}
+        placeholder={t("workbench.chat.placeholder")}
+        className="min-w-0 flex-1"
+      />
+      <Button type="submit" disabled={isSending || !trimmedQuestion}>
+        {isSending ? t("workbench.chat.sending") : t("workbench.chat.send")}
+      </Button>
+    </form>
+  );
+}
+
 function ChatBubble({
   message,
   isLast,
   isReading = false,
   isPlayingTts = false,
+  isStartingTts = false,
   isDownloadingTts = false,
   ttsAudio,
   onRead,
   onPlayTtsAudio,
+  onPauseTtsAudio,
   onDownloadTtsAudio,
 }: {
   message: ChatMessage;
   isLast: boolean;
   isReading?: boolean;
   isPlayingTts?: boolean;
+  isStartingTts?: boolean;
   isDownloadingTts?: boolean;
   ttsAudio?: SupertonicChatTtsArtifact;
   onRead?(renderedText: string): void;
   onPlayTtsAudio?(audio: SupertonicChatTtsArtifact): void;
+  onPauseTtsAudio?(audio: SupertonicChatTtsArtifact): void;
   onDownloadTtsAudio?(audio: SupertonicChatTtsArtifact): void;
 }) {
   const { t } = useI18n();
@@ -1271,19 +1850,33 @@ function ChatBubble({
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      disabled={isPlayingTts}
-                      aria-label={t("workbench.chat.playVoiceMessage")}
-                      onClick={() => onPlayTtsAudio(ttsAudio)}
+                      disabled={isStartingTts}
+                      aria-label={t(
+                        isPlayingTts
+                          ? "workbench.chat.pauseVoiceMessage"
+                          : "workbench.chat.playVoiceMessage",
+                      )}
+                      onClick={() =>
+                        isPlayingTts
+                          ? onPauseTtsAudio?.(ttsAudio)
+                          : onPlayTtsAudio(ttsAudio)
+                      }
                     >
-                      {isPlayingTts ? (
+                      {isStartingTts ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      ) : isPlayingTts ? (
+                        <Pause className="h-3.5 w-3.5" aria-hidden="true" />
                       ) : (
                         <Play className="h-3.5 w-3.5" aria-hidden="true" />
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    {t("workbench.chat.playVoiceMessage")}
+                    {t(
+                      isPlayingTts
+                        ? "workbench.chat.pauseVoiceMessage"
+                        : "workbench.chat.playVoiceMessage",
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -1451,6 +2044,27 @@ function isRenderedTextBlock(tagName: string) {
 
 function normalizeRenderedChatText(text: string) {
   return text.replace(/\s+/g, " ").trim();
+}
+
+function chatTtsAudioForMessage(
+  audio: SupertonicChatTtsArtifact | undefined,
+  message: Pick<ChatMessage, "id">,
+) {
+  if (!audio) return undefined;
+  return chatTtsAudioBelongsToMessage(audio, message) ? audio : undefined;
+}
+
+function chatTtsAudioBelongsToMessage(
+  audio: Pick<SupertonicChatTtsArtifact, "audioPath">,
+  message: Pick<ChatMessage, "id">,
+) {
+  const normalizedAudioPath = audio.audioPath.replace(/\\/g, "/");
+  const expectedDirectory = `/chat/tts/${sanitizePathSegment(message.id)}/`;
+
+  return (
+    normalizedAudioPath.includes(expectedDirectory) ||
+    normalizedAudioPath.startsWith(expectedDirectory.slice(1))
+  );
 }
 
 function StreamingChatDraft({ draftText }: { draftText: string }) {
@@ -2051,6 +2665,35 @@ function findActiveTranscriptSegment(
       currentTimeSeconds < endSeconds
     );
   });
+}
+
+export function nextVoiceCloneTranscriptSegmentSelection(
+  transcript: TranscriptSegment[],
+  selectedIds: string[],
+  toggledId: string,
+) {
+  const toggledIndex = transcript.findIndex((segment) => segment.id === toggledId);
+  if (toggledIndex < 0) return selectedIds;
+
+  const selectedIndexes = selectedIds
+    .map((segmentId) => transcript.findIndex((segment) => segment.id === segmentId))
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b);
+  const alreadySelected = selectedIndexes.includes(toggledIndex);
+
+  const nextIndexes = alreadySelected
+    ? selectedIndexes.filter((index) => index !== toggledIndex)
+    : [...selectedIndexes, toggledIndex].sort((a, b) => a - b);
+
+  if (nextIndexes.length === 0) return [];
+  if (nextIndexes.length > 3) return [transcript[toggledIndex].id];
+
+  const isContiguous = nextIndexes.every(
+    (index, offset) => offset === 0 || index === nextIndexes[offset - 1] + 1,
+  );
+  if (!isContiguous) return [transcript[toggledIndex].id];
+
+  return nextIndexes.map((index) => transcript[index].id);
 }
 
 function TranscriptProgressCard({ transcriptJob }: { transcriptJob: TranscriptJob }) {

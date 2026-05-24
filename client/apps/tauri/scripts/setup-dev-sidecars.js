@@ -12,7 +12,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export const SIDECAR_BASE_NAMES = ["openbrief-helper", "openbrief-supertonic"];
+export const SIDECAR_BASE_NAMES = [
+  "openbrief-helper",
+  "openbrief-supertonic",
+  "openbrief-voicebox",
+];
 export const MIN_REAL_BINARY_SIZE_BYTES = 10000;
 export const SUPPORTED_HELPER_TARGET_TRIPLES = [
   "aarch64-apple-darwin",

@@ -19,6 +19,13 @@ import type {
   SummaryLengthMode,
   VideoSummaryTemplateId,
 } from "@/domain/summary";
+import type {
+  PodcastDocument,
+  PodcastLengthMode,
+  PodcastOutputMode,
+  PodcastSourceKind,
+  PodcastSpeakerConfig,
+} from "@/domain/podcast";
 import type { TranscriptLanguageOption } from "@/domain/transcript-actions";
 import type { SetupDialogMode } from "@/features/setup/SetupDialog";
 import type { TranslationKey } from "@/i18n";
@@ -31,10 +38,13 @@ import type { SupertonicChatTtsArtifact } from "@/services/supertonicService";
 import type { SystemPromptSettings } from "@/services/systemPromptSettingsService";
 import type { AppColorSeed, AppTheme } from "@/services/themeSettingsService";
 import type {
+  QwenPresetVoiceId,
   SupertonicVoiceStyleId,
+  TtsLanguageCode,
+  TtsModelId,
   TtsSettings,
 } from "@/services/ttsSettingsService";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/app/AppLayout";
 import { CopyDropdownMenuItem } from "@/components/CopyAction";
 import { FloatingMiniPlayer } from "@/components/video/FloatingMiniPlayer";
@@ -55,6 +65,7 @@ import { PlaylistView } from "@/features/playlists/PlaylistView";
 import { SettingsView } from "@/features/settings/SettingsView";
 import { SetupDialog } from "@/features/setup/SetupDialog";
 import { TutorialView } from "@/features/tutorial/TutorialView";
+import { VoicesView } from "@/features/voices/VoicesView";
 import { WorkbenchView } from "@/features/workbench/WorkbenchView";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useMediaLibrary } from "@/hooks/useMediaLibrary";
@@ -78,12 +89,18 @@ import {
 import { revealExportedFile } from "@/services/fileRevealService";
 import { createPlaylistCoverService } from "@/services/playlistCoverService";
 import {
+  createPodcastDownloadFileName,
+  deletePodcastTts,
+  resolvePodcastAudioUrl,
+} from "@/services/podcastService";
+import {
   setYtDlpAutoUpdatePolicy,
   updateAppNow,
   updateYtDlpNow,
 } from "@/services/settingsService";
 import { createSetupService, whisperModelPath } from "@/services/setupService";
 import {
+  createVoiceMessageDownloadFileName,
   findLatestChatBubbleSupertonicAudio,
   readChatBubbleWithSupertonic,
   resolveChatBubbleSupertonicAudioUrl,
@@ -102,9 +119,13 @@ import {
   saveAppTheme,
 } from "@/services/themeSettingsService";
 import {
+  defaultLanguageForModel,
   loadTtsSettings,
+  qwenPresetVoices,
   saveTtsSettings,
   supertonicPresetVoiceStyles,
+  supertonicPresetVoiceStyleLabel,
+  ttsEngineForModel,
 } from "@/services/ttsSettingsService";
 import {
   createTranscriptOverlayPayload,
@@ -116,10 +137,10 @@ import { listen } from "@tauri-apps/api/event";
 import { ExternalLink, Info, Loader2, Search } from "lucide-react";
 
 import type { TranscriptionLanguageCode } from "@acme/model-card";
-import type { Supertonic3LanguageCode } from "@acme/model-card";
 import {
   isSynthesisLanguageSupportedByModel,
-  supertonic3Languages,
+  localTtsModelCards,
+  synthesisLanguagesForModel,
   transcriptionLanguagesForModel,
 } from "@acme/model-card";
 import { cn } from "@acme/ui";
@@ -221,6 +242,11 @@ type ChatTtsAudioByMessageId = Record<
   SupertonicChatTtsArtifact | undefined
 >;
 
+type ChatTtsGeneration = {
+  videoId: string;
+  messageId: string;
+};
+
 const onboardingStorageKey = "openbrief.onboarding-complete";
 const videoPlaybackMenuEvent = "openbrief://video-playback-command";
 
@@ -235,6 +261,9 @@ export function AppShell() {
     selectedSummaryHistory,
     selectedSummaryJob,
     selectedChatJob,
+    selectedPodcast,
+    selectedPodcastHistory,
+    selectedPodcastJob,
     selectedChatMessages,
     importLocalFile,
     importYoutubeUrl,
@@ -243,6 +272,8 @@ export function AppShell() {
     listCaptionLanguages,
     extractTranscript,
     generateSummary,
+    generatePodcast,
+    deletePodcast,
     sendChat,
     resetChatSession,
     reviewTranscript,
@@ -281,6 +312,11 @@ export function AppShell() {
     [],
   );
   const chatTtsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const chatTtsGenerationRef = useRef<ChatTtsGeneration | undefined>(
+    undefined,
+  );
+  const podcastAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [selectedPodcastAudioUrl, setSelectedPodcastAudioUrl] = useState<string>();
   const playlistCoverService = useMemo(() => createPlaylistCoverService(), []);
   const [selectedWhisperModelId, setSelectedWhisperModelId] = useState(
     "parakeet-tdt-0.6b-v3",
@@ -310,11 +346,21 @@ export function AppShell() {
   >();
   const [chatTtsAudioByMessageId, setChatTtsAudioByMessageId] =
     useState<ChatTtsAudioByMessageId>({});
+  const [chatTtsGeneration, setChatTtsGeneration] =
+    useState<ChatTtsGeneration>();
+  const [playingChatTtsMessageId, setPlayingChatTtsMessageId] =
+    useState<string>();
+  const [ttsModelDraft, setTtsModelDraft] = useState<TtsModelId>(
+    () => ttsSettings.modelId,
+  );
   const [ttsVoiceDraft, setTtsVoiceDraft] = useState<SupertonicVoiceStyleId>(
     () => ttsSettings.voiceStyleId,
   );
-  const [ttsLanguageDraft, setTtsLanguageDraft] =
-    useState<Supertonic3LanguageCode>(() => ttsSettings.languageCode);
+  const [ttsQwenPresetVoiceDraft, setTtsQwenPresetVoiceDraft] =
+    useState<QwenPresetVoiceId>(() => ttsSettings.qwenPresetVoiceId);
+  const [ttsLanguageDraft, setTtsLanguageDraft] = useState<TtsLanguageCode>(
+    () => ttsSettings.languageCode,
+  );
   const [appTheme, setAppTheme] = useState<AppTheme>(() => loadAppTheme());
   const [appColorSeed, setAppColorSeed] = useState<AppColorSeed>(() =>
     loadAppColorSeed(),
@@ -334,8 +380,6 @@ export function AppShell() {
     sortBy: "created_at",
     page: 1,
   });
-  const [finderSearchInput, setFinderSearchInput] = useState("");
-  const debouncedFinderSearchInput = useDebouncedValue(finderSearchInput, 180);
   const [openWorkbenchVideoIds, setOpenWorkbenchVideoIds] = useState<string[]>(
     [],
   );
@@ -541,15 +585,49 @@ export function AppShell() {
     };
   }, [selectedChatTtsLookupKey, selectedVideo?.libraryPath]);
 
+  useEffect(() => {
+    if (!selectedPodcast) {
+      setSelectedPodcastAudioUrl(undefined);
+      return;
+    }
+
+    let disposed = false;
+    void resolvePodcastAudioUrl(selectedPodcast)
+      .then((audioUrl) => {
+        if (!disposed) setSelectedPodcastAudioUrl(audioUrl);
+      })
+      .catch(() => {
+        if (!disposed) setSelectedPodcastAudioUrl(undefined);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [selectedPodcast?.id, selectedPodcast?.artifacts.podcastAudioPath]);
+
   const pageTitle = pageTitleForView(
     state.activeView,
     selectedVideo?.title,
     t("page.video"),
     t("page.playlists"),
     t("page.settings"),
+    t("page.voices"),
     t("page.tutorial"),
     t("page.faq"),
     t("page.onboarding"),
+  );
+  const updateFinderSearchText = useCallback(
+    (searchText: string | undefined) =>
+      setFinderQuery((current) => {
+        if (current.searchText === searchText) return current;
+
+        return {
+          ...current,
+          searchText,
+          page: 1,
+        };
+      }),
+    [],
   );
   const headerContent =
     state.activeView === "finder" ? (
@@ -563,12 +641,9 @@ export function AppShell() {
             <label className="sr-only" htmlFor="video-library-search">
               {t("finder.search.label")}
             </label>
-            <Input
-              id="video-library-search"
-              value={finderSearchInput}
-              onChange={(event) => setFinderSearchInput(event.target.value)}
-              placeholder={t("finder.search.placeholder")}
-              className="pl-9"
+            <FinderSearchInput
+              searchText={finderQuery.searchText}
+              onSearchTextChange={updateFinderSearchText}
             />
           </div>
         ) : (
@@ -638,22 +713,6 @@ export function AppShell() {
   useEffect(() => {
     onboardingCompleteRef.current = onboardingComplete;
   }, [onboardingComplete]);
-
-  useEffect(() => {
-    const nextSearchText = debouncedFinderSearchInput.trim() || undefined;
-
-    setFinderQuery((current) => {
-      if (current.searchText === nextSearchText) {
-        return current;
-      }
-
-      return {
-        ...current,
-        searchText: nextSearchText,
-        page: 1,
-      };
-    });
-  }, [debouncedFinderSearchInput]);
 
   useEffect(() => {
     applyRouteView();
@@ -1209,7 +1268,9 @@ export function AppShell() {
   function saveTtsSettingsFromSettings(settings: TtsSettings) {
     const saved = saveTtsSettings(settings);
     setTtsSettings(saved);
+    setTtsModelDraft(saved.modelId);
     setTtsVoiceDraft(saved.voiceStyleId);
+    setTtsQwenPresetVoiceDraft(saved.qwenPresetVoiceId);
     setTtsLanguageDraft(saved.languageCode);
   }
 
@@ -1329,10 +1390,18 @@ export function AppShell() {
   ) {
     if (!selectedVideo) return;
 
+    if (chatTtsGenerationRef.current) {
+      setAppNotice(t("notice.supertonic.busy"));
+      return;
+    }
+
     if (!ttsSettings.hasSelectedVoice) {
+      setTtsModelDraft(ttsSettings.modelId);
       setTtsVoiceDraft(ttsSettings.voiceStyleId);
+      setTtsQwenPresetVoiceDraft(ttsSettings.qwenPresetVoiceId);
       setTtsLanguageDraft(
-        preferredSupertonicLanguageCode(
+        preferredTtsLanguageCode(
+          ttsSettings.modelId,
           selectedVideo.language,
           ttsSettings.languageCode,
         ),
@@ -1345,8 +1414,10 @@ export function AppShell() {
       selectedVideo,
       message,
       renderedText,
+      ttsSettings.modelId,
       ttsSettings.languageCode,
       ttsSettings.voiceStyleId,
+      ttsSettings.qwenPresetVoiceId,
     );
   }
 
@@ -1358,7 +1429,10 @@ export function AppShell() {
 
     const saved = saveTtsSettings({
       ...ttsSettings,
+      engine: ttsEngineForModel(ttsModelDraft),
+      modelId: ttsModelDraft,
       voiceStyleId: ttsVoiceDraft,
+      qwenPresetVoiceId: ttsQwenPresetVoiceDraft,
       languageCode: ttsLanguageDraft,
       hasSelectedVoice: true,
     });
@@ -1368,8 +1442,10 @@ export function AppShell() {
       readRequest.video,
       readRequest.message,
       readRequest.renderedText,
+      saved.modelId,
       saved.languageCode,
       saved.voiceStyleId,
+      saved.qwenPresetVoiceId,
     );
   }
 
@@ -1377,16 +1453,29 @@ export function AppShell() {
     video: VideoAsset,
     message: ChatMessage,
     renderedText: string,
-    languageCode: Supertonic3LanguageCode,
+    modelId: TtsModelId,
+    languageCode: TtsLanguageCode,
     voiceStyleId: SupertonicVoiceStyleId,
+    qwenPresetVoiceId: QwenPresetVoiceId,
   ) {
+    if (chatTtsGenerationRef.current) {
+      setAppNotice(t("notice.supertonic.busy"));
+      return;
+    }
+
+    const generation = { videoId: video.id, messageId: message.id };
+    chatTtsGenerationRef.current = generation;
+    setChatTtsGeneration(generation);
+
     try {
       const result = await readChatBubbleWithSupertonic({
         video,
         message,
         text: renderedText,
+        modelId,
         language: languageCode,
         voiceStyleId,
+        qwenPresetVoiceId,
       });
       setChatTtsAudioByMessageId((current) => ({
         ...current,
@@ -1396,10 +1485,28 @@ export function AppShell() {
           sizeBytes: result.sizeBytes,
         },
       }));
-      chatTtsAudioRef.current?.pause();
-      const audio = new Audio(result.audioUrl);
-      chatTtsAudioRef.current = audio;
-      await audio.play();
+      await playChatTtsAudioUrl(message.id, result.audioUrl);
+    } catch (error) {
+      setAppNotice(
+        t("notice.supertonic.failed", {
+          message: caughtErrorMessage(error, "supertonic_tts_failed"),
+        }),
+      );
+    } finally {
+      if (chatTtsGenerationRef.current === generation) {
+        chatTtsGenerationRef.current = undefined;
+        setChatTtsGeneration(undefined);
+      }
+    }
+  }
+
+  async function playChatTtsAudio(
+    message: ChatMessage,
+    audio: SupertonicChatTtsArtifact,
+  ) {
+    try {
+      const audioUrl = await resolveChatBubbleSupertonicAudioUrl(audio);
+      await playChatTtsAudioUrl(message.id, audioUrl);
     } catch (error) {
       setAppNotice(
         t("notice.supertonic.failed", {
@@ -1409,30 +1516,44 @@ export function AppShell() {
     }
   }
 
-  async function playChatTtsAudio(audio: SupertonicChatTtsArtifact) {
+  async function playChatTtsAudioUrl(messageId: string, audioUrl: string) {
+    const previous = chatTtsAudioRef.current;
+    chatTtsAudioRef.current = null;
+    previous?.pause();
+
+    const player = new Audio(audioUrl);
+    chatTtsAudioRef.current = player;
+    setPlayingChatTtsMessageId(messageId);
+
+    const clearPlaybackState = () => {
+      if (chatTtsAudioRef.current === player) {
+        setPlayingChatTtsMessageId(undefined);
+      }
+    };
+    player.addEventListener("pause", clearPlaybackState);
+    player.addEventListener("ended", clearPlaybackState);
+
     try {
-      const audioUrl = await resolveChatBubbleSupertonicAudioUrl(audio);
-      chatTtsAudioRef.current?.pause();
-      const player = new Audio(audioUrl);
-      chatTtsAudioRef.current = player;
       await player.play();
     } catch (error) {
-      setAppNotice(
-        t("notice.supertonic.failed", {
-          message: caughtErrorMessage(error, "supertonic_tts_failed"),
-        }),
-      );
+      clearPlaybackState();
+      throw error;
     }
+  }
+
+  function pauseChatTtsAudio() {
+    chatTtsAudioRef.current?.pause();
   }
 
   async function downloadChatTtsAudio(
     message: ChatMessage,
     audio: SupertonicChatTtsArtifact,
   ) {
+    void message;
     try {
       const result = await artifactExportService.exportLibraryArtifact({
         sourceRelativePath: audio.audioPath,
-        defaultFileName: `${message.id}-voice.wav`,
+        defaultFileName: createVoiceMessageDownloadFileName(audio),
         label: "voice message",
         filters: [{ name: "Audio", extensions: ["wav"] }],
       });
@@ -1462,6 +1583,139 @@ export function AppShell() {
       setAppNotice(
         t("notice.artifactExport.failed", {
           message: caughtErrorMessage(error, "artifact_export_failed"),
+        }),
+      );
+    }
+  }
+
+  async function generatePodcastFromWorkbench(request: {
+    mode: PodcastOutputMode;
+    sourceKind: PodcastSourceKind;
+    lengthMode: PodcastLengthMode;
+    outputLanguage?: string;
+    speakers: [PodcastSpeakerConfig, PodcastSpeakerConfig];
+    languageCode: TtsLanguageCode;
+  }) {
+    if (!selectedVideo) return;
+
+    try {
+      const podcast = await generatePodcast({
+        videoId: selectedVideo.id,
+        provider: aiProviderPreferences.summary.provider,
+        model: aiProviderPreferences.summary.model,
+        mode: request.mode,
+        sourceKind: request.sourceKind,
+        lengthMode: request.lengthMode,
+        outputLanguage: request.outputLanguage,
+        speakers: request.speakers,
+        tts: {
+          modelId: "Supertone/supertonic-3",
+          languageCode: request.languageCode,
+          speakers: request.speakers,
+        },
+        transcript: renderedTranscriptForSelectedVideo(),
+        transcriptVariantId:
+          activeTranscriptVariantId === "original"
+            ? undefined
+            : activeTranscriptVariantId,
+        summaryId: activeSummary?.id,
+      });
+      await playPodcast(podcast);
+    } catch (error) {
+      setAppNotice(
+        t("notice.supertonic.failed", {
+          message: caughtErrorMessage(error, "podcast_generation_failed"),
+        }),
+      );
+    }
+  }
+
+  function renderedTranscriptForSelectedVideo() {
+    const activeVariant = selectedTranscriptVariants.find(
+      (variant) => variant.id === activeTranscriptVariantId,
+    );
+    return activeVariant?.segments ?? selectedTranscript;
+  }
+
+  async function playPodcast(podcast: PodcastDocument) {
+    try {
+      pauseVideo(podcast.sourceAssetId);
+      const previous = podcastAudioRef.current;
+      podcastAudioRef.current = null;
+      previous?.pause();
+
+      const audioUrl = await resolvePodcastAudioUrl(podcast);
+      const player = new Audio(audioUrl);
+      podcastAudioRef.current = player;
+      await player.play();
+    } catch (error) {
+      setAppNotice(
+        t("notice.supertonic.failed", {
+          message: caughtErrorMessage(error, "podcast_playback_failed"),
+        }),
+      );
+    }
+  }
+
+  async function downloadPodcastAudio(podcast: PodcastDocument) {
+    await exportPodcastArtifact({
+      sourceRelativePath: podcast.artifacts.podcastAudioPath,
+      defaultFileName: createPodcastDownloadFileName(podcast),
+      label: "podcast audio",
+      filters: [{ name: "Audio", extensions: ["wav"] }],
+    });
+  }
+
+  async function downloadPodcastScript(podcast: PodcastDocument) {
+    await exportPodcastArtifact({
+      sourceRelativePath: podcast.artifacts.scriptPath,
+      defaultFileName: `${podcast.id}.md`,
+      label: "podcast script",
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+  }
+
+  async function exportPodcastArtifact(request: {
+    sourceRelativePath: string;
+    defaultFileName: string;
+    label: string;
+    filters: Array<{ name: string; extensions: string[] }>;
+  }) {
+    try {
+      const result = await artifactExportService.exportLibraryArtifact(request);
+      if (result) {
+        setAppNotice({
+          message: t("notice.artifactExport.success", {
+            path: result.targetPath,
+          }),
+          action: {
+            label: t("notice.open"),
+            onClick: async () => {
+              await revealExportedFile(result.targetPath);
+              setAppNotice(undefined);
+            },
+          },
+        });
+      }
+    } catch (error) {
+      setAppNotice(
+        t("notice.artifactExport.failed", {
+          message: caughtErrorMessage(error, "artifact_export_failed"),
+        }),
+      );
+    }
+  }
+
+  async function removePodcast(podcast: PodcastDocument) {
+    if (!selectedVideo) return;
+
+    try {
+      await deletePodcastTts(selectedVideo, podcast.id);
+      deletePodcast(selectedVideo.id, podcast.id);
+    } catch (error) {
+      setAppNotice(
+        t("notice.supertonic.failed", {
+          message: caughtErrorMessage(error, "podcast_delete_failed"),
         }),
       );
     }
@@ -1757,6 +2011,10 @@ export function AppShell() {
           activeSummaryId={activeSummary?.id}
           summaryJob={selectedSummaryJob}
           chatJob={selectedChatJob}
+          podcast={selectedPodcast}
+          podcastHistory={selectedPodcastHistory}
+          podcastJob={selectedPodcastJob}
+          podcastAudioUrl={selectedPodcastAudioUrl}
           chatMessages={selectedChatMessages}
           onAddVideo={openAddVideoDialog}
           onSelectVideoTab={setSelectedVideoId}
@@ -1829,8 +2087,22 @@ export function AppShell() {
               : Promise.resolve([])
           }
           onReadChatMessage={readChatMessageWithSupertonic}
+          onGeneratePodcast={generatePodcastFromWorkbench}
+          onPlayPodcast={playPodcast}
+          onDownloadPodcastAudio={downloadPodcastAudio}
+          onDownloadPodcastScript={downloadPodcastScript}
+          onDeletePodcast={removePodcast}
           chatTtsAudioByMessageId={chatTtsAudioByMessageId}
-          onPlayChatTtsAudio={(_, audio) => playChatTtsAudio(audio)}
+          generatingChatTtsMessageId={
+            chatTtsGeneration && chatTtsGeneration.videoId === selectedVideo?.id
+              ? chatTtsGeneration.messageId
+              : undefined
+          }
+          playingChatTtsMessageId={playingChatTtsMessageId}
+          onPlayChatTtsAudio={(message, audio) =>
+            playChatTtsAudio(message, audio)
+          }
+          onPauseChatTtsAudio={pauseChatTtsAudio}
           onDownloadChatTtsAudio={downloadChatTtsAudio}
           onResetChat={() => {
             if (selectedVideo) resetChatSession(selectedVideo.id);
@@ -1898,6 +2170,14 @@ export function AppShell() {
       <div
         className={cn(
           "h-full",
+          state.activeView === "voices" ? "block" : "hidden",
+        )}
+      >
+        <VoicesView />
+      </div>
+      <div
+        className={cn(
+          "h-full",
           state.activeView === "settings" ? "block" : "hidden",
         )}
       >
@@ -1921,6 +2201,9 @@ export function AppShell() {
           systemPromptSettings={systemPromptSettings}
           onSaveSystemPrompts={saveSystemPrompts}
           onResetSystemPrompts={resetSystemPrompts}
+          onRefreshStorage={async () => {
+            await refreshSettings();
+          }}
         />
       </div>
       <div
@@ -2028,21 +2311,54 @@ export function AppShell() {
               {t("settings.tts.firstRunDescription")}
             </DialogDescription>
           </DialogHeader>
+          <label className="grid gap-2 text-sm" htmlFor="first-read-tts-model">
+            <span className="font-medium">{t("settings.tts.model")}</span>
+            <select
+              id="first-read-tts-model"
+              value={ttsModelDraft}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              onChange={(event) => {
+                const modelId = event.target.value as TtsModelId;
+                setTtsModelDraft(modelId);
+                setTtsLanguageDraft(defaultLanguageForModel(modelId));
+              }}
+            >
+              {localTtsModelCards.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="grid gap-2 text-sm" htmlFor="first-read-tts-voice">
             <span className="font-medium">{t("settings.tts.voice")}</span>
             <select
               id="first-read-tts-voice"
-              value={ttsVoiceDraft}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              onChange={(event) =>
-                setTtsVoiceDraft(event.target.value as SupertonicVoiceStyleId)
+              value={
+                ttsEngineForModel(ttsModelDraft) === "qwen"
+                  ? ttsQwenPresetVoiceDraft
+                  : ttsVoiceDraft
               }
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              onChange={(event) => {
+                if (ttsEngineForModel(ttsModelDraft) === "qwen") {
+                  setTtsQwenPresetVoiceDraft(event.target.value as QwenPresetVoiceId);
+                } else {
+                  setTtsVoiceDraft(event.target.value as SupertonicVoiceStyleId);
+                }
+              }}
             >
-              {supertonicPresetVoiceStyles.map((voice) => (
-                <option key={voice.id} value={voice.id}>
-                  {t("settings.tts.voicePreset", { voice: voice.id })}
-                </option>
-              ))}
+              {ttsEngineForModel(ttsModelDraft) === "qwen"
+                ? qwenPresetVoices.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.label}
+                    </option>
+                  ))
+                : supertonicPresetVoiceStyles.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {supertonicPresetVoiceStyleLabel(voice.id)}
+                    </option>
+                  ))}
             </select>
           </label>
           <label
@@ -2055,14 +2371,12 @@ export function AppShell() {
               value={ttsLanguageDraft}
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               onChange={(event) =>
-                setTtsLanguageDraft(
-                  event.target.value as Supertonic3LanguageCode,
-                )
+                setTtsLanguageDraft(event.target.value as TtsLanguageCode)
               }
             >
-              {supertonic3Languages.map((language) => (
+              {synthesisLanguagesForModel(ttsModelDraft).map((language) => (
                 <option key={language.code} value={language.code}>
-                  {supertonicLanguageLabel(language.code)}
+                  {ttsLanguageLabel(ttsModelDraft, language.code)}
                 </option>
               ))}
             </select>
@@ -2178,21 +2492,52 @@ export function AppShell() {
   );
 }
 
-function preferredSupertonicLanguageCode(
+function FinderSearchInput({
+  searchText,
+  onSearchTextChange,
+}: {
+  searchText?: string;
+  onSearchTextChange(searchText: string | undefined): void;
+}) {
+  const { t } = useI18n();
+  const [inputValue, setInputValue] = useState(searchText ?? "");
+  const debouncedInputValue = useDebouncedValue(inputValue, 180);
+
+  useEffect(() => {
+    setInputValue((current) => {
+      const nextSearchText = searchText ?? "";
+      return current.trim() === nextSearchText ? current : nextSearchText;
+    });
+  }, [searchText]);
+
+  useEffect(() => {
+    onSearchTextChange(debouncedInputValue.trim() || undefined);
+  }, [debouncedInputValue, onSearchTextChange]);
+
+  return (
+    <Input
+      id="video-library-search"
+      value={inputValue}
+      onChange={(event) => setInputValue(event.target.value)}
+      placeholder={t("finder.search.placeholder")}
+      className="pl-9"
+    />
+  );
+}
+
+function preferredTtsLanguageCode(
+  modelId: TtsModelId,
   videoLanguageCode: string | undefined,
-  fallbackLanguageCode: Supertonic3LanguageCode,
+  fallbackLanguageCode: TtsLanguageCode,
 ) {
   return videoLanguageCode &&
-    isSynthesisLanguageSupportedByModel(
-      "Supertone/supertonic-3",
-      videoLanguageCode,
-    )
-    ? (videoLanguageCode as Supertonic3LanguageCode)
+    isSynthesisLanguageSupportedByModel(modelId, videoLanguageCode)
+    ? (videoLanguageCode as TtsLanguageCode)
     : fallbackLanguageCode;
 }
 
-function supertonicLanguageLabel(languageCode: Supertonic3LanguageCode) {
-  const language = supertonic3Languages.find(
+function ttsLanguageLabel(modelId: TtsModelId, languageCode: string) {
+  const language = synthesisLanguagesForModel(modelId).find(
     (candidate) => candidate.code === languageCode,
   );
   return language ? `${language.label} (${language.code})` : languageCode;
@@ -2204,6 +2549,7 @@ function pageTitleForView(
   videoTitle: string,
   playlistsTitle: string,
   settingsTitle: string,
+  voicesTitle: string,
   tutorialTitle: string,
   faqTitle: string,
   onboardingTitle: string,
@@ -2212,6 +2558,7 @@ function pageTitleForView(
   if (activeView === "faq") return faqTitle;
   if (activeView === "tutorial") return tutorialTitle;
   if (activeView === "settings") return settingsTitle;
+  if (activeView === "voices") return voicesTitle;
   if (activeView === "workbench") return selectedVideoTitle ?? videoTitle;
   if (activeView === "playlists") return playlistsTitle;
   return videoTitle;

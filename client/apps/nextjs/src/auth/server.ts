@@ -21,6 +21,12 @@ export const auth = initAuth({
   secret: env.AUTH_SECRET,
   discordClientId: env.AUTH_DISCORD_ID,
   discordClientSecret: env.AUTH_DISCORD_SECRET,
+  githubClientId: env.AUTH_GITHUB_ID,
+  githubClientSecret: env.AUTH_GITHUB_SECRET,
+  googleClientId: env.AUTH_GOOGLE_ID,
+  googleClientSecret: env.AUTH_GOOGLE_SECRET,
+  appleClientId: env.AUTH_APPLE_ID,
+  appleClientSecret: env.AUTH_APPLE_SECRET,
   extraPlugins: [nextCookies()],
 });
 

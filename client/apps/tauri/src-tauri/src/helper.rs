@@ -172,6 +172,19 @@ pub async fn run_helper_command<R: Runtime>(
     }
 
     if request.command == helper_sidecar::HelperCommandName::TranscribeAudio {
+        if let Some(model_id) = crate::qwen_asr::should_route_transcribe_to_qwen(&request.payload)?
+        {
+            return crate::qwen_asr::run_transcribe_audio(
+                &app,
+                &request,
+                sidecar_command,
+                &library_root,
+                &models_root,
+                model_id,
+            )
+            .await;
+        }
+
         if let Some(normalized_language) =
             crate::fluidaudio::should_route_transcribe_to_fluidaudio(&request.payload)?
         {
@@ -896,7 +909,10 @@ pub(crate) fn parse_helper_output(
     })
 }
 
-fn relativize_helper_paths(mut value: Value, library_root: &Path) -> Result<Value, String> {
+pub(crate) fn relativize_helper_paths(
+    mut value: Value,
+    library_root: &Path,
+) -> Result<Value, String> {
     match &mut value {
         Value::Object(object) => {
             for key in [
@@ -958,11 +974,11 @@ fn has_forbidden_component(path: &Path) -> bool {
     })
 }
 
-fn path_to_string(path: PathBuf) -> String {
+pub(crate) fn path_to_string(path: PathBuf) -> String {
     normalize_path_string(path.to_string_lossy().into_owned())
 }
 
-fn path_to_string_ref(path: &Path) -> String {
+pub(crate) fn path_to_string_ref(path: &Path) -> String {
     normalize_path_string(path.to_string_lossy().into_owned())
 }
 

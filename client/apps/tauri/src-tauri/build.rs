@@ -10,6 +10,7 @@ fn main() {
 
 const HELPER_BASE_NAME: &str = "openbrief-helper";
 const SUPERTONIC_BASE_NAME: &str = "openbrief-supertonic";
+const VOICEBOX_BASE_NAME: &str = "openbrief-voicebox";
 const FLUIDAUDIO_BASE_NAME: &str = "openbrief-fluidaudio";
 const MEDIA_TOOL_NAMES: [&str; 3] = ["yt-dlp", "ffmpeg", "ffprobe"];
 const PLACEHOLDER_MARKER: &str = "OpenBrief dev sidecar placeholder";
@@ -24,13 +25,16 @@ fn ensure_sidecar_contract() {
     let target = build_target_triple();
     let helper_sidecar_path = target_named_sidecar_path(HELPER_BASE_NAME, &target);
     let supertonic_sidecar_path = target_named_sidecar_path(SUPERTONIC_BASE_NAME, &target);
+    let voicebox_sidecar_path = target_named_sidecar_path(VOICEBOX_BASE_NAME, &target);
 
     if profile == "debug" {
         ensure_debug_sidecar_placeholder(&helper_sidecar_path);
         ensure_debug_sidecar_placeholder(&supertonic_sidecar_path);
+        ensure_debug_sidecar_placeholder(&voicebox_sidecar_path);
     } else {
         enforce_release_sidecar(&helper_sidecar_path, "helper");
         enforce_release_sidecar(&supertonic_sidecar_path, "Supertonic");
+        enforce_release_sidecar(&voicebox_sidecar_path, "Voicebox");
         enforce_release_fluidaudio_sidecar_if_needed();
     }
 }

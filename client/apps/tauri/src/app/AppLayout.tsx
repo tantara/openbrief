@@ -1,4 +1,4 @@
-import { LayoutGrid, ListVideo, Notebook, Settings } from "lucide-react";
+import { LayoutGrid, ListVideo, Notebook, Settings, Volume2 } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { Button } from "@acme/ui/button";
 import { OpenBriefMark } from "@acme/ui/openbrief-mark";
@@ -46,6 +46,8 @@ export function AppLayout({
     keys: resolveShortcutKeys(definition.keys),
     icon: iconForShortcut(definition.id),
   }));
+  const primaryShortcuts = shortcuts.filter((item) => item.view !== "settings");
+  const settingsShortcut = shortcuts.find((item) => item.view === "settings");
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -84,7 +86,7 @@ export function AppLayout({
         </div>
         <TooltipProvider delayDuration={0}>
           <nav className="flex flex-col gap-2" aria-label="Primary">
-            {shortcuts.slice(0, 3).map((item) => (
+            {primaryShortcuts.map((item) => (
               <SidebarNavItem
                 key={item.view}
                 active={activeView === item.view}
@@ -96,15 +98,17 @@ export function AppLayout({
               </SidebarNavItem>
             ))}
           </nav>
-          <SidebarNavItem
-            active={activeView === "settings"}
-            label={shortcuts[3].label}
-            shortcutKeys={shortcuts[3].keys}
-            className="mt-auto"
-            onClick={() => onActiveViewChange("settings")}
-          >
-            {shortcuts[3].icon}
-          </SidebarNavItem>
+          {settingsShortcut ? (
+            <SidebarNavItem
+              active={activeView === "settings"}
+              label={settingsShortcut.label}
+              shortcutKeys={settingsShortcut.keys}
+              className="mt-auto"
+              onClick={() => onActiveViewChange("settings")}
+            >
+              {settingsShortcut.icon}
+            </SidebarNavItem>
+          ) : null}
         </TooltipProvider>
       </aside>
 
@@ -194,6 +198,8 @@ function iconForShortcut(id: string) {
       return <Notebook className="h-4 w-4" aria-hidden="true" />;
     case "playlists":
       return <ListVideo className="h-4 w-4" aria-hidden="true" />;
+    case "voices":
+      return <Volume2 className="h-4 w-4" aria-hidden="true" />;
     case "settings":
       return <Settings className="h-4 w-4" aria-hidden="true" />;
     default:

@@ -3,6 +3,7 @@ import type { ProviderKind } from "@/domain/media-library";
 export type ProviderOperation =
   | "summary"
   | "chat"
+  | "podcast_script"
   | "transcript_review"
   | "transcript_translate";
 

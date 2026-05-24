@@ -19,6 +19,16 @@ import {
   type TranscriptVariant,
 } from "@/domain/transcript-actions";
 import {
+  createPodcastScriptPrompt,
+  parsePodcastScriptJson,
+  validatePodcastScriptResponse,
+  type PodcastLengthMode,
+  type PodcastOutputMode,
+  type PodcastScriptDocument,
+  type PodcastSourceKind,
+  type PodcastSpeakerConfig,
+} from "@/domain/podcast";
+import {
   createSummaryDocument,
   createSummaryPrompt,
   type SummaryLengthMode,
@@ -36,6 +46,9 @@ import {
 
 export type SummaryChatService = {
   generateSummary(request: GenerateSummaryRequest): Promise<SummaryDocument>;
+  generatePodcastScript(
+    request: GeneratePodcastScriptRequest,
+  ): Promise<PodcastScriptDocument>;
   sendChat(request: SendChatRequest): Promise<ChatMessage[]>;
   reviewTranscript(request: TranscriptReviewRequest): Promise<TranscriptSegment[]>;
   translateTranscript(request: TranscriptTranslationRequest): Promise<TranscriptVariant>;
@@ -69,6 +82,20 @@ export type SendChatRequest = {
   streamingMode?: boolean;
   onTextSnapshot?(text: string): void;
   nowIso?: string;
+};
+
+export type GeneratePodcastScriptRequest = {
+  video: VideoAsset;
+  sourceKind: PodcastSourceKind;
+  summary?: SummaryDocument;
+  transcript: TranscriptSegment[];
+  transcriptVariant?: TranscriptVariant;
+  mode: PodcastOutputMode;
+  lengthMode: PodcastLengthMode;
+  outputLanguage?: string;
+  speakers: [PodcastSpeakerConfig, PodcastSpeakerConfig];
+  provider: ProviderKind;
+  model?: string;
 };
 
 export type MarkdownSaveRequest = {
@@ -137,6 +164,26 @@ export function createSummaryChatService(
         sourceSegmentCount: request.transcript.length,
         sourceFileName: request.video.originalFileName ?? request.video.title,
         nowIso: request.nowIso,
+      });
+    },
+
+    async generatePodcastScript(request) {
+      const prompt = createPodcastScriptPrompt(request);
+      const result = await providerService.complete({
+        provider: request.provider,
+        operation: "podcast_script",
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.userPrompt,
+        model: request.model,
+      });
+
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+
+      return validatePodcastScriptResponse(parsePodcastScriptJson(result.text), {
+        video: request.video,
+        speakers: request.speakers,
       });
     },
 

@@ -13,9 +13,14 @@ import {
 } from "@/domain/provider";
 import type {
   SettingsSnapshot,
+  StorageUsageSnapshot,
   VideoDownloadAccessAction,
 } from "@/domain/settings";
-import { useI18n, type LanguageSelection, type TranslationKey } from "@/i18n";
+import {
+  formatStoragePercentage,
+  formatStorageSize,
+} from "@/domain/settings";
+import { useI18n, type LanguageSelection } from "@/i18n";
 import {
   defaultAiProviderPreferences,
   type AiProviderPreferences,
@@ -32,16 +37,24 @@ import {
 } from "@/services/themeSettingsService";
 import {
   defaultTtsSettings,
+  defaultLanguageForModel,
+  qwenPresetVoices,
   supertonicPresetVoiceStyles,
+  supertonicPresetVoiceStyleLabel,
+  ttsEngineForModel,
+  type QwenPresetVoiceId,
   type SupertonicVoiceStyleId,
+  type TtsLanguageCode,
+  type TtsModelId,
   type TtsSettings,
 } from "@/services/ttsSettingsService";
 import {
-  supertonic3Languages,
-  type Supertonic3LanguageCode,
+  localTtsModelCards,
+  synthesisLanguagesForModel,
 } from "@acme/model-card";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 type SettingsViewProps = {
   settings?: SettingsSnapshot;
@@ -65,6 +78,7 @@ type SettingsViewProps = {
   systemPromptSettings?: SystemPromptSettings;
   onSaveSystemPrompts?: (settings: SystemPromptSettings) => Promise<void> | void;
   onResetSystemPrompts?: () => Promise<SystemPromptSettings> | SystemPromptSettings | void;
+  onRefreshStorage?: () => Promise<void> | void;
 };
 
 export function SettingsView({
@@ -87,6 +101,7 @@ export function SettingsView({
   systemPromptSettings = defaultSystemPromptSettings,
   onSaveSystemPrompts,
   onResetSystemPrompts,
+  onRefreshStorage,
 }: SettingsViewProps) {
   const {
     languageSelection,
@@ -97,22 +112,7 @@ export function SettingsView({
   } = useI18n();
   const [isUpdatingApp, setIsUpdatingApp] = useState(false);
   const [isUpdatingYtDlp, setIsUpdatingYtDlp] = useState(false);
-  const [isSavingSystemPrompts, setIsSavingSystemPrompts] = useState(false);
-  const [promptDraft, setPromptDraft] = useState(systemPromptSettings);
-
-  useEffect(() => {
-    setPromptDraft(systemPromptSettings);
-  }, [systemPromptSettings]);
-
-  const promptDirty = useMemo(
-    () =>
-      promptDraft.videoSummary !== systemPromptSettings.videoSummary ||
-      promptDraft.chat !== systemPromptSettings.chat ||
-      promptDraft.transcriptReview !== systemPromptSettings.transcriptReview ||
-      promptDraft.transcriptTranslation !==
-        systemPromptSettings.transcriptTranslation,
-    [promptDraft, systemPromptSettings],
-  );
+  const [isRefreshingStorage, setIsRefreshingStorage] = useState(false);
 
   if (errorMessage) {
     return (
@@ -142,26 +142,13 @@ export function SettingsView({
     }
   }
 
-  async function saveSystemPrompts() {
-    if (!onSaveSystemPrompts) return;
-    setIsSavingSystemPrompts(true);
+  async function refreshStorage() {
+    if (!onRefreshStorage) return;
+    setIsRefreshingStorage(true);
     try {
-      await onSaveSystemPrompts(promptDraft);
+      await onRefreshStorage();
     } finally {
-      setIsSavingSystemPrompts(false);
-    }
-  }
-
-  async function resetSystemPrompts() {
-    const presetPrompts = defaultSystemPromptSettings;
-    setPromptDraft(presetPrompts);
-    if (!onResetSystemPrompts) return;
-    setIsSavingSystemPrompts(true);
-    try {
-      const resetPrompts = await onResetSystemPrompts();
-      setPromptDraft(resetPrompts ?? presetPrompts);
-    } finally {
-      setIsSavingSystemPrompts(false);
+      setIsRefreshingStorage(false);
     }
   }
 
@@ -183,7 +170,25 @@ export function SettingsView({
     });
   }
 
-  function updateTtsLanguage(languageCode: Supertonic3LanguageCode) {
+  function updateQwenPresetVoice(qwenPresetVoiceId: QwenPresetVoiceId) {
+    onTtsSettingsChange?.({
+      ...ttsSettings,
+      qwenPresetVoiceId,
+      hasSelectedVoice: true,
+    });
+  }
+
+  function updateTtsModel(modelId: TtsModelId) {
+    onTtsSettingsChange?.({
+      ...ttsSettings,
+      engine: ttsEngineForModel(modelId),
+      modelId,
+      languageCode: defaultLanguageForModel(modelId),
+      hasSelectedVoice: true,
+    });
+  }
+
+  function updateTtsLanguage(languageCode: TtsLanguageCode) {
     onTtsSettingsChange?.({
       ...ttsSettings,
       languageCode,
@@ -334,6 +339,12 @@ export function SettingsView({
           )}
         </CardContent>
       </Card>
+
+      <StorageUsageCard
+        storage={settings?.storage}
+        onRefresh={onRefreshStorage ? refreshStorage : undefined}
+        isRefreshing={isRefreshingStorage}
+      />
 
       <Card className="2xl:col-span-2">
         <CardHeader>
@@ -641,18 +652,36 @@ export function SettingsView({
         <CardContent className="space-y-4">
           <DescriptionList
             rows={[
-              [t("settings.tts.engine"), "Supertonic"],
-              [t("settings.tts.model"), ttsSettings.modelId],
+              [t("settings.tts.engine"), ttsEngineLabel(ttsSettings.engine)],
+              [t("settings.tts.model"), ttsModelLabel(ttsSettings.modelId)],
               [
                 t("settings.tts.language"),
-                supertonicLanguageLabel(ttsSettings.languageCode),
+                ttsLanguageLabel(ttsSettings.modelId, ttsSettings.languageCode),
               ],
               [
                 t("settings.tts.defaultVoice"),
-                supertonicVoiceStyleLabel(ttsSettings.voiceStyleId, t),
+                ttsVoiceLabel(ttsSettings),
               ],
             ]}
           />
+          <label className="grid gap-1 text-sm" htmlFor="settings-tts-model">
+            <span className="font-medium">{t("settings.tts.model")}</span>
+            <select
+              id="settings-tts-model"
+              aria-label={t("settings.tts.model")}
+              value={ttsSettings.modelId}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              onChange={(event) =>
+                updateTtsModel(event.target.value as TtsModelId)
+              }
+            >
+              {localTtsModelCards.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="grid gap-1 text-sm" htmlFor="settings-tts-voice">
             <span className="font-medium">{t("settings.tts.voice")}</span>
             <span className="text-xs text-muted-foreground">
@@ -661,17 +690,31 @@ export function SettingsView({
             <select
               id="settings-tts-voice"
               aria-label={t("settings.tts.voice")}
-              value={ttsSettings.voiceStyleId}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              onChange={(event) =>
-                updateTtsVoice(event.target.value as SupertonicVoiceStyleId)
+              value={
+                ttsSettings.engine === "qwen"
+                  ? ttsSettings.qwenPresetVoiceId
+                  : ttsSettings.voiceStyleId
               }
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              onChange={(event) => {
+                if (ttsSettings.engine === "qwen") {
+                  updateQwenPresetVoice(event.target.value as QwenPresetVoiceId);
+                } else {
+                  updateTtsVoice(event.target.value as SupertonicVoiceStyleId);
+                }
+              }}
             >
-              {supertonicPresetVoiceStyles.map((voice) => (
-                <option key={voice.id} value={voice.id}>
-                  {supertonicVoiceStyleLabel(voice.id, t)}
-                </option>
-              ))}
+              {ttsSettings.engine === "qwen"
+                ? qwenPresetVoices.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.label}
+                    </option>
+                  ))
+                : supertonicPresetVoiceStyles.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {supertonicPresetVoiceStyleLabel(voice.id)}
+                    </option>
+                  ))}
             </select>
           </label>
           <label className="grid gap-1 text-sm" htmlFor="settings-tts-language">
@@ -682,12 +725,12 @@ export function SettingsView({
               value={ttsSettings.languageCode}
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               onChange={(event) =>
-                updateTtsLanguage(event.target.value as Supertonic3LanguageCode)
+                updateTtsLanguage(event.target.value as TtsLanguageCode)
               }
             >
-              {supertonic3Languages.map((language) => (
+              {synthesisLanguagesForModel(ttsSettings.modelId).map((language) => (
                 <option key={language.code} value={language.code}>
-                  {supertonicLanguageLabel(language.code)}
+                  {ttsLanguageLabel(ttsSettings.modelId, language.code)}
                 </option>
               ))}
             </select>
@@ -780,84 +823,11 @@ export function SettingsView({
         </CardContent>
       </Card>
 
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>{t("settings.prompts.title")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {t("settings.prompts.description")}
-          </p>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <SystemPromptEditor
-              id="video-summary-system-prompt"
-              label={t("settings.prompts.videoSummary")}
-              description={t("settings.prompts.videoSummaryDescription")}
-              value={promptDraft.videoSummary}
-              onChange={(videoSummary) =>
-                setPromptDraft((current) => ({ ...current, videoSummary }))
-              }
-            />
-            <SystemPromptEditor
-              id="chat-system-prompt"
-              label={t("settings.prompts.chat")}
-              description={t("settings.prompts.chatDescription")}
-              value={promptDraft.chat}
-              onChange={(chat) =>
-                setPromptDraft((current) => ({ ...current, chat }))
-              }
-            />
-            <SystemPromptEditor
-              id="transcript-review-system-prompt"
-              label={t("settings.prompts.transcriptReview")}
-              description={t("settings.prompts.transcriptReviewDescription")}
-              value={promptDraft.transcriptReview}
-              onChange={(transcriptReview) =>
-                setPromptDraft((current) => ({ ...current, transcriptReview }))
-              }
-            />
-            <SystemPromptEditor
-              id="transcript-translation-system-prompt"
-              label={t("settings.prompts.transcriptTranslation")}
-              description={t("settings.prompts.transcriptTranslationDescription")}
-              value={promptDraft.transcriptTranslation}
-              onChange={(transcriptTranslation) =>
-                setPromptDraft((current) => ({
-                  ...current,
-                  transcriptTranslation,
-                }))
-              }
-            />
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSavingSystemPrompts}
-              onClick={resetSystemPrompts}
-            >
-              {t("settings.prompts.reset")}
-            </Button>
-            <Button
-              type="button"
-              disabled={
-                !onSaveSystemPrompts ||
-                !promptDirty ||
-                isSavingSystemPrompts ||
-                !promptDraft.videoSummary.trim() ||
-                !promptDraft.chat.trim() ||
-                !promptDraft.transcriptReview.trim() ||
-                !promptDraft.transcriptTranslation.trim()
-              }
-              onClick={saveSystemPrompts}
-            >
-              {isSavingSystemPrompts
-                ? t("settings.prompts.saving")
-                : t("settings.prompts.save")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <SystemPromptsSection
+        systemPromptSettings={systemPromptSettings}
+        onSaveSystemPrompts={onSaveSystemPrompts}
+        onResetSystemPrompts={onResetSystemPrompts}
+      />
 
       {onOpenOnboarding ? (
         <Card className="col-span-full">
@@ -878,18 +848,165 @@ export function SettingsView({
   );
 }
 
-function supertonicVoiceStyleLabel(
-  voiceStyleId: SupertonicVoiceStyleId,
-  t: (key: TranslationKey, values?: Record<string, string | number>) => string,
-) {
-  return t("settings.tts.voicePreset", { voice: voiceStyleId });
+function ttsEngineLabel(engine: TtsSettings["engine"]) {
+  return engine === "qwen" ? "Qwen3-TTS" : "Supertonic";
 }
 
-function supertonicLanguageLabel(languageCode: Supertonic3LanguageCode) {
-  const language = supertonic3Languages.find(
+function ttsModelLabel(modelId: TtsModelId) {
+  return (
+    localTtsModelCards.find((candidate) => candidate.id === modelId)?.name ??
+    modelId
+  );
+}
+
+function ttsVoiceLabel(settings: TtsSettings) {
+  if (settings.engine === "qwen") {
+    return (
+      qwenPresetVoices.find(
+        (candidate) => candidate.id === settings.qwenPresetVoiceId,
+      )?.label ?? settings.qwenPresetVoiceId
+    );
+  }
+  return supertonicPresetVoiceStyleLabel(settings.voiceStyleId);
+}
+
+function ttsLanguageLabel(modelId: TtsModelId, languageCode: string) {
+  const language = synthesisLanguagesForModel(modelId).find(
     (candidate) => candidate.code === languageCode,
   );
   return language ? `${language.label} (${language.code})` : languageCode;
+}
+
+function SystemPromptsSection({
+  systemPromptSettings,
+  onSaveSystemPrompts,
+  onResetSystemPrompts,
+}: {
+  systemPromptSettings: SystemPromptSettings;
+  onSaveSystemPrompts?: (settings: SystemPromptSettings) => Promise<void> | void;
+  onResetSystemPrompts?: () => Promise<SystemPromptSettings> | SystemPromptSettings | void;
+}) {
+  const { t } = useI18n();
+  const [isSavingSystemPrompts, setIsSavingSystemPrompts] = useState(false);
+  const [promptDraft, setPromptDraft] = useState(systemPromptSettings);
+
+  useEffect(() => {
+    setPromptDraft(systemPromptSettings);
+  }, [systemPromptSettings]);
+
+  const promptDirty = useMemo(
+    () =>
+      promptDraft.videoSummary !== systemPromptSettings.videoSummary ||
+      promptDraft.chat !== systemPromptSettings.chat ||
+      promptDraft.transcriptReview !== systemPromptSettings.transcriptReview ||
+      promptDraft.transcriptTranslation !==
+        systemPromptSettings.transcriptTranslation,
+    [promptDraft, systemPromptSettings],
+  );
+
+  async function saveSystemPrompts() {
+    if (!onSaveSystemPrompts) return;
+    setIsSavingSystemPrompts(true);
+    try {
+      await onSaveSystemPrompts(promptDraft);
+    } finally {
+      setIsSavingSystemPrompts(false);
+    }
+  }
+
+  async function resetSystemPrompts() {
+    const presetPrompts = defaultSystemPromptSettings;
+    setPromptDraft(presetPrompts);
+    if (!onResetSystemPrompts) return;
+    setIsSavingSystemPrompts(true);
+    try {
+      const resetPrompts = await onResetSystemPrompts();
+      setPromptDraft(resetPrompts ?? presetPrompts);
+    } finally {
+      setIsSavingSystemPrompts(false);
+    }
+  }
+
+  return (
+    <Card className="col-span-full">
+      <CardHeader>
+        <CardTitle>{t("settings.prompts.title")}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {t("settings.prompts.description")}
+        </p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SystemPromptEditor
+            id="video-summary-system-prompt"
+            label={t("settings.prompts.videoSummary")}
+            description={t("settings.prompts.videoSummaryDescription")}
+            value={promptDraft.videoSummary}
+            onChange={(videoSummary) =>
+              setPromptDraft((current) => ({ ...current, videoSummary }))
+            }
+          />
+          <SystemPromptEditor
+            id="chat-system-prompt"
+            label={t("settings.prompts.chat")}
+            description={t("settings.prompts.chatDescription")}
+            value={promptDraft.chat}
+            onChange={(chat) =>
+              setPromptDraft((current) => ({ ...current, chat }))
+            }
+          />
+          <SystemPromptEditor
+            id="transcript-review-system-prompt"
+            label={t("settings.prompts.transcriptReview")}
+            description={t("settings.prompts.transcriptReviewDescription")}
+            value={promptDraft.transcriptReview}
+            onChange={(transcriptReview) =>
+              setPromptDraft((current) => ({ ...current, transcriptReview }))
+            }
+          />
+          <SystemPromptEditor
+            id="transcript-translation-system-prompt"
+            label={t("settings.prompts.transcriptTranslation")}
+            description={t("settings.prompts.transcriptTranslationDescription")}
+            value={promptDraft.transcriptTranslation}
+            onChange={(transcriptTranslation) =>
+              setPromptDraft((current) => ({
+                ...current,
+                transcriptTranslation,
+              }))
+            }
+          />
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSavingSystemPrompts}
+            onClick={resetSystemPrompts}
+          >
+            {t("settings.prompts.reset")}
+          </Button>
+          <Button
+            type="button"
+            disabled={
+              !onSaveSystemPrompts ||
+              !promptDirty ||
+              isSavingSystemPrompts ||
+              !promptDraft.videoSummary.trim() ||
+              !promptDraft.chat.trim() ||
+              !promptDraft.transcriptReview.trim() ||
+              !promptDraft.transcriptTranslation.trim()
+            }
+            onClick={saveSystemPrompts}
+          >
+            {isSavingSystemPrompts
+              ? t("settings.prompts.saving")
+              : t("settings.prompts.save")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function SystemPromptEditor({
@@ -947,6 +1064,125 @@ function SettingsSectionLoading() {
         <div className="h-3 w-2/3 rounded-full bg-muted" />
       </div>
     </div>
+  );
+}
+
+function StorageUsageCard({
+  storage,
+  onRefresh,
+  isRefreshing = false,
+}: {
+  storage?: StorageUsageSnapshot;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+}) {
+  const { t } = useI18n();
+  const colors = [
+    "bg-emerald-500",
+    "bg-blue-500",
+    "bg-amber-500",
+    "bg-rose-500",
+    "bg-violet-500",
+  ];
+  const hasError = Boolean(storage?.errorMessage);
+  const totalLabel = formatStorageSize(storage?.totalBytes ?? 0);
+
+  return (
+    <Card className="2xl:col-span-2">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>{t("settings.storage.title")}</CardTitle>
+          {onRefresh ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={
+                hasError
+                  ? t("settings.storage.retry")
+                  : t("settings.storage.refresh")
+              }
+              disabled={isRefreshing}
+              onClick={onRefresh}
+            >
+              <RefreshCw
+                aria-hidden="true"
+                className={`size-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              {hasError
+                ? t("settings.storage.retry")
+                : t("settings.storage.refresh")}
+            </Button>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {storage ? (
+          <>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                {t("settings.storage.description")}
+              </p>
+              <p className="text-sm font-medium">
+                {t("settings.storage.total", { total: totalLabel })}
+              </p>
+            </div>
+            {hasError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p className="font-medium">
+                  {t("settings.storage.unavailable")}
+                </p>
+                <p className="mt-1 break-words text-xs">
+                  {storage.errorMessage}
+                </p>
+              </div>
+            ) : null}
+            <div
+              className="flex h-3 overflow-hidden rounded-full bg-muted"
+              aria-label={t("settings.storage.barLabel", { total: totalLabel })}
+            >
+              {storage.items.map((item, index) => (
+                <span
+                  key={item.category}
+                  className={colors[index % colors.length]}
+                  style={{ width: `${Math.max(0, item.percentage)}%` }}
+                  title={`${item.label}: ${formatStorageSize(item.sizeBytes)} (${formatStoragePercentage(item.percentage)})`}
+                >
+                  <span className="sr-only">
+                    {item.label}: {formatStorageSize(item.sizeBytes)},{" "}
+                    {formatStoragePercentage(item.percentage)}
+                  </span>
+                </span>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {storage.items.map((item, index) => (
+                <div
+                  key={item.category}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className={`size-2.5 rounded-full ${colors[index % colors.length]}`}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </span>
+                  <span className="font-medium">
+                    {formatStorageSize(item.sizeBytes)}
+                  </span>
+                  <span className="w-10 text-right text-muted-foreground">
+                    {formatStoragePercentage(item.percentage)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <SettingsSectionLoading />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

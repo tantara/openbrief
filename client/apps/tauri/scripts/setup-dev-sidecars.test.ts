@@ -78,7 +78,7 @@ describe("dev sidecar placeholder setup", () => {
     expect(helperNames).toContain("openbrief-helper-aarch64-unknown-linux-gnu");
   });
 
-  it("creates Supertonic sidecar placeholders for all desktop targets", () => {
+  it("creates TTS sidecar placeholders for all desktop targets", () => {
     const binariesDir = createTempBinariesDirForTests();
     const results = setupDevSidecars({
       binariesDir,
@@ -88,6 +88,7 @@ describe("dev sidecar placeholder setup", () => {
     expect(results.map((result) => result.fileName)).toEqual([
       "openbrief-helper-x86_64-unknown-linux-gnu",
       "openbrief-supertonic-x86_64-unknown-linux-gnu",
+      "openbrief-voicebox-x86_64-unknown-linux-gnu",
     ]);
   });
 
@@ -104,6 +105,7 @@ describe("dev sidecar placeholder setup", () => {
       expect(results.map((result) => result.fileName)).toEqual([
         sidecarFileName("openbrief-helper", targetTriple),
         sidecarFileName("openbrief-supertonic", targetTriple),
+        sidecarFileName("openbrief-voicebox", targetTriple),
       ]);
       expect(
         results.some((result) => result.fileName.includes("openbrief-fluidaudio")),

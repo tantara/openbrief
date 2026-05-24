@@ -7,6 +7,10 @@ import type {
   VideoAsset,
   VideoPlaylist,
 } from "@/domain/media-library";
+import type {
+  PodcastDocument,
+  PodcastGenerationJob,
+} from "@/domain/podcast";
 import type { TranscriptVariant } from "@/domain/transcript-actions";
 import { invoke } from "@tauri-apps/api/core";
 import { canUseTauriRuntime, type TauriInvoke } from "@/services/tauriHelperClient";
@@ -20,6 +24,9 @@ export type MediaLibrarySnapshot = {
   summariesByVideoId: Record<string, SummaryDocument>;
   summaryHistoryByVideoId: Record<string, SummaryDocument[]>;
   chatMessagesByVideoId: Record<string, ChatMessage[]>;
+  podcastsByVideoId: Record<string, PodcastDocument>;
+  podcastHistoryByVideoId: Record<string, PodcastDocument[]>;
+  podcastJobsByVideoId: Record<string, PodcastGenerationJob>;
   playlists: VideoPlaylist[];
 };
 
@@ -53,6 +60,9 @@ export function createEmptyMediaLibrarySnapshot(): MediaLibrarySnapshot {
     summariesByVideoId: {},
     summaryHistoryByVideoId: {},
     chatMessagesByVideoId: {},
+    podcastsByVideoId: {},
+    podcastHistoryByVideoId: {},
+    podcastJobsByVideoId: {},
     playlists: [],
   };
 }
@@ -244,6 +254,11 @@ function normalizeSnapshot(value: unknown): MediaLibrarySnapshot {
     value.summaryHistoryByVideoId,
     summariesByVideoId,
   );
+  const podcastsByVideoId = getRecord<PodcastDocument>(value.podcastsByVideoId);
+  const podcastHistoryByVideoId = normalizePodcastHistory(
+    value.podcastHistoryByVideoId,
+    podcastsByVideoId,
+  );
 
   return {
     videos: getArray<VideoAsset>(value.videos),
@@ -259,6 +274,11 @@ function normalizeSnapshot(value: unknown): MediaLibrarySnapshot {
     summaryHistoryByVideoId,
     chatMessagesByVideoId: getArrayRecord<ChatMessage>(
       value.chatMessagesByVideoId,
+    ),
+    podcastsByVideoId,
+    podcastHistoryByVideoId,
+    podcastJobsByVideoId: getRecord<PodcastGenerationJob>(
+      value.podcastJobsByVideoId,
     ),
     playlists: getArray<VideoPlaylist>(value.playlists),
   };
@@ -303,6 +323,28 @@ function normalizeSummaryHistory(
   return history;
 }
 
+function normalizePodcastHistory(
+  value: unknown,
+  latestPodcasts: Record<string, PodcastDocument>,
+) {
+  const history = getArrayRecord<PodcastDocument>(value);
+
+  for (const [videoId, latestPodcast] of Object.entries(latestPodcasts)) {
+    const podcasts = history[videoId] ?? [];
+
+    if (!podcasts.some((podcast) => podcast.id === latestPodcast.id)) {
+      history[videoId] = [...podcasts, latestPodcast];
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(history).map(([videoId, podcasts]) => [
+      videoId,
+      [...podcasts].sort(compareCreatedAtDesc),
+    ]),
+  );
+}
+
 function latestSummaryForVideo(
   snapshot: MediaLibrarySnapshot,
   videoId: string,
@@ -314,12 +356,17 @@ function latestSummaryForVideo(
 }
 
 function latestSummary(summaries: SummaryDocument[] = []) {
-  return [...summaries].sort((left, right) => {
-    return (
-      (Date.parse(right.createdAtIso) || 0) -
-      (Date.parse(left.createdAtIso) || 0)
-    );
-  })[0];
+  return [...summaries].sort(compareCreatedAtDesc)[0];
+}
+
+function compareCreatedAtDesc(
+  left: { createdAtIso?: string },
+  right: { createdAtIso?: string },
+) {
+  return (
+    (Date.parse(right.createdAtIso ?? "") || 0) -
+    (Date.parse(left.createdAtIso ?? "") || 0)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

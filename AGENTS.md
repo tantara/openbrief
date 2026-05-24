@@ -46,4 +46,7 @@ Run the smallest useful checks first, then widen as needed:
 
 ## Commits
 
-When asked to commit, use the repository Lore commit protocol: an intent-first subject plus decision trailers for constraints, rejected alternatives, confidence, scope risk, directives, and verification evidence.
+- Create a git commit after a new feature is implemented and verified.
+- If unrelated files are already present in tracked changes, treat them as parallel work and include those tracked changes in the commit instead of ignoring, reverting, or resetting them.
+- Keep external reference repos and research folders out of commits unless the user explicitly asks to vendor them.
+- Use the repository Lore commit protocol: an intent-first subject plus decision trailers for constraints, rejected alternatives, confidence, scope risk, directives, and verification evidence.

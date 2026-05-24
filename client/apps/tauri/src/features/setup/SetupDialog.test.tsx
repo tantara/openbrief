@@ -3,7 +3,10 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { SetupDialog } from "@/features/setup/SetupDialog";
 import { createPlatformCompatibilityReport } from "@/domain/compatibility";
-import type { SettingsSnapshot } from "@/domain/settings";
+import {
+  createZeroStorageUsageSnapshot,
+  type SettingsSnapshot,
+} from "@/domain/settings";
 
 describe("SetupDialog", () => {
   it("gates transcription until the selected Whisper model is downloaded", async () => {
@@ -343,6 +346,7 @@ const settings: SettingsSnapshot = {
       },
     ],
   },
+  storage: createZeroStorageUsageSnapshot("2026-05-24T00:00:00.000Z"),
   compatibility: createPlatformCompatibilityReport({
     platform: "macos",
     architecture: "aarch64",

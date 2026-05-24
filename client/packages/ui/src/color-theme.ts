@@ -14,20 +14,36 @@ export const colorSeedIds = [
 export type ColorSeed = (typeof colorSeedIds)[number];
 export type ColorTheme = "light" | "dark";
 
-export type ColorSeedOption = {
+export interface ColorSeedOption {
   id: ColorSeed;
   label: string;
   swatch: string;
-};
+}
 
-export type ColorSeedTokens = {
+export interface ColorSeedTokens {
   primary: string;
   accent: string;
   accentForeground: string;
   darkAccent: string;
   darkAccentForeground: string;
   chart3: string;
-};
+}
+
+export interface NativeThemeTokens {
+  colorScheme: ColorTheme;
+  background: string;
+  foreground: string;
+  card: string;
+  cardForeground: string;
+  muted: string;
+  mutedForeground: string;
+  primary: string;
+  primaryForeground: string;
+  accent: string;
+  accentForeground: string;
+  destructive: string;
+  border: string;
+}
 
 export const defaultColorSeed: ColorSeed = "green";
 
@@ -145,7 +161,7 @@ export function getColorSeedCssVariables(
 }
 
 export function applyColorSeedVariables(
-  root: HTMLElement,
+  root: { style: { setProperty: (property: string, value: string) => void } },
   theme: ColorTheme,
   colorSeed: ColorSeed,
 ) {
@@ -154,6 +170,54 @@ export function applyColorSeedVariables(
   Object.entries(variables).forEach(([property, value]) => {
     root.style.setProperty(property, value);
   });
+}
+
+export function getNativeThemeTokens(
+  theme: ColorTheme,
+  colorSeed: ColorSeed = defaultColorSeed,
+): NativeThemeTokens {
+  const tokens = colorSeedTokens[colorSeed];
+  const accent = theme === "dark" ? tokens.darkAccent : tokens.accent;
+  const accentForeground =
+    theme === "dark" ? tokens.darkAccentForeground : tokens.accentForeground;
+
+  return {
+    colorScheme: theme,
+    background:
+      theme === "dark"
+        ? toHsl("228.5714 84% 4.902%")
+        : toHsl("75 40% 98.0392%"),
+    foreground:
+      theme === "dark"
+        ? toHsl("210 40% 98.0392%")
+        : toHsl("222.2222 47.3684% 11.1765%"),
+    card:
+      theme === "dark"
+        ? toHsl("222.2222 47.3684% 11.1765%")
+        : toHsl("0 0% 100%"),
+    cardForeground:
+      theme === "dark"
+        ? toHsl("210 40% 98.0392%")
+        : toHsl("222.2222 47.3684% 11.1765%"),
+    muted:
+      theme === "dark"
+        ? toHsl("217.2414 32.5843% 17.451%")
+        : toHsl("210 40% 96.0784%"),
+    mutedForeground:
+      theme === "dark"
+        ? toHsl("215 20.2247% 65.098%")
+        : toHsl("215.3846 16.318% 46.8627%"),
+    primary: toHsl(tokens.primary),
+    primaryForeground: toHsl("0 0% 0%"),
+    accent: toHsl(accent),
+    accentForeground: toHsl(accentForeground),
+    destructive:
+      theme === "dark" ? toHsl("0 70% 35.2941%") : toHsl("0 84.2365% 60.1961%"),
+    border:
+      theme === "dark"
+        ? toHsl("217.2414 32.5843% 17.451%")
+        : toHsl("214.2857 31.8182% 91.3725%"),
+  };
 }
 
 function toHsl(channel: string) {

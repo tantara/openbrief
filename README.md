@@ -8,7 +8,7 @@ OpenBrief is a pnpm/Turborepo workspace centered on a Tauri v2 desktop app. It s
 
 | Model type | Supported | TODO |
 | --- | --- | --- |
-| Speech to text | Whisper, Parakeet | Qwen3-ASR |
+| Speech to text | Whisper, Parakeet, Qwen3-ASR | None |
 | Text to speech | Supertonic 3 | Qwen3-TTS |
 | Large language model | OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter DeepSeek | Local Gemma 4 |
 
@@ -168,7 +168,7 @@ Use `pnpm --filter <workspace> <script>` or `pnpm -F <workspace> <script>` for a
 - [x] Improve audio file support for transcription, summaries, playback, and exports.
 - [ ] Support more document and web source types, including PDFs, HTML pages, and other document formats.
 - [x] Support Parakeet ASR.
-- [ ] Support Qwen3-ASR and Qwen3-ForcedAligner.
+- [x] Support Qwen3-ASR and Qwen3-ForcedAligner.
 - [x] Support Supertonic 3 TTS.
 - [ ] Support local LLMs, including Gemma 4.
 - [ ] Add voice cloning so summaries can be read aloud in a selected voice.
@@ -184,6 +184,7 @@ Use `pnpm --filter <workspace> <script>` or `pnpm -F <workspace> <script>` for a
 - User-visible renderer strings should go through `client/apps/tauri/src/i18n`.
 - Rust owns credentials, filesystem paths, sidecar execution, provider secret resolution, and app-library roots.
 - Helper subprocess execution should use argv arrays, not shell-concatenated commands.
+- Qwen3-ASR 0.6B sidecar smoke validation runs through the manual `Qwen3 ASR 0.6B Smoke` GitHub Actions workflow across macOS arm64, macOS Intel, Windows x64, and Linux x64.
 
 ## Acknowledgements
 

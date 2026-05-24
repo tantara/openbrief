@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "default": "./src/index.ts"
     }
   },
@@ -20,6 +20,7 @@
   "dependencies": {
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
+    "@acme/openbrief-content": "workspace:*",
     "@acme/validators": "workspace:*",
     "@trpc/server": "catalog:",
     "superjson": "2.2.3",

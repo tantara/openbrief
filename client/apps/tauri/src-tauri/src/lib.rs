@@ -9,6 +9,8 @@ mod media_library;
 mod media_tools;
 mod platform_plugins;
 mod provider;
+mod qwen_asr;
+mod storage_usage;
 mod stt_models;
 mod supertonic;
 mod trusted_paths;
@@ -169,8 +171,14 @@ pub fn run() {
             show_transcript_overlay,
             stt_models::stt_model_catalog,
             stt_models::download_stt_model,
+            storage_usage::storage_usage_snapshot,
+            supertonic::tts_voice_catalog,
+            supertonic::generate_tts_preview,
             supertonic::generate_supertonic_chat_tts,
+            supertonic::generate_supertonic_podcast_tts,
             supertonic::latest_supertonic_chat_tts,
+            supertonic::latest_supertonic_podcast_tts,
+            supertonic::delete_supertonic_podcast_tts,
             trusted_paths::app_library_root,
             trusted_paths::copy_local_file_into_library,
             trusted_paths::copy_playlist_cover_into_library,

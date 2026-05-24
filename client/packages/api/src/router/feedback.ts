@@ -11,6 +11,15 @@ const submitSchema = z.object({
   title: z.string().min(3).max(200),
   body: z.string().min(10).max(8000),
   email: z.email().max(320).optional(),
+  source: z.enum(["nextjs", "tauri", "expo"]).default("nextjs"),
+  platform: z.string().min(1).max(32).optional(),
+  diagnostics: z
+    .record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean(), z.null()]),
+    )
+    .optional(),
+  githubIssueUrl: z.url().optional(),
 });
 
 export const feedbackRouter = {
@@ -24,6 +33,10 @@ export const feedbackRouter = {
           title: input.title,
           body: input.body,
           email: input.email ?? null,
+          source: input.source,
+          platform: input.platform ?? null,
+          diagnostics: input.diagnostics ?? null,
+          githubIssueUrl: input.githubIssueUrl ?? null,
           userId: ctx.session?.user.id ?? null,
         })
         .returning({ id: feedback.id });

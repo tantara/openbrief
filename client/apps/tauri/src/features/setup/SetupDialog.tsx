@@ -62,7 +62,6 @@ export function SetupDialog({
   onContinue,
 }: SetupDialogProps) {
   const { t } = useI18n();
-  const [apiKey, setApiKey] = useState("");
   const [providerAuthMode, setProviderAuthMode] =
     useState<ProviderAuthMode>("api-key");
   const [isSaving, setIsSaving] = useState(false);
@@ -115,19 +114,20 @@ export function SetupDialog({
     }
   }
 
-  async function saveApiKey() {
+  async function saveApiKey(apiKey: string) {
     if (!apiKey.trim()) {
       setErrorMessage("provider_api_key_empty");
-      return;
+      return false;
     }
 
     setErrorMessage(undefined);
     setIsSaving(true);
     try {
       await onSaveProviderApiKey(provider, apiKey);
-      setApiKey("");
+      return true;
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "provider_api_key_save_failed");
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -208,9 +208,7 @@ export function SetupDialog({
               provider={provider}
               providerModel={providerModel}
               configured={providerConfigured}
-              apiKey={apiKey}
               authMode={providerAuthMode}
-              onApiKeyChange={setApiKey}
               onAuthModeChange={setProviderAuthMode}
               onProviderChange={onProviderChange}
               onProviderModelChange={onProviderModelChange}
@@ -457,10 +455,8 @@ function ProviderSetup({
   provider,
   providerModel,
   configured,
-  apiKey,
   authMode,
   isSaving,
-  onApiKeyChange,
   onAuthModeChange,
   onProviderChange,
   onProviderModelChange,
@@ -469,14 +465,12 @@ function ProviderSetup({
   provider: ProviderKind;
   providerModel: string;
   configured: boolean;
-  apiKey: string;
   authMode: ProviderAuthMode;
   isSaving: boolean;
-  onApiKeyChange(value: string): void;
   onAuthModeChange(authMode: ProviderAuthMode): void;
   onProviderChange(provider: ProviderKind): void;
   onProviderModelChange(model: string): void;
-  onSaveApiKey(): void;
+  onSaveApiKey(apiKey: string): Promise<boolean> | boolean;
 }) {
   const { t } = useI18n();
   const supportsSubscriptionAuth = provider === "openai";
@@ -543,9 +537,7 @@ function ProviderSetup({
         <ApiKeyAuthPanel
           provider={provider}
           configured={configured}
-          apiKey={apiKey}
           isSaving={isSaving}
-          onApiKeyChange={onApiKeyChange}
           onSaveApiKey={onSaveApiKey}
         />
       ) : (
@@ -588,19 +580,21 @@ function AuthMethodOption({
 function ApiKeyAuthPanel({
   provider,
   configured,
-  apiKey,
   isSaving,
-  onApiKeyChange,
   onSaveApiKey,
 }: {
   provider: ProviderKind;
   configured: boolean;
-  apiKey: string;
   isSaving: boolean;
-  onApiKeyChange(value: string): void;
-  onSaveApiKey(): void;
+  onSaveApiKey(apiKey: string): Promise<boolean> | boolean;
 }) {
   const { t } = useI18n();
+  const [apiKey, setApiKey] = useState("");
+
+  async function saveApiKey() {
+    const saved = await onSaveApiKey(apiKey);
+    if (saved) setApiKey("");
+  }
 
   return (
     <div className="rounded-md border border-border p-3">
@@ -617,7 +611,7 @@ function ApiKeyAuthPanel({
         <Input
           id="provider-api-key"
           value={apiKey}
-          onChange={(event) => onApiKeyChange(event.target.value)}
+          onChange={(event) => setApiKey(event.target.value)}
           type="password"
           autoComplete="off"
           placeholder={t("setup.provider.apiKeyPlaceholder", {
@@ -629,7 +623,7 @@ function ApiKeyAuthPanel({
           type="button"
           variant="outline"
           disabled={isSaving || !apiKey.trim()}
-          onClick={onSaveApiKey}
+          onClick={() => void saveApiKey()}
         >
           <KeyRound className="h-4 w-4" aria-hidden="true" />
           {t("setup.provider.save")}

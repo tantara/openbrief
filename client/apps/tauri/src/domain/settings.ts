@@ -87,6 +87,27 @@ export type SttModelStatus = {
   }>;
 };
 
+export type StorageUsageCategory =
+  | "database"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "model-checkpoint";
+
+export type StorageUsageItem = {
+  category: StorageUsageCategory;
+  label: string;
+  sizeBytes: number;
+  percentage: number;
+};
+
+export type StorageUsageSnapshot = {
+  totalBytes: number;
+  items: StorageUsageItem[];
+  measuredAtIso: string;
+  errorMessage?: string;
+};
+
 export type ProviderSetupStatus = {
   defaultProvider: ProviderKind;
   defaultModels: Record<ProviderKind, string>;
@@ -105,6 +126,7 @@ export type SettingsSnapshot = {
   videoDownload: VideoDownloadStatus;
   stt: SttModelStatus;
   llm: ProviderSetupStatus;
+  storage: StorageUsageSnapshot;
   compatibility: PlatformCompatibilityReport;
 };
 
@@ -117,4 +139,57 @@ export function selectPreferredSttModel(
     models.find((model) => model.recommended) ??
     models[0]
   );
+}
+
+export const storageUsageCategories = [
+  { category: "database", label: "Database" },
+  { category: "video", label: "Video" },
+  { category: "audio", label: "Audio" },
+  { category: "pdf", label: "PDF" },
+  { category: "model-checkpoint", label: "Model checkpoint" },
+] as const satisfies ReadonlyArray<{
+  category: StorageUsageCategory;
+  label: string;
+}>;
+
+export function createZeroStorageUsageSnapshot(
+  measuredAtIso = new Date().toISOString(),
+  errorMessage?: string,
+): StorageUsageSnapshot {
+  return {
+    totalBytes: 0,
+    items: storageUsageCategories.map((item) => ({
+      ...item,
+      sizeBytes: 0,
+      percentage: 0,
+    })),
+    measuredAtIso,
+    ...(errorMessage ? { errorMessage } : {}),
+  };
+}
+
+export function formatStorageSize(sizeBytes: number): string {
+  const safeBytes = Math.max(0, Number.isFinite(sizeBytes) ? sizeBytes : 0);
+  if (safeBytes < 1024) return `${Math.round(safeBytes)} B`;
+
+  const units = ["KB", "MB", "GB", "TB"] as const;
+  let value = safeBytes / 1024;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+export function formatStoragePercentage(percentage: number): string {
+  const safePercentage = Math.max(
+    0,
+    Number.isFinite(percentage) ? percentage : 0,
+  );
+  if (safePercentage === 0) return "0%";
+  if (safePercentage < 1) return "<1%";
+  return `${Math.round(safePercentage)}%`;
 }

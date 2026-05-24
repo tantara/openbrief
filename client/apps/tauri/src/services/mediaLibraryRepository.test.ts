@@ -78,7 +78,7 @@ function createMemoryStorageAdapter(): MediaLibraryStorageAdapter {
 }
 
 function createSnapshot(): MediaLibrarySnapshot {
-  return {
+  const snapshot: MediaLibrarySnapshot = {
     videos: [
       {
         id: "video-1",
@@ -168,6 +168,70 @@ function createSnapshot(): MediaLibrarySnapshot {
         },
       ],
     },
+    podcastsByVideoId: {
+      "video-1": {
+        schemaVersion: 1,
+        id: "podcast-1",
+        sourceAssetId: "video-1",
+        mode: "podcast-summary",
+        sourceKind: "current-summary",
+        lengthMode: "default",
+        provider: "openai",
+        createdAtIso: "2026-05-21T00:04:00.000Z",
+        script: {
+          title: "Design Review podcast",
+          turns: [
+            {
+              id: "turn-0001",
+              speakerId: "A",
+              speakerLabel: "Mark",
+              text: "Welcome.",
+            },
+            {
+              id: "turn-0002",
+              speakerId: "B",
+              speakerLabel: "Sophia",
+              text: "Here are the notes.",
+            },
+            {
+              id: "turn-0003",
+              speakerId: "A",
+              speakerLabel: "Mark",
+              text: "The library changed.",
+            },
+            {
+              id: "turn-0004",
+              speakerId: "B",
+              speakerLabel: "Sophia",
+              text: "That is the recap.",
+            },
+          ],
+          markdown: "# Design Review podcast\n",
+        },
+        tts: {
+          modelId: "Supertone/supertonic-3",
+          languageCode: "en",
+          speakers: [
+            { id: "A", label: "Mark", voiceStyleId: "M1" },
+            { id: "B", label: "Sophia", voiceStyleId: "F2" },
+          ],
+        },
+        artifacts: {
+          rootDirectory: "videos/video-1/podcast/podcast-1",
+          manifestPath: "videos/video-1/podcast/podcast-1/podcast.json",
+          scriptPath: "videos/video-1/podcast/podcast-1/script.md",
+          turnAudioDirectory: "videos/video-1/podcast/podcast-1/audio/turns",
+          podcastAudioPath: "videos/video-1/podcast/podcast-1/audio/podcast.wav",
+          turnAudioPaths: [
+            "videos/video-1/podcast/podcast-1/audio/turns/0001-speaker-a.wav",
+          ],
+        },
+      },
+    },
+    podcastHistoryByVideoId: {
+      "video-1": [],
+    },
+    podcastJobsByVideoId: {},
     playlists: [
       {
         id: "playlist-1",
@@ -179,4 +243,9 @@ function createSnapshot(): MediaLibrarySnapshot {
       },
     ],
   };
+
+  snapshot.podcastHistoryByVideoId["video-1"] = [
+    snapshot.podcastsByVideoId["video-1"],
+  ];
+  return snapshot;
 }

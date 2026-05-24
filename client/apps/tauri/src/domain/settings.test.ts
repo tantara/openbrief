@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { selectPreferredSttModel, type SttModelStatus } from "@/domain/settings";
+import {
+  createZeroStorageUsageSnapshot,
+  formatStoragePercentage,
+  formatStorageSize,
+  selectPreferredSttModel,
+  type SttModelStatus,
+} from "@/domain/settings";
 
 const models: SttModelStatus["models"] = [
   {
@@ -42,5 +48,37 @@ describe("settings domain", () => {
         "missing",
       )?.id,
     ).toBe("parakeet-tdt-0.6b-v3");
+  });
+
+  it("creates a five-category zero storage snapshot", () => {
+    const snapshot = createZeroStorageUsageSnapshot(
+      "2026-05-24T00:00:00.000Z",
+    );
+
+    expect(snapshot.totalBytes).toBe(0);
+    expect(snapshot.measuredAtIso).toBe("2026-05-24T00:00:00.000Z");
+    expect(snapshot.items.map((item) => item.category)).toEqual([
+      "database",
+      "video",
+      "audio",
+      "pdf",
+      "model-checkpoint",
+    ]);
+    expect(snapshot.items.every((item) => item.sizeBytes === 0)).toBe(true);
+    expect(snapshot.items.every((item) => item.percentage === 0)).toBe(true);
+  });
+
+  it("formats storage sizes with binary units", () => {
+    expect(formatStorageSize(0)).toBe("0 B");
+    expect(formatStorageSize(512)).toBe("512 B");
+    expect(formatStorageSize(1_258_291)).toBe("1.2 MB");
+    expect(formatStorageSize(2_254_381_363)).toBe("2.1 GB");
+  });
+
+  it("formats storage percentages for compact display", () => {
+    expect(formatStoragePercentage(0)).toBe("0%");
+    expect(formatStoragePercentage(0.4)).toBe("<1%");
+    expect(formatStoragePercentage(66.4)).toBe("66%");
+    expect(formatStoragePercentage(-4)).toBe("0%");
   });
 });
