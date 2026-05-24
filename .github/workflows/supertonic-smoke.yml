@@ -75,7 +75,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
@@ -94,6 +94,31 @@ jobs:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: client/apps/tauri/src-tauri/sidecars/supertonic-python/pyproject.toml
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Supertonic PyInstaller sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          node client/apps/tauri/scripts/build-supertonic-sidecar.js --release
+          node --input-type=module <<'NODE' >> "$GITHUB_ENV"
+          import { sidecarFileName, getHostTriple } from "./client/apps/tauri/scripts/setup-dev-sidecars.js";
+          const targetTriple = getHostTriple();
+          const fileName = sidecarFileName("openbrief-supertonic", targetTriple);
+          console.log(`OPENBRIEF_SUPERTONIC_TARGET=${targetTriple}`);
+          console.log(`OPENBRIEF_SUPERTONIC_SIDECAR=client/apps/tauri/src-tauri/binaries/${fileName}`);
+          NODE
+
+      - name: Verify PyInstaller sidecar command surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$OPENBRIEF_SUPERTONIC_SIDECAR"
+          "$OPENBRIEF_SUPERTONIC_SIDECAR" read --help
 
       - name: Install OpenBrief Supertonic CLI
         shell: bash
@@ -162,6 +187,63 @@ jobs:
           print(json.dumps({"wavBytes": audio_path.stat().st_size, "frames": frames}))
           PY
 
+      - name: Generate speech with PyInstaller sidecar
+        shell: bash
+        env:
+          OPENBRIEF_SUPERTONIC_MODEL: ${{ inputs.model }}
+          OPENBRIEF_SUPERTONIC_TEXT: ${{ inputs.text }}
+        run: |
+          set -euo pipefail
+          out="smoke-output/openbrief-supertonic-sidecar-${{ matrix.name }}.wav"
+          cache="smoke-output/sidecar-cache"
+          result="smoke-output/openbrief-supertonic-sidecar-${{ matrix.name }}.json"
+
+          "$OPENBRIEF_SUPERTONIC_SIDECAR" read \
+            --model "$OPENBRIEF_SUPERTONIC_MODEL" \
+            --cache-dir "$cache" \
+            --language en \
+            --voice-style M1 \
+            --total-steps 5 \
+            --output "$out" \
+            "$OPENBRIEF_SUPERTONIC_TEXT" | tee "$result"
+
+          python - <<'PY' "$result" "$out"
+          import json
+          import os
+          import sys
+          import wave
+          from pathlib import Path
+
+          result_path = Path(sys.argv[1])
+          audio_path = Path(sys.argv[2])
+          result = json.loads(result_path.read_text())
+          expected_model = os.environ["OPENBRIEF_SUPERTONIC_MODEL"].strip().lower()
+          expected_repo = {
+              "supertonic": "Supertone/supertonic",
+              "supertonic-2": "Supertone/supertonic-2",
+              "supertonic-3": "Supertone/supertonic-3",
+              "supertone/supertonic": "Supertone/supertonic",
+              "supertone/supertonic-2": "Supertone/supertonic-2",
+              "supertone/supertonic-3": "Supertone/supertonic-3",
+          }[expected_model]
+
+          if result["modelRepo"] != expected_repo:
+              raise SystemExit(f"unexpected modelRepo: {result['modelRepo']}")
+          if result["sampleRate"] != 44100:
+              raise SystemExit(f"unexpected sampleRate: {result['sampleRate']}")
+          if not audio_path.is_file() or audio_path.stat().st_size <= 44:
+              raise SystemExit("missing or empty wav output")
+
+          with wave.open(str(audio_path), "rb") as wav:
+              if wav.getframerate() != 44100:
+                  raise SystemExit(f"unexpected wav framerate: {wav.getframerate()}")
+              frames = wav.getnframes()
+              if frames <= 0:
+                  raise SystemExit("wav has no frames")
+
+          print(json.dumps({"target": os.environ["OPENBRIEF_SUPERTONIC_TARGET"], "wavBytes": audio_path.stat().st_size, "frames": frames}))
+          PY
+
       - name: Upload smoke artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -169,4 +251,6 @@ jobs:
           path: |
             smoke-output/openbrief-supertonic-${{ matrix.name }}.wav
             smoke-output/openbrief-supertonic-${{ matrix.name }}.json
+            smoke-output/openbrief-supertonic-sidecar-${{ matrix.name }}.wav
+            smoke-output/openbrief-supertonic-sidecar-${{ matrix.name }}.json
           if-no-files-found: error
