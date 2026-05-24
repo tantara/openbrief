@@ -189,6 +189,7 @@ type WorkbenchViewProps = {
   onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
   onDownloadPodcastScript?(podcast: PodcastDocument): Promise<unknown> | unknown;
   onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  isVoiceCloneModeEnabled?: boolean;
   chatTtsAudioByMessageId?: Record<
     string,
     SupertonicChatTtsArtifact | undefined
@@ -263,6 +264,7 @@ export function WorkbenchView({
   onDownloadPodcastAudio,
   onDownloadPodcastScript,
   onDeletePodcast,
+  isVoiceCloneModeEnabled = false,
   chatTtsAudioByMessageId = {},
   generatingChatTtsMessageId,
   playingChatTtsMessageId,
@@ -369,6 +371,13 @@ export function WorkbenchView({
     { value: "summary" as const, label: t("workbench.brief.summary") },
     { value: "podcast" as const, label: t("workbench.brief.podcast") },
   ];
+
+  useEffect(() => {
+    if (!isVoiceCloneModeEnabled) {
+      setVoiceCloneTranscriptSegmentIds([]);
+    }
+  }, [isVoiceCloneModeEnabled]);
+
   const displayedChatMessages = useMemo(() => {
     if (!pendingChatMessage) return chatMessages;
 
@@ -875,24 +884,26 @@ export function WorkbenchView({
               </div>
             ) : (
               <>
-                <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
-                  <span>
-                    {t("workbench.transcript.voiceCloneSelection", {
-                      count: voiceCloneTranscriptSegmentIds.length,
-                    })}
-                  </span>
-                  {voiceCloneTranscriptSegmentIds.length > 0 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setVoiceCloneTranscriptSegmentIds([])}
-                    >
-                      {t("workbench.transcript.voiceCloneClear")}
-                    </Button>
-                  ) : null}
-                </div>
+                {isVoiceCloneModeEnabled ? (
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
+                    <span>
+                      {t("workbench.transcript.voiceCloneSelection", {
+                        count: voiceCloneTranscriptSegmentIds.length,
+                      })}
+                    </span>
+                    {voiceCloneTranscriptSegmentIds.length > 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => setVoiceCloneTranscriptSegmentIds([])}
+                      >
+                        {t("workbench.transcript.voiceCloneClear")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
                 <ol ref={transcriptListRef} className="space-y-3">
                 {renderedTranscript.map((segment) => {
                   const sourceSegment = activeTranslationVariant
@@ -957,28 +968,30 @@ export function WorkbenchView({
                         >
                           {formatTime(segment.startSeconds)}
                         </button>
-                        <label className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4"
-                            checked={isSelectedForVoiceClone}
-                            aria-label={t(
-                              "workbench.transcript.voiceCloneToggle",
-                              {
-                                time: formatTime(segment.startSeconds),
-                              },
-                            )}
-                            onChange={() =>
-                              setVoiceCloneTranscriptSegmentIds((current) =>
-                                nextVoiceCloneTranscriptSegmentSelection(
-                                  renderedTranscript,
-                                  current,
-                                  segment.id,
-                                ),
-                              )
-                            }
-                          />
-                        </label>
+                        {isVoiceCloneModeEnabled ? (
+                          <label className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={isSelectedForVoiceClone}
+                              aria-label={t(
+                                "workbench.transcript.voiceCloneToggle",
+                                {
+                                  time: formatTime(segment.startSeconds),
+                                },
+                              )}
+                              onChange={() =>
+                                setVoiceCloneTranscriptSegmentIds((current) =>
+                                  nextVoiceCloneTranscriptSegmentSelection(
+                                    renderedTranscript,
+                                    current,
+                                    segment.id,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                        ) : null}
                         {isEditing ? (
                           <TranscriptSegmentEditForm
                             segment={segment}

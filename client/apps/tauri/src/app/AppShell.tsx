@@ -137,7 +137,7 @@ import {
 } from "@/services/transcriptOverlayService";
 import { describeVideoDownloadAccessAction } from "@/services/videoDownloadAccessNoticeService";
 import { listen } from "@tauri-apps/api/event";
-import { ExternalLink, Info, Loader2, Search } from "lucide-react";
+import { ExternalLink, Info, Loader2, Search, Volume2 } from "lucide-react";
 
 import type { TranscriptionLanguageCode } from "@acme/model-card";
 import {
@@ -370,6 +370,7 @@ export function AppShell() {
     useState<ChatTtsGeneration>();
   const [playingChatTtsMessageId, setPlayingChatTtsMessageId] =
     useState<string>();
+  const [isVoiceCloneModeEnabled, setIsVoiceCloneModeEnabled] = useState(false);
   const [ttsModelDraft, setTtsModelDraft] = useState<TtsModelId>(
     () => ttsSettings.modelId,
   );
@@ -717,6 +718,20 @@ export function AppShell() {
             );
           }}
         />
+      </div>
+    ) : state.activeView === "voices" ? (
+      <div className="ml-auto flex items-center gap-2">
+        <Button
+          type="button"
+          variant={isVoiceCloneModeEnabled ? "default" : "outline"}
+          aria-pressed={isVoiceCloneModeEnabled}
+          onClick={() =>
+            setIsVoiceCloneModeEnabled((currentEnabled) => !currentEnabled)
+          }
+        >
+          <Volume2 className="mr-2 h-4 w-4" aria-hidden="true" />
+          {t("voices.cloneVoice")}
+        </Button>
       </div>
     ) : undefined;
 
@@ -2171,6 +2186,7 @@ export function AppShell() {
           onDownloadPodcastAudio={downloadPodcastAudio}
           onDownloadPodcastScript={downloadPodcastScript}
           onDeletePodcast={removePodcast}
+          isVoiceCloneModeEnabled={isVoiceCloneModeEnabled}
           chatTtsAudioByMessageId={chatTtsAudioByMessageId}
           generatingChatTtsMessageId={
             chatTtsGeneration && chatTtsGeneration.videoId === selectedVideo?.id

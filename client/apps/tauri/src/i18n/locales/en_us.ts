@@ -654,6 +654,7 @@ export const en_us = {
   "voices.preview.audio": "Voice preview audio",
   "voices.preview.download": "Download",
   "voices.preview.ready": "Preview ready ({size})",
+  "voices.cloneVoice": "Clone voice",
   "voices.usage.title": "How you can use voice",
   "voices.usage.description":
     "The selected voice is used by read-aloud actions across OpenBrief.",

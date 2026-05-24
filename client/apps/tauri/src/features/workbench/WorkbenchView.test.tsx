@@ -116,6 +116,44 @@ describe("WorkbenchView", () => {
     ).toEqual(["s3"]);
   });
 
+  it("shows voice clone transcript controls only while clone mode is enabled", () => {
+    const { rerender } = render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          isVoiceCloneModeEnabled: false,
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Voice clone reference blocks: 0/3"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", {
+        name: /for voice cloning/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          isVoiceCloneModeEnabled: true,
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Voice clone reference blocks: 0/3"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("checkbox", {
+        name: /for voice cloning/i,
+      }),
+    ).toHaveLength(transcriptFixture.length);
+  });
+
   it("renders a selection prompt without a video", () => {
     const onAddVideo = vi.fn();
 
