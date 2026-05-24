@@ -130,7 +130,7 @@ export const ru_ru = {
   "transcript.languageDialog.manual": "Вручную",
   "transcript.languageDialog.automatic": "Авто",
   "transcript.languageDialog.cancel": "Отмена",
-  "workbench.summary.title": "Markdown-резюме",
+  "workbench.summary.title": "Резюме",
   "workbench.summary.action": "Суммировать",
   "workbench.summary.save": "Сохранить Markdown",
   "workbench.summary.transcriptRequired": "Для резюме нужен транскрипт. Сначала извлеките транскрипт.",

@@ -271,7 +271,7 @@ export const en_us = {
     "Could not load caption languages.",
   "transcript.languageDialog.providerLanguage": "Caption language",
   "transcript.languageDialog.useProvider": "Use {provider} captions",
-  "workbench.summary.title": "Markdown summary",
+  "workbench.summary.title": "Summary",
   "workbench.summary.provider": "Summary provider",
   "workbench.summary.model": "Provider model",
   "workbench.summary.template": "Summary template",

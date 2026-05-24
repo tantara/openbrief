@@ -130,7 +130,7 @@ export const de_de = {
   "transcript.languageDialog.manual": "Manuell",
   "transcript.languageDialog.automatic": "Automatisch",
   "transcript.languageDialog.cancel": "Abbrechen",
-  "workbench.summary.title": "Markdown-Zusammenfassung",
+  "workbench.summary.title": "Zusammenfassung",
   "workbench.summary.action": "Zusammenfassen",
   "workbench.summary.save": "Markdown speichern",
   "workbench.summary.transcriptRequired": "Für die Zusammenfassung ist ein Transkript erforderlich. Extrahieren Sie zuerst das Transkript.",

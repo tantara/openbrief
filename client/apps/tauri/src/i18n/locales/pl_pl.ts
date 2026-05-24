@@ -130,7 +130,7 @@ export const pl_pl = {
   "transcript.languageDialog.manual": "Ręczne",
   "transcript.languageDialog.automatic": "Auto",
   "transcript.languageDialog.cancel": "Anuluj",
-  "workbench.summary.title": "Podsumowanie Markdown",
+  "workbench.summary.title": "Podsumowanie",
   "workbench.summary.action": "Podsumuj",
   "workbench.summary.save": "Zapisz Markdown",
   "workbench.summary.transcriptRequired": "Podsumowanie wymaga transkrypcji. Najpierw wyodrębnij transkrypcję.",

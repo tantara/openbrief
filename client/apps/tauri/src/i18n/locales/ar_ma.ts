@@ -130,7 +130,7 @@ export const ar_ma = {
   "transcript.languageDialog.manual": "يدوي",
   "transcript.languageDialog.automatic": "تلقائي",
   "transcript.languageDialog.cancel": "إلغاء",
-  "workbench.summary.title": "ملخص Markdown",
+  "workbench.summary.title": "ملخص",
   "workbench.summary.action": "تلخيص",
   "workbench.summary.save": "حفظ Markdown",
   "workbench.summary.transcriptRequired": "النص مطلوب لإنشاء الملخص. استخرج النص أولاً.",

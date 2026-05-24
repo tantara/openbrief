@@ -130,7 +130,7 @@ export const ja_jp = {
   "transcript.languageDialog.manual": "手動",
   "transcript.languageDialog.automatic": "自動",
   "transcript.languageDialog.cancel": "キャンセル",
-  "workbench.summary.title": "Markdown要約",
+  "workbench.summary.title": "要約",
   "workbench.summary.action": "要約",
   "workbench.summary.save": "Markdownを保存",
   "workbench.summary.transcriptRequired": "要約には文字起こしが必要です。先に文字起こしを抽出してください。",

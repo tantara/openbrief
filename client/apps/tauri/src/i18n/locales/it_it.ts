@@ -130,7 +130,7 @@ export const it_it = {
   "transcript.languageDialog.manual": "Manuale",
   "transcript.languageDialog.automatic": "Auto",
   "transcript.languageDialog.cancel": "Annulla",
-  "workbench.summary.title": "Riepilogo Markdown",
+  "workbench.summary.title": "Riepilogo",
   "workbench.summary.action": "Riassumi",
   "workbench.summary.save": "Salva Markdown",
   "workbench.summary.transcriptRequired": "La trascrizione è necessaria per il riepilogo. Estrai prima la trascrizione.",

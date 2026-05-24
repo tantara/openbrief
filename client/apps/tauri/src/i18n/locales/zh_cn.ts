@@ -130,7 +130,7 @@ export const zh_cn = {
   "transcript.languageDialog.manual": "手动",
   "transcript.languageDialog.automatic": "自动",
   "transcript.languageDialog.cancel": "取消",
-  "workbench.summary.title": "Markdown 摘要",
+  "workbench.summary.title": "摘要",
   "workbench.summary.action": "摘要",
   "workbench.summary.save": "保存 Markdown",
   "workbench.summary.transcriptRequired": "摘要需要先有转录。请先提取转录。",

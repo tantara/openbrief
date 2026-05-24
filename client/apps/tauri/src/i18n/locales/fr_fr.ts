@@ -130,7 +130,7 @@ export const fr_fr = {
   "transcript.languageDialog.manual": "Manuel",
   "transcript.languageDialog.automatic": "Auto",
   "transcript.languageDialog.cancel": "Annuler",
-  "workbench.summary.title": "Résumé Markdown",
+  "workbench.summary.title": "Résumé",
   "workbench.summary.action": "Résumer",
   "workbench.summary.save": "Enregistrer le Markdown",
   "workbench.summary.transcriptRequired": "Une transcription est requise pour le résumé. Extrayez d’abord la transcription.",

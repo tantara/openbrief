@@ -130,7 +130,7 @@ export const el_gr = {
   "transcript.languageDialog.manual": "Χειροκίνητοι",
   "transcript.languageDialog.automatic": "Αυτόματοι",
   "transcript.languageDialog.cancel": "Ακύρωση",
-  "workbench.summary.title": "Σύνοψη Markdown",
+  "workbench.summary.title": "Σύνοψη",
   "workbench.summary.action": "Σύνοψη",
   "workbench.summary.save": "Αποθήκευση Markdown",
   "workbench.summary.transcriptRequired": "Απαιτείται απομαγνητοφώνηση για τη σύνοψη. Εξαγάγετε πρώτα απομαγνητοφώνηση.",

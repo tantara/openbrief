@@ -130,7 +130,7 @@ export const uk_ua = {
   "transcript.languageDialog.manual": "Вручну",
   "transcript.languageDialog.automatic": "Авто",
   "transcript.languageDialog.cancel": "Скасувати",
-  "workbench.summary.title": "Markdown-резюме",
+  "workbench.summary.title": "Резюме",
   "workbench.summary.action": "Підсумувати",
   "workbench.summary.save": "Зберегти Markdown",
   "workbench.summary.transcriptRequired": "Для резюме потрібен транскрипт. Спочатку витягніть транскрипт.",

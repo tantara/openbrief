@@ -107,7 +107,8 @@ describe("WorkbenchView", () => {
     render(<WorkbenchView {...defaultProps()} />);
 
     expect(screen.getByLabelText("Workbench sample")).toBeInTheDocument();
-    expect(screen.getByText("Markdown summary")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Summary" }))
+      .toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Summary" }))
       .toHaveAttribute("aria-pressed", "true");
@@ -170,7 +171,7 @@ describe("WorkbenchView", () => {
       "src",
       "documents/local-pdf-sample/pdf-sample.pdf",
     );
-    expect(screen.getByRole("heading", { name: "Markdown summary" }))
+    expect(screen.getByRole("heading", { name: "Summary" }))
       .toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
   });
@@ -202,7 +203,8 @@ describe("WorkbenchView", () => {
 
     expect(screen.getByRole("button", { name: /jump to 0:12/i })).toBeInTheDocument();
     expect(screen.getByText("Transcript detail")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Summary" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Summary" }))
+      .toBeInTheDocument();
   });
 
   it("shows transcript review, translation, overlay, and variant controls", async () => {

@@ -130,7 +130,7 @@ export const ko_kr = {
   "transcript.languageDialog.manual": "수동",
   "transcript.languageDialog.automatic": "자동",
   "transcript.languageDialog.cancel": "취소",
-  "workbench.summary.title": "Markdown 요약",
+  "workbench.summary.title": "요약",
   "workbench.summary.action": "요약하기",
   "workbench.summary.save": "Markdown 저장",
   "workbench.summary.transcriptRequired": "요약하려면 자막이 필요합니다. 먼저 자막을 추출하세요.",
