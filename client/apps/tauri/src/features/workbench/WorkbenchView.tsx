@@ -126,6 +126,8 @@ import {
 import { useI18n, type TranslationKey } from "@/i18n";
 import { cn } from "@acme/ui";
 
+type BriefMode = "summary" | "podcast";
+
 type WorkbenchViewProps = {
   video?: VideoAsset;
   openVideos?: VideoAsset[];
@@ -303,6 +305,7 @@ export function WorkbenchView({
     useState(false);
   const [isPodcastGenerateDialogOpen, setIsPodcastGenerateDialogOpen] =
     useState(false);
+  const [briefMode, setBriefMode] = useState<BriefMode>("summary");
   const [contextMode, setContextMode] = useState<ChatContextMode>("summary");
   const [localSummaryProviderConfig, setLocalSummaryProviderConfig] =
     useState<AiWorkflowProviderConfig>({
@@ -361,6 +364,10 @@ export function WorkbenchView({
   const chatContextOptions = [
     { value: "summary" as const, label: t("workbench.chat.summary") },
     { value: "transcript" as const, label: t("workbench.chat.transcript") },
+  ];
+  const briefModeOptions = [
+    { value: "summary" as const, label: t("workbench.brief.summary") },
+    { value: "podcast" as const, label: t("workbench.brief.podcast") },
   ];
   const displayedChatMessages = useMemo(() => {
     if (!pendingChatMessage) return chatMessages;
@@ -1045,70 +1052,85 @@ export function WorkbenchView({
         >
       <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
         <CardHeader className="space-y-3">
-          <CardTitle className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{t("workbench.summary.title")}</span>
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t("workbench.brief.title")}</span>
+              </span>
+              <BriefModeControl
+                value={briefMode}
+                options={briefModeOptions}
+                onChange={setBriefMode}
+              />
             </span>
-            <SummaryProviderDialog
-              provider={summaryProviderConfig.provider}
-              model={summaryProviderConfig.model}
-              streamingMode={summaryProviderConfig.streamingMode}
-              onProviderChange={(nextProvider) => {
-                updateSummaryProviderPreference({
-                  provider: nextProvider,
-                  model: defaultProviderModels[nextProvider],
-                  streamingMode: summaryProviderConfig.streamingMode,
-                });
-              }}
-              onModelChange={(model) =>
-                updateSummaryProviderPreference({
-                  provider: summaryProviderConfig.provider,
-                  model,
-                  streamingMode: summaryProviderConfig.streamingMode,
-                })
-              }
-              onStreamingModeChange={(streamingMode) =>
-                updateSummaryProviderPreference({
-                  provider: summaryProviderConfig.provider,
-                  model: summaryProviderConfig.model,
-                  streamingMode,
-                })
-              }
-            />
+            {briefMode === "summary" ? (
+              <SummaryProviderDialog
+                provider={summaryProviderConfig.provider}
+                model={summaryProviderConfig.model}
+                streamingMode={summaryProviderConfig.streamingMode}
+                onProviderChange={(nextProvider) => {
+                  updateSummaryProviderPreference({
+                    provider: nextProvider,
+                    model: defaultProviderModels[nextProvider],
+                    streamingMode: summaryProviderConfig.streamingMode,
+                  });
+                }}
+                onModelChange={(model) =>
+                  updateSummaryProviderPreference({
+                    provider: summaryProviderConfig.provider,
+                    model,
+                    streamingMode: summaryProviderConfig.streamingMode,
+                  })
+                }
+                onStreamingModeChange={(streamingMode) =>
+                  updateSummaryProviderPreference({
+                    provider: summaryProviderConfig.provider,
+                    model: summaryProviderConfig.model,
+                    streamingMode,
+                  })
+                }
+              />
+            ) : null}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <SummaryGenerateDialog
-              open={isSummaryGenerateDialogOpen}
-              templateId={summaryTemplateId}
-              lengthMode={summaryLengthMode}
-              languageCode={summaryLanguage.code}
-              isGenerating={isSummarizing}
-              disabled={renderedTranscript.length === 0}
-              onOpenChange={setIsSummaryGenerateDialogOpen}
-              onTemplateChange={setSummaryTemplateId}
-              onLengthChange={setSummaryLengthMode}
-              onLanguageChange={setSummaryLanguage}
-              onGenerate={generateSummary}
-            />
-            <PodcastGenerateDialog
-              open={isPodcastGenerateDialogOpen}
-              podcastHistoryCount={podcastHistory.length}
-              settings={podcastSettings}
-              sourceKind={podcastSourceKind}
-              canGenerate={Boolean(onGeneratePodcast && video)}
-              hasSummary={Boolean(activeSummary)}
-              hasTranscript={transcript.length > 0}
-              isGenerating={isGeneratingPodcast}
-              onOpenChange={setIsPodcastGenerateDialogOpen}
-              onSettingsChange={setPodcastSettings}
-              onSourceKindChange={setPodcastSourceKind}
-              onGenerate={submitPodcastGeneration}
-            />
+            {briefMode === "summary" && summaryMarkdown ? (
+              <SummaryGenerateDialog
+                open={isSummaryGenerateDialogOpen}
+                templateId={summaryTemplateId}
+                lengthMode={summaryLengthMode}
+                languageCode={summaryLanguage.code}
+                isGenerating={isSummarizing}
+                disabled={renderedTranscript.length === 0}
+                triggerVariant="outline"
+                onOpenChange={setIsSummaryGenerateDialogOpen}
+                onTemplateChange={setSummaryTemplateId}
+                onLengthChange={setSummaryLengthMode}
+                onLanguageChange={setSummaryLanguage}
+                onGenerate={generateSummary}
+              />
+            ) : null}
+            {briefMode === "podcast" && podcast ? (
+              <PodcastGenerateDialog
+                open={isPodcastGenerateDialogOpen}
+                podcastHistoryCount={podcastHistory.length}
+                settings={podcastSettings}
+                sourceKind={podcastSourceKind}
+                canGenerate={Boolean(onGeneratePodcast && video)}
+                hasSummary={Boolean(activeSummary)}
+                hasTranscript={transcript.length > 0}
+                isGenerating={isGeneratingPodcast}
+                triggerVariant="outline"
+                onOpenChange={setIsPodcastGenerateDialogOpen}
+                onSettingsChange={setPodcastSettings}
+                onSourceKindChange={setPodcastSourceKind}
+                onGenerate={submitPodcastGeneration}
+              />
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-          {transcript.length === 0 ? (
+          {briefMode === "summary" && transcript.length === 0 ? (
             <div
               role="alert"
               className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
@@ -1126,53 +1148,92 @@ export function WorkbenchView({
               </Button>
             </div>
           ) : null}
-          <SummaryTabStrip
-            summaries={summaryTabs}
-            activeSummaryId={activeSummary?.id}
-            onSelectSummaryTab={onSelectSummaryTab}
-          />
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {summaryJob ? (
-              <AiGenerationStatus
-                job={summaryJob}
-                runningLabel={t("workbench.summary.generating")}
-                failedLabel={t("workbench.summary.failed")}
+          {briefMode === "summary" ? (
+            <>
+              <SummaryTabStrip
+                summaries={summaryTabs}
+                activeSummaryId={activeSummary?.id}
+                onSelectSummaryTab={onSelectSummaryTab}
               />
-            ) : null}
-            {summaryMarkdown ? (
-              <SummaryMarkdownPanel
-                summaryId={activeSummary?.id}
-                markdown={summaryMarkdown}
-                editable={Boolean(activeSummary && onUpdateSummaryMarkdown)}
-                ariaLabel={t("workbench.summary.editor")}
-                onCommitMarkdown={onUpdateSummaryMarkdown}
-                saveLabel={t("workbench.summary.save")}
-                saveDisabled={isSummarizing}
-                onSaveMarkdown={
-                  activeSummary
-                    ? () => onSaveMarkdown(activeSummary.id)
-                    : undefined
-                }
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("workbench.summary.empty")}
-              </p>
-            )}
-          </div>
-          <PodcastPanel
-            podcast={podcast}
-            podcastHistory={podcastHistory}
-            podcastJob={podcastJob}
-            podcastAudioUrl={podcastAudioUrl}
-            sourceKind={podcastSourceKind}
-            hasSummary={Boolean(activeSummary)}
-            hasTranscript={transcript.length > 0}
-            onPlayPodcast={onPlayPodcast}
-            onDownloadPodcastAudio={onDownloadPodcastAudio}
-            onDownloadPodcastScript={onDownloadPodcastScript}
-            onDeletePodcast={onDeletePodcast}
-          />
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {summaryJob ? (
+                  <AiGenerationStatus
+                    job={summaryJob}
+                    runningLabel={t("workbench.summary.generating")}
+                    failedLabel={t("workbench.summary.failed")}
+                  />
+                ) : null}
+                {summaryMarkdown ? (
+                  <SummaryMarkdownPanel
+                    summaryId={activeSummary?.id}
+                    markdown={summaryMarkdown}
+                    editable={Boolean(activeSummary && onUpdateSummaryMarkdown)}
+                    ariaLabel={t("workbench.summary.editor")}
+                    onCommitMarkdown={onUpdateSummaryMarkdown}
+                    saveLabel={t("workbench.summary.save")}
+                    saveDisabled={isSummarizing}
+                    onSaveMarkdown={
+                      activeSummary
+                        ? () => onSaveMarkdown(activeSummary.id)
+                        : undefined
+                    }
+                  />
+                ) : !summaryJob ? (
+                  <BriefEmptyState
+                    action={
+                      <SummaryGenerateDialog
+                        open={isSummaryGenerateDialogOpen}
+                        templateId={summaryTemplateId}
+                        lengthMode={summaryLengthMode}
+                        languageCode={summaryLanguage.code}
+                        isGenerating={isSummarizing}
+                        disabled={renderedTranscript.length === 0}
+                        onOpenChange={setIsSummaryGenerateDialogOpen}
+                        onTemplateChange={setSummaryTemplateId}
+                        onLengthChange={setSummaryLengthMode}
+                        onLanguageChange={setSummaryLanguage}
+                        onGenerate={generateSummary}
+                      />
+                    }
+                    description={t("workbench.summary.empty")}
+                  />
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <PodcastBriefPanel
+              podcast={podcast}
+              podcastHistory={podcastHistory}
+              podcastJob={podcastJob}
+              podcastAudioUrl={podcastAudioUrl}
+              sourceKind={podcastSourceKind}
+              hasSummary={Boolean(activeSummary)}
+              hasTranscript={transcript.length > 0}
+              generateAction={
+                <PodcastGenerateDialog
+                  open={isPodcastGenerateDialogOpen}
+                  podcastHistoryCount={podcastHistory.length}
+                  settings={podcastSettings}
+                  sourceKind={podcastSourceKind}
+                  canGenerate={Boolean(onGeneratePodcast && video)}
+                  hasSummary={Boolean(activeSummary)}
+                  hasTranscript={transcript.length > 0}
+                  isGenerating={isGeneratingPodcast}
+                  onOpenChange={setIsPodcastGenerateDialogOpen}
+                  onSettingsChange={setPodcastSettings}
+                  onSourceKindChange={setPodcastSourceKind}
+                  onGenerate={submitPodcastGeneration}
+                />
+              }
+              onAudioPlay={
+                podcast ? () => onPauseVideo(podcast.sourceAssetId) : undefined
+              }
+              onPlayPodcast={onPlayPodcast}
+              onDownloadPodcastAudio={onDownloadPodcastAudio}
+              onDownloadPodcastScript={onDownloadPodcastScript}
+              onDeletePodcast={onDeletePodcast}
+            />
+          )}
         </CardContent>
       </Card>
         </ResizablePanel>
@@ -1383,7 +1444,22 @@ function TranscriptSegmentEditForm({
   );
 }
 
-function PodcastPanel({
+function BriefEmptyState({
+  action,
+  description,
+}: {
+  action: ReactNode;
+  description: string;
+}) {
+  return (
+    <div className="flex min-h-full flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+      {action}
+      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function PodcastBriefPanel({
   podcast,
   podcastHistory,
   podcastJob,
@@ -1391,6 +1467,8 @@ function PodcastPanel({
   sourceKind,
   hasSummary,
   hasTranscript,
+  generateAction,
+  onAudioPlay,
   onPlayPodcast,
   onDownloadPodcastAudio,
   onDownloadPodcastScript,
@@ -1403,6 +1481,8 @@ function PodcastPanel({
   sourceKind: PodcastSourceKind;
   hasSummary: boolean;
   hasTranscript: boolean;
+  generateAction: ReactNode;
+  onAudioPlay?(): void;
   onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
   onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
   onDownloadPodcastScript?(podcast: PodcastDocument): Promise<unknown> | unknown;
@@ -1412,89 +1492,118 @@ function PodcastPanel({
   const sourceAvailable =
     sourceKind === "current-summary" ? hasSummary : hasTranscript;
 
-  if (!podcast && !podcastJob) return null;
+  if (!podcast && !podcastJob) {
+    return (
+      <BriefEmptyState
+        action={generateAction}
+        description={
+          !sourceAvailable
+            ? sourceKind === "current-summary"
+              ? t("workbench.podcast.summaryRequired")
+              : t("workbench.podcast.transcriptRequired")
+            : t("workbench.podcast.empty")
+        }
+      />
+    );
+  }
 
   return (
-    <div className="grid gap-3 border-t pt-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="font-medium">{t("workbench.podcast.title")}</span>
-          {podcastHistory.length > 1 ? (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="grid gap-4 pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="font-medium">{t("workbench.podcast.title")}</span>
+            {podcastHistory.length > 1 ? (
+              <span className="text-xs text-muted-foreground">
+                {t("workbench.podcast.history", { count: podcastHistory.length })}
+              </span>
+            ) : null}
+          </div>
+          {podcastJob ? (
             <span className="text-xs text-muted-foreground">
-              {t("workbench.podcast.history", { count: podcastHistory.length })}
+              {podcastJob.status === "running"
+                ? t(podcastStageLabelKey(podcastJob.stage))
+                : t("workbench.podcast.failed")}
             </span>
           ) : null}
         </div>
-        {podcastJob ? (
-          <span className="text-xs text-muted-foreground">
-            {podcastJob.status === "running"
-              ? t(podcastStageLabelKey(podcastJob.stage))
-              : t("workbench.podcast.failed")}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {podcast ? (
+            <>
+              {onPlayPodcast ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void onPlayPodcast(podcast)}
+                >
+                  <Play className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("workbench.podcast.play")}
+                </Button>
+              ) : null}
+              {onDownloadPodcastAudio ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void onDownloadPodcastAudio(podcast)}
+                >
+                  <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("workbench.podcast.downloadAudio")}
+                </Button>
+              ) : null}
+              {onDownloadPodcastScript ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void onDownloadPodcastScript(podcast)}
+                >
+                  <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("workbench.podcast.downloadScript")}
+                </Button>
+              ) : null}
+              {onDeletePodcast ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => void onDeletePodcast(podcast)}
+                >
+                  <X className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {t("workbench.podcast.delete")}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+        {podcast && podcastAudioUrl ? (
+          <audio
+            className="w-full"
+            controls
+            preload="metadata"
+            src={podcastAudioUrl}
+            onPlay={onAudioPlay}
+          />
         ) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
         {podcast ? (
-          <>
-            {onPlayPodcast ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void onPlayPodcast(podcast)}
+          <ol className="grid gap-3">
+            {podcast.script.turns.map((turn) => (
+              <li
+                key={turn.id}
+                className="rounded-md border bg-muted/20 px-3 py-2 text-sm"
               >
-                <Play className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("workbench.podcast.play")}
-              </Button>
-            ) : null}
-            {onDownloadPodcastAudio ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void onDownloadPodcastAudio(podcast)}
-              >
-                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("workbench.podcast.downloadAudio")}
-              </Button>
-            ) : null}
-            {onDownloadPodcastScript ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void onDownloadPodcastScript(podcast)}
-              >
-                <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("workbench.podcast.downloadScript")}
-              </Button>
-            ) : null}
-            {onDeletePodcast ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => void onDeletePodcast(podcast)}
-              >
-                <X className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("workbench.podcast.delete")}
-              </Button>
-            ) : null}
-          </>
+                <p className="mb-1 font-medium">{turn.speakerLabel}</p>
+                <p className="leading-relaxed text-foreground/90">{turn.text}</p>
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        {podcastJob && !sourceAvailable ? (
+          <p className="text-xs text-muted-foreground">
+            {sourceKind === "current-summary"
+              ? t("workbench.podcast.summaryRequired")
+              : t("workbench.podcast.transcriptRequired")}
+          </p>
         ) : null}
       </div>
-      {podcast && podcastAudioUrl ? (
-        <audio
-          className="w-full"
-          controls
-          preload="metadata"
-          src={podcastAudioUrl}
-        />
-      ) : null}
-      {podcastJob && !sourceAvailable ? (
-        <p className="text-xs text-muted-foreground">
-          {sourceKind === "current-summary"
-            ? t("workbench.podcast.summaryRequired")
-            : t("workbench.podcast.transcriptRequired")}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -1506,6 +1615,7 @@ function SummaryGenerateDialog({
   languageCode,
   isGenerating,
   disabled,
+  triggerVariant = "default",
   onOpenChange,
   onTemplateChange,
   onLengthChange,
@@ -1518,6 +1628,7 @@ function SummaryGenerateDialog({
   languageCode: string;
   isGenerating: boolean;
   disabled: boolean;
+  triggerVariant?: "default" | "outline" | "ghost";
   onOpenChange(open: boolean): void;
   onTemplateChange(value: VideoSummaryTemplateId): void;
   onLengthChange(value: SummaryLengthMode): void;
@@ -1530,7 +1641,7 @@ function SummaryGenerateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button type="button" disabled={submitDisabled}>
+        <Button type="button" variant={triggerVariant} disabled={submitDisabled}>
           {isGenerating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
@@ -1601,6 +1712,7 @@ function PodcastGenerateDialog({
   hasSummary,
   hasTranscript,
   isGenerating,
+  triggerVariant = "outline",
   onOpenChange,
   onSettingsChange,
   onSourceKindChange,
@@ -1614,6 +1726,7 @@ function PodcastGenerateDialog({
   hasSummary: boolean;
   hasTranscript: boolean;
   isGenerating: boolean;
+  triggerVariant?: "default" | "outline" | "ghost";
   onOpenChange(open: boolean): void;
   onSettingsChange(settings: PodcastTtsSettings): void;
   onSourceKindChange(sourceKind: PodcastSourceKind): void;
@@ -1630,7 +1743,11 @@ function PodcastGenerateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" disabled={!canGenerate || isGenerating}>
+        <Button
+          type="button"
+          variant={triggerVariant}
+          disabled={!canGenerate || isGenerating}
+        >
           {isGenerating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
@@ -2787,6 +2904,37 @@ function SummaryTabStrip({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function BriefModeControl({
+  value,
+  options,
+  onChange,
+}: {
+  value: BriefMode;
+  options: Array<{ value: BriefMode; label: string }>;
+  onChange(value: BriefMode): void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          className={cn(
+            badgeVariants({
+              variant: value === option.value ? "default" : "outline",
+            }),
+            "cursor-pointer",
+          )}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

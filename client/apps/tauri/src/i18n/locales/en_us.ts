@@ -271,6 +271,9 @@ export const en_us = {
     "Could not load caption languages.",
   "transcript.languageDialog.providerLanguage": "Caption language",
   "transcript.languageDialog.useProvider": "Use {provider} captions",
+  "workbench.brief.title": "Brief",
+  "workbench.brief.summary": "Summary",
+  "workbench.brief.podcast": "Podcast",
   "workbench.summary.title": "Summary",
   "workbench.summary.provider": "Summary provider",
   "workbench.summary.model": "Provider model",
@@ -315,6 +318,8 @@ export const en_us = {
   "workbench.podcast.dialog.description":
     "Choose the source, length, language, and voices before generating audio.",
   "workbench.podcast.generating": "Generating podcast...",
+  "workbench.podcast.empty":
+    "Generate a podcast to create narrated audio and a turn-by-turn script.",
   "workbench.podcast.play": "Play",
   "workbench.podcast.downloadAudio": "Download audio",
   "workbench.podcast.downloadScript": "Download script",

@@ -15,6 +15,7 @@ import type {
   TranscriptSegment,
   VideoAsset,
 } from "@/domain/media-library";
+import type { PodcastDocument } from "@/domain/podcast";
 import {
   nextVoiceCloneTranscriptSegmentSelection,
   shortProviderModelName,
@@ -36,6 +37,7 @@ describe("WorkbenchView", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Podcast" }));
     fireEvent.click(screen.getByRole("button", { name: /generate podcast/i }));
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
@@ -56,6 +58,33 @@ describe("WorkbenchView", () => {
         ],
       }),
     );
+  });
+
+  it("switches the brief column to podcast audio and script turns", () => {
+    const onPauseVideo = vi.fn();
+    const { container } = render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          summary: summaryFixture,
+          podcast: podcastFixture,
+          podcastHistory: [podcastFixture],
+          podcastAudioUrl: "asset://podcast.wav",
+          onPauseVideo,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Podcast" }));
+
+    const audio = container.querySelector("audio");
+    expect(audio).toHaveAttribute("src", "asset://podcast.wav");
+    fireEvent.play(audio as HTMLAudioElement);
+    expect(onPauseVideo).toHaveBeenCalledWith("video-1");
+    expect(screen.getByText("Host")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to the brief.")).toBeInTheDocument();
+    expect(screen.getByText("Guest")).toBeInTheDocument();
+    expect(screen.getByText("Here is the key point.")).toBeInTheDocument();
   });
 
   it("limits voice clone transcript selection to three contiguous blocks", () => {
@@ -107,10 +136,10 @@ describe("WorkbenchView", () => {
     render(<WorkbenchView {...defaultProps()} />);
 
     expect(screen.getByLabelText("Workbench sample")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Summary" }))
+    expect(screen.getByRole("heading", { level: 3, name: /brief/i }))
       .toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Summary" }))
+    expect(screen.getAllByRole("button", { name: "Summary" })[0])
       .toHaveAttribute("aria-pressed", "true");
   });
 
@@ -171,7 +200,7 @@ describe("WorkbenchView", () => {
       "src",
       "documents/local-pdf-sample/pdf-sample.pdf",
     );
-    expect(screen.getByRole("heading", { name: "Summary" }))
+    expect(screen.getByRole("heading", { name: /brief/i }))
       .toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
   });
@@ -203,7 +232,7 @@ describe("WorkbenchView", () => {
 
     expect(screen.getByRole("button", { name: /jump to 0:12/i })).toBeInTheDocument();
     expect(screen.getByText("Transcript detail")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Summary" }))
+    expect(screen.getByRole("heading", { level: 3, name: /brief/i }))
       .toBeInTheDocument();
   });
 
@@ -610,11 +639,9 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getAllByText("Generating summary...")).toHaveLength(2);
+    expect(screen.getAllByText("Generating summary...")).toHaveLength(1);
     expect(screen.getAllByText("AI is writing a response...")).toHaveLength(2);
     expect(screen.getAllByText("openai · gpt-5.4-mini")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: /generating summary/i }))
-      .toBeDisabled();
     expect(screen.getByRole("button", { name: /ai is writing a response/i }))
       .toBeDisabled();
   });
@@ -1710,6 +1737,58 @@ const secondSummaryFixture: SummaryDocument = {
   markdown: "# Alternate",
   provider: "anthropic",
   createdAtIso: "2026-05-21T00:01:00.000Z",
+};
+
+const podcastFixture: PodcastDocument = {
+  schemaVersion: 1,
+  id: "podcast-video-1",
+  sourceAssetId: "video-1",
+  mode: "podcast-summary",
+  sourceKind: "current-summary",
+  lengthMode: "default",
+  provider: "openai",
+  model: "gpt-5.4-mini",
+  createdAtIso: "2026-05-21T00:02:00.000Z",
+  script: {
+    title: "Workbench podcast",
+    turns: [
+      {
+        id: "turn-0001",
+        speakerId: "A",
+        speakerLabel: "Host",
+        text: "Welcome to the brief.",
+      },
+      {
+        id: "turn-0002",
+        speakerId: "B",
+        speakerLabel: "Guest",
+        text: "Here is the key point.",
+      },
+    ],
+    markdown:
+      "# Workbench podcast\n\n**Host**\n\nWelcome to the brief.\n\n**Guest**\n\nHere is the key point.\n",
+  },
+  tts: {
+    modelId: "Supertone/supertonic-3",
+    languageCode: "en",
+    speakers: [
+      { id: "A", label: "Host", voiceStyleId: "M1" },
+      { id: "B", label: "Guest", voiceStyleId: "F2" },
+    ],
+  },
+  artifacts: {
+    rootDirectory: "videos/video-1/podcast/podcast-video-1",
+    manifestPath: "videos/video-1/podcast/podcast-video-1/podcast.json",
+    scriptPath: "videos/video-1/podcast/podcast-video-1/script.md",
+    turnAudioDirectory: "videos/video-1/podcast/podcast-video-1/audio/turns",
+    podcastAudioPath: "videos/video-1/podcast/podcast-video-1/audio/podcast.wav",
+    turnAudioPaths: [
+      "videos/video-1/podcast/podcast-video-1/audio/turns/0001-speaker-a.wav",
+      "videos/video-1/podcast/podcast-video-1/audio/turns/0002-speaker-b.wav",
+    ],
+  },
+  durationSeconds: 24,
+  sizeBytes: 1024,
 };
 
 const summaryJobFixture: AiGenerationJob = {
