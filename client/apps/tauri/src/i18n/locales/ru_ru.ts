@@ -615,6 +615,8 @@ export const ru_ru = {
   "settings.prompts.videoSummaryDescription": "Используется при создании видеоотчетов с уценкой.",
   "settings.prompts.chat": "Чат",
   "settings.prompts.chatDescription": "Используется при ответе на вопросы из контекста резюме или стенограммы.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Расшифровка стенограммы",
   "settings.prompts.transcriptReviewDescription": "Используется при корректуре и исправлении локальных сегментов преобразования речи в текст.",
   "settings.prompts.transcriptTranslation": "Транскрипт перевода",

@@ -718,6 +718,9 @@ export const en_us = {
   "settings.prompts.chat": "Chat",
   "settings.prompts.chatDescription":
     "Used when answering questions from summary or transcript context.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription":
+    "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Transcript review",
   "settings.prompts.transcriptReviewDescription":
     "Used when proofreading and correcting local speech-to-text segments.",

@@ -615,6 +615,8 @@ export const zh_cn = {
   "settings.prompts.videoSummaryDescription": "生成 Markdown 视频报告时使用。",
   "settings.prompts.chat": "聊天",
   "settings.prompts.chatDescription": "在回答摘要或文字记录中的问题时使用。",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "成绩单审核",
   "settings.prompts.transcriptReviewDescription": "在校对和纠正本地语音转文本片段时使用。",
   "settings.prompts.transcriptTranslation": "成绩单翻译",

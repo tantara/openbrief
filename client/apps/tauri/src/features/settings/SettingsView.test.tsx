@@ -638,6 +638,9 @@ describe("SettingsView", () => {
 
     openSettingsTab("AI");
     expect(screen.getByText("System Prompts")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: /quiz/i }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/transcript review/i)).toBeInTheDocument();
     expect(
       screen.getByLabelText(/transcript translation/i),
@@ -649,6 +652,9 @@ describe("SettingsView", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /^Chat\b/i }), {
       target: { value: "Custom chat prompt" },
     });
+    fireEvent.change(screen.getByRole("textbox", { name: /quiz/i }), {
+      target: { value: "Custom quiz prompt" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Save prompts" }));
 
     await waitFor(() =>
@@ -656,6 +662,7 @@ describe("SettingsView", () => {
         expect.objectContaining({
           videoSummary: "Custom summary prompt",
           chat: "Custom chat prompt",
+          quiz: "Custom quiz prompt",
           transcriptReview: defaultSystemPromptSettings.transcriptReview,
           transcriptTranslation:
             defaultSystemPromptSettings.transcriptTranslation,

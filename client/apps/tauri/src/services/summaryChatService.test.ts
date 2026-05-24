@@ -154,7 +154,21 @@ describe("summary chat service", () => {
         providerCalls.push(request);
         return {
           ok: true as const,
-          text: request.operation === "summary" ? "# Custom summary" : "Custom answer",
+          text:
+            request.operation === "summary"
+              ? "# Custom summary"
+              : request.operation === "quiz"
+                ? JSON.stringify({
+                    title: "Quiz",
+                    items: [
+                      {
+                        question: "What is the intro?",
+                        options: ["Opening", "Closing"],
+                        correctOptionIndex: 0,
+                      },
+                    ],
+                  })
+                : "Custom answer",
           requestPlan: createProviderRequestPlan(request),
         };
       }),
@@ -163,6 +177,7 @@ describe("summary chat service", () => {
       ...defaultSystemPromptSettings,
       videoSummary: "Custom summary system prompt",
       chat: "Custom chat system prompt",
+      quiz: "Custom quiz system prompt",
     }));
 
     const summary = await service.generateSummary({
@@ -191,6 +206,21 @@ describe("summary chat service", () => {
     expect(providerCalls[1]).toMatchObject({
       operation: "chat",
       systemPrompt: "Custom chat system prompt",
+    });
+
+    await service.generateQuiz({
+      video,
+      transcript,
+      summary,
+      mode: "multiple-choice",
+      questionCount: 1,
+      areaOfInterest: "intro",
+      provider: "openai",
+    });
+
+    expect(providerCalls[2]).toMatchObject({
+      operation: "quiz",
+      systemPrompt: "Custom quiz system prompt",
     });
   });
 

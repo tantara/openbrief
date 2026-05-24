@@ -615,6 +615,8 @@ export const zh_tw = {
   "settings.prompts.videoSummaryDescription": "產生 Markdown 視訊報告時使用。",
   "settings.prompts.chat": "聊天",
   "settings.prompts.chatDescription": "在回答摘要或文字記錄中的問題時使用。",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "成績單審核",
   "settings.prompts.transcriptReviewDescription": "在校對和修正本地語音轉文本片段時使用。",
   "settings.prompts.transcriptTranslation": "成績單翻譯",

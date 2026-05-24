@@ -219,8 +219,12 @@ export function createSummaryChatService(
     },
 
     async generateQuiz(request) {
+      const systemPrompts = getSystemPromptSettings() ?? defaultSystemPromptSettings;
       const generationSettings = getGenerationSettings();
-      const prompt = createQuizPrompt(request);
+      const prompt = createQuizPrompt({
+        ...request,
+        systemPromptOverride: systemPrompts.quiz,
+      });
       const result = await providerService.complete({
         provider: request.provider,
         operation: "quiz",

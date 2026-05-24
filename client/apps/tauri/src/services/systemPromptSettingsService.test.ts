@@ -19,6 +19,7 @@ describe("system prompt settings service", () => {
     saveSystemPromptSettings({
       videoSummary: "Custom summary prompt",
       chat: "Custom chat prompt",
+      quiz: "Custom quiz prompt",
       transcriptReview: "Custom review prompt",
       transcriptTranslation: "Custom translation prompt",
     });
@@ -26,6 +27,7 @@ describe("system prompt settings service", () => {
     expect(loadSystemPromptSettings()).toEqual({
       videoSummary: "Custom summary prompt",
       chat: "Custom chat prompt",
+      quiz: "Custom quiz prompt",
       transcriptReview: "Custom review prompt",
       transcriptTranslation: "Custom translation prompt",
     });
@@ -35,6 +37,7 @@ describe("system prompt settings service", () => {
     saveSystemPromptSettings({
       videoSummary: "Custom summary prompt",
       chat: "Custom chat prompt",
+      quiz: "Custom quiz prompt",
       transcriptReview: "Custom review prompt",
       transcriptTranslation: "Custom translation prompt",
     });

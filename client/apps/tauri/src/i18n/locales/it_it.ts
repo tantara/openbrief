@@ -615,6 +615,8 @@ export const it_it = {
   "settings.prompts.videoSummaryDescription": "Utilizzato durante la generazione di report video di ribasso.",
   "settings.prompts.chat": "Chiacchierata",
   "settings.prompts.chatDescription": "Utilizzato quando si risponde a domande dal contesto di riepilogo o trascrizione.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Revisione della trascrizione",
   "settings.prompts.transcriptReviewDescription": "Utilizzato durante la correzione di bozze e la correzione di segmenti locali di sintesi vocale.",
   "settings.prompts.transcriptTranslation": "Traduzione della trascrizione",

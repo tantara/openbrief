@@ -615,6 +615,8 @@ export const ko_kr = {
   "settings.prompts.videoSummaryDescription": "마크다운 비디오 보고서를 생성할 때 사용됩니다.",
   "settings.prompts.chat": "채팅",
   "settings.prompts.chatDescription": "요약 또는 성적 증명서 컨텍스트의 질문에 답변할 때 사용됩니다.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "성적 증명서 검토",
   "settings.prompts.transcriptReviewDescription": "로컬 음성-텍스트 세그먼트를 교정하고 수정할 때 사용됩니다.",
   "settings.prompts.transcriptTranslation": "성적 증명서 번역",

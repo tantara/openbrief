@@ -615,6 +615,8 @@ export const de_de = {
   "settings.prompts.videoSummaryDescription": "Wird beim Generieren von Markdown-Videoberichten verwendet.",
   "settings.prompts.chat": "Chatten",
   "settings.prompts.chatDescription": "Wird bei der Beantwortung von Fragen aus dem Zusammenfassungs- oder Transkriptkontext verwendet.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Überprüfung des Transkripts",
   "settings.prompts.transcriptReviewDescription": "Wird beim Korrekturlesen und Korrigieren lokaler Sprach-zu-Text-Segmente verwendet.",
   "settings.prompts.transcriptTranslation": "Transkriptübersetzung",

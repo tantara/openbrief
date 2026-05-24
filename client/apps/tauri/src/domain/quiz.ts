@@ -69,6 +69,7 @@ export type CreateQuizPromptRequest = {
   mode: QuizMode;
   questionCount: number;
   areaOfInterest: string;
+  systemPromptOverride?: string;
 };
 
 const quizDirectoryBySourceType = {
@@ -76,6 +77,13 @@ const quizDirectoryBySourceType = {
   audio: "audios",
   pdf: "pdfs",
 } as const;
+
+export const DEFAULT_QUIZ_SYSTEM_PROMPT = [
+  "You create grounded study quizzes for OpenBrief.",
+  "Return only valid JSON. Do not include markdown fences.",
+  "Use only the supplied source material. Do not invent facts.",
+  "When possible, include anchors with startSeconds/endSeconds for audio or video, or pageStart/pageEnd for PDFs.",
+].join("\n");
 
 export function createQuizId(
   assetId: string,
@@ -96,14 +104,10 @@ export function createQuizPrompt({
   mode,
   questionCount,
   areaOfInterest,
+  systemPromptOverride,
 }: CreateQuizPromptRequest) {
   return {
-    systemPrompt: [
-      "You create grounded study quizzes for OpenBrief.",
-      "Return only valid JSON. Do not include markdown fences.",
-      "Use only the supplied source material. Do not invent facts.",
-      "When possible, include anchors with startSeconds/endSeconds for audio or video, or pageStart/pageEnd for PDFs.",
-    ].join("\n"),
+    systemPrompt: systemPromptOverride?.trim() || DEFAULT_QUIZ_SYSTEM_PROMPT,
     userPrompt: [
       `Create a ${quizModeLabel(mode)} quiz.`,
       `Title: ${video.title}`,

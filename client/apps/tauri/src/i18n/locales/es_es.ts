@@ -615,6 +615,8 @@ export const es_es = {
   "settings.prompts.videoSummaryDescription": "Se utiliza al generar informes de vídeo de rebajas.",
   "settings.prompts.chat": "Charlar",
   "settings.prompts.chatDescription": "Se utiliza al responder preguntas del contexto de resumen o transcripción.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Revisión de transcripción",
   "settings.prompts.transcriptReviewDescription": "Se utiliza al revisar y corregir segmentos locales de voz a texto.",
   "settings.prompts.transcriptTranslation": "Traducción de transcripciones",

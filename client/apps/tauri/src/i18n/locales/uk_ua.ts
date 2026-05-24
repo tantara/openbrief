@@ -615,6 +615,8 @@ export const uk_ua = {
   "settings.prompts.videoSummaryDescription": "Використовується під час створення відеозвітів уцінки.",
   "settings.prompts.chat": "Чат",
   "settings.prompts.chatDescription": "Використовується під час відповідей на запитання з контексту резюме або стенограми.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Огляд стенограми",
   "settings.prompts.transcriptReviewDescription": "Використовується під час корекції та виправлення локальних сегментів мовлення в текст.",
   "settings.prompts.transcriptTranslation": "Переклад стенограми",

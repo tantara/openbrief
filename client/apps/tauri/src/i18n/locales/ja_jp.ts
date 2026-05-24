@@ -615,6 +615,8 @@ export const ja_jp = {
   "settings.prompts.videoSummaryDescription": "マークダウンビデオレポートを生成するときに使用されます。",
   "settings.prompts.chat": "チャット",
   "settings.prompts.chatDescription": "概要またはトランスクリプトのコンテキストから質問に答えるときに使用されます。",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "成績証明書のレビュー",
   "settings.prompts.transcriptReviewDescription": "ローカルの音声からテキストへのセグメントを校正および修正するときに使用されます。",
   "settings.prompts.transcriptTranslation": "トランスクリプトの翻訳",

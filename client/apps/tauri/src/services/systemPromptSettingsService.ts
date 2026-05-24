@@ -1,5 +1,6 @@
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "@/domain/chat";
 import { YOUTUBE_BLOG_SUMMARY_SYSTEM_PROMPT } from "@/domain/summary";
+import { DEFAULT_QUIZ_SYSTEM_PROMPT } from "@/domain/quiz";
 import {
   DEFAULT_TRANSCRIPT_REVIEW_SYSTEM_PROMPT,
   DEFAULT_TRANSCRIPT_TRANSLATION_SYSTEM_PROMPT,
@@ -8,6 +9,7 @@ import {
 export type SystemPromptSettings = {
   videoSummary: string;
   chat: string;
+  quiz: string;
   transcriptReview: string;
   transcriptTranslation: string;
 };
@@ -15,6 +17,7 @@ export type SystemPromptSettings = {
 export const defaultSystemPromptSettings: SystemPromptSettings = {
   videoSummary: YOUTUBE_BLOG_SUMMARY_SYSTEM_PROMPT,
   chat: DEFAULT_CHAT_SYSTEM_PROMPT,
+  quiz: DEFAULT_QUIZ_SYSTEM_PROMPT,
   transcriptReview: DEFAULT_TRANSCRIPT_REVIEW_SYSTEM_PROMPT,
   transcriptTranslation: DEFAULT_TRANSCRIPT_TRANSLATION_SYSTEM_PROMPT,
 };
@@ -65,6 +68,10 @@ function normalizeSystemPromptSettings(value: unknown): SystemPromptSettings {
       typeof candidate.chat === "string" && candidate.chat.trim()
         ? candidate.chat
         : defaultSystemPromptSettings.chat,
+    quiz:
+      typeof candidate.quiz === "string" && candidate.quiz.trim()
+        ? candidate.quiz
+        : defaultSystemPromptSettings.quiz,
     transcriptReview:
       typeof candidate.transcriptReview === "string" &&
       candidate.transcriptReview.trim()

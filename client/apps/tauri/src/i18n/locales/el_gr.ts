@@ -615,6 +615,8 @@ export const el_gr = {
   "settings.prompts.videoSummaryDescription": "Χρησιμοποιείται κατά τη δημιουργία αναφορών βίντεο σήμανσης.",
   "settings.prompts.chat": "Κουβέντα",
   "settings.prompts.chatDescription": "Χρησιμοποιείται όταν απαντάτε σε ερωτήσεις από το πλαίσιο περίληψης ή μεταγραφής.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Ανασκόπηση μεταγραφής",
   "settings.prompts.transcriptReviewDescription": "Χρησιμοποιείται κατά τη διόρθωση και τη διόρθωση τοπικών τμημάτων ομιλίας σε κείμενο.",
   "settings.prompts.transcriptTranslation": "Μεταγραφή μεταγραφής",

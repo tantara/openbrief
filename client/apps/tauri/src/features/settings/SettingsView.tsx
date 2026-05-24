@@ -1356,6 +1356,7 @@ function SystemPromptsSection({
     () =>
       promptDraft.videoSummary !== systemPromptSettings.videoSummary ||
       promptDraft.chat !== systemPromptSettings.chat ||
+      promptDraft.quiz !== systemPromptSettings.quiz ||
       promptDraft.transcriptReview !== systemPromptSettings.transcriptReview ||
       promptDraft.transcriptTranslation !==
         systemPromptSettings.transcriptTranslation,
@@ -1414,6 +1415,15 @@ function SystemPromptsSection({
             }
           />
           <SystemPromptEditor
+            id="quiz-system-prompt"
+            label={t("settings.prompts.quiz")}
+            description={t("settings.prompts.quizDescription")}
+            value={promptDraft.quiz}
+            onChange={(quiz) =>
+              setPromptDraft((current) => ({ ...current, quiz }))
+            }
+          />
+          <SystemPromptEditor
             id="transcript-review-system-prompt"
             label={t("settings.prompts.transcriptReview")}
             description={t("settings.prompts.transcriptReviewDescription")}
@@ -1452,6 +1462,7 @@ function SystemPromptsSection({
               isSavingSystemPrompts ||
               !promptDraft.videoSummary.trim() ||
               !promptDraft.chat.trim() ||
+              !promptDraft.quiz.trim() ||
               !promptDraft.transcriptReview.trim() ||
               !promptDraft.transcriptTranslation.trim()
             }

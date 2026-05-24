@@ -615,6 +615,8 @@ export const ar_ma = {
   "settings.prompts.videoSummaryDescription": "يستخدم عند إنشاء تقارير فيديو تخفيض السعر.",
   "settings.prompts.chat": "محادثة",
   "settings.prompts.chatDescription": "يُستخدم عند الإجابة على الأسئلة من سياق الملخص أو النص.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "مراجعة النص",
   "settings.prompts.transcriptReviewDescription": "يُستخدم عند التدقيق اللغوي وتصحيح مقاطع تحويل الكلام إلى نص المحلية.",
   "settings.prompts.transcriptTranslation": "ترجمة النص",

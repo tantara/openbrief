@@ -615,6 +615,8 @@ export const pl_pl = {
   "settings.prompts.videoSummaryDescription": "Używane podczas generowania raportów wideo o przecenach.",
   "settings.prompts.chat": "Pogawędzić",
   "settings.prompts.chatDescription": "Używane podczas odpowiadania na pytania z kontekstu podsumowania lub transkrypcji.",
+  "settings.prompts.quiz": "Quiz",
+  "settings.prompts.quizDescription": "Used when generating multiple-choice quizzes and flash cards from the current summary or transcript.",
   "settings.prompts.transcriptReview": "Recenzja transkrypcji",
   "settings.prompts.transcriptReviewDescription": "Używane podczas korekty i poprawiania lokalnych segmentów zamiany mowy na tekst.",
   "settings.prompts.transcriptTranslation": "Tłumaczenie transkrypcji",
