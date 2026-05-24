@@ -1,0 +1,22 @@
+{
+  "name": "@acme/workers",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --ip 0.0.0.0",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@acme/validators": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@acme/tsconfig": "workspace:*",
+    "@cloudflare/workers-types": "^4.20251101.0",
+    "typescript": "catalog:",
+    "wrangler": "^3.100.0"
+  }
+}

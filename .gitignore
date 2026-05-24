@@ -1,0 +1,3 @@
+.omx/
+.DS_Store
+.env.release

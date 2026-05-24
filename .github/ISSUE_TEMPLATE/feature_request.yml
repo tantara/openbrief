@@ -1,0 +1,68 @@
+name: 💡 Feature request
+description: Suggest an improvement or new capability
+title: "feat: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea. We weigh proposals by user impact and fit with the rest of the product, so the more context you give, the better the chance it ships.
+
+        Prefer not to open a public issue? Use the in-app form at `/feedback`.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which surface is this for?
+      options:
+        - Web (Next.js app)
+        - Desktop app (Tauri)
+        - Workers / extraction pipeline
+        - YouTube time-management feature
+        - Docs / onboarding
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do today, and what is getting in the way? Describe the situation, not the solution.
+      placeholder: |
+        When I import a long lecture recording, I can't easily jump to the moments where decisions were made — I have to scrub through the transcript by hand.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the app do? UI sketches, mockups, or comparable products are great.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or other products that solve this differently.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice-to-have
+        - Would noticeably improve my workflow
+        - Blocker — I can't use OpenClip for my use case without it
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues / discussions and didn't find a duplicate.
+          required: true

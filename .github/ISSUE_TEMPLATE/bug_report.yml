@@ -1,0 +1,95 @@
+name: 🐞 Bug report
+description: Something is broken or behaves unexpectedly
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please give us enough detail to reproduce it — vague reports often stall.
+
+        Prefer not to open a public issue? Use the in-app form at `/feedback`.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where did this happen?
+      options:
+        - Web (Next.js app, client/apps/nextjs)
+        - Desktop app (Tauri)
+        - Workers / extraction pipeline (client/apps/workers)
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: App version (e.g. 0.4.2) or git commit short SHA. `Unknown` is fine if you can't tell.
+      placeholder: 0.4.2 or abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        OS + version, browser + version (web), or the desktop installer flavor (Tauri).
+        macOS / Windows / Linux build details all help.
+      placeholder: |
+        - OS: macOS 14.4
+        - Browser: Chrome 124
+        - App: OpenClip Desktop 0.4.2 (Apple Silicon)
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Number the steps. The more specific, the faster we can fix it.
+      placeholder: |
+        1. Open OpenClip
+        2. Drag in a .mp4
+        3. Click "Summarize"
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, or screen recording
+      description: |
+        Paste any error output (browser devtools console, terminal, or app logs) inside a code block.
+        Screenshots or short recordings of the failure are very helpful.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true
+        - label: This is reproducible on the latest version I can install.
+          required: false

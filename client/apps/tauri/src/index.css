@@ -1,0 +1,84 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@acme/tailwind-config/theme";
+
+@source "../../../packages/ui/src/*.{ts,tsx}";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .openbrief-markdown-editor {
+    @apply min-h-full outline-none;
+  }
+
+  .openbrief-markdown-editor > * + * {
+    @apply mt-4;
+  }
+
+  .openbrief-markdown-editor h1 {
+    @apply mt-7 text-xl leading-tight font-semibold;
+  }
+
+  .openbrief-markdown-editor h2 {
+    @apply mt-6 text-lg leading-tight font-semibold;
+  }
+
+  .openbrief-markdown-editor h3 {
+    @apply mt-5 text-base leading-tight font-semibold;
+  }
+
+  .openbrief-markdown-editor h1 + *,
+  .openbrief-markdown-editor h2 + *,
+  .openbrief-markdown-editor h3 + * {
+    @apply mt-3;
+  }
+
+  .openbrief-markdown-editor h1:first-child,
+  .openbrief-markdown-editor h2:first-child,
+  .openbrief-markdown-editor h3:first-child {
+    @apply mt-0;
+  }
+
+  .openbrief-markdown-editor p {
+    @apply leading-7;
+  }
+
+  .openbrief-markdown-editor ul,
+  .openbrief-markdown-editor ol {
+    @apply ml-5 space-y-1;
+  }
+
+  .openbrief-markdown-editor ul {
+    @apply list-disc;
+  }
+
+  .openbrief-markdown-editor ol {
+    @apply list-decimal;
+  }
+
+  .openbrief-markdown-editor blockquote {
+    @apply border-border text-muted-foreground border-l-2 pl-3;
+  }
+
+  .openbrief-markdown-editor code {
+    @apply bg-muted rounded px-1 py-0.5 font-mono text-xs;
+  }
+
+  .openbrief-markdown-editor pre {
+    @apply bg-muted overflow-x-auto rounded-md p-3;
+  }
+
+  .openbrief-markdown-editor pre code {
+    @apply bg-transparent p-0;
+  }
+}

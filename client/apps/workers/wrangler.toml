@@ -1,0 +1,31 @@
+name               = "openbrief-yt-runner"
+main               = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# Producer side: the /enqueue endpoint pushes onto this queue.
+[[queues.producers]]
+binding = "YT_OCR_QUEUE"
+queue   = "openbrief-yt-ocr"
+
+# Consumer side: same worker drains the queue. max_batch_size = 1 because
+# each job is a synchronous Gemini call.
+[[queues.consumers]]
+queue             = "openbrief-yt-ocr"
+max_batch_size    = 1
+max_batch_timeout = 5
+max_retries       = 2
+dead_letter_queue = "openbrief-yt-ocr-dlq"
+
+# R2 bucket that stores uploaded screenshots. The Next.js app writes via
+# presigned PUT; the worker reads via the binding.
+[[r2_buckets]]
+binding     = "YT_R2"
+bucket_name = "openbrief-yt"
+
+[vars]
+NEXT_BASE_URL          = "http://127.0.0.1:3000"
+YT_EXTRACTION_MODEL    = "gemini-2.0-flash"
+
+# Secrets (set via `wrangler secret put`, never in this file):
+#   WORKER_SHARED_SECRET
+#   GOOGLE_GENERATIVE_AI_API_KEY

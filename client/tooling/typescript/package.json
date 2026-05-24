@@ -1,0 +1,8 @@
+{
+  "name": "@acme/tsconfig",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "files": [
+    "*.json"
+  ]
+}

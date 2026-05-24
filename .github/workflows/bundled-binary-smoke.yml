@@ -1,0 +1,346 @@
+name: Bundled Binary Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Release Build workflow run ID that uploaded openbrief-* artifacts."
+        required: true
+        type: string
+      platform:
+        description: "Platform artifact to test"
+        required: true
+        type: choice
+        default: "all"
+        options:
+          - all
+          - macos-arm64
+          - macos-intel
+          - windows-x64
+          - linux-x64
+      run_tiny_model:
+        description: "Download ggml-tiny.bin and run a real Whisper STT smoke."
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  select-platforms:
+    name: Select platforms
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          macos_arm64='{"name":"macos-arm64","os":"macos-latest","rust_target":"aarch64-apple-darwin","artifact":"openbrief-macos-arm64"}'
+          macos_intel='{"name":"macos-intel","os":"macos-15-intel","rust_target":"x86_64-apple-darwin","artifact":"openbrief-macos-intel"}'
+          windows_x64='{"name":"windows-x64","os":"windows-latest","rust_target":"x86_64-pc-windows-msvc","artifact":"openbrief-windows-x64"}'
+          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04","rust_target":"x86_64-unknown-linux-gnu","artifact":"openbrief-linux-x64"}'
+
+          case "${{ inputs.platform }}" in
+            all)
+              matrix="{\"include\":[${macos_arm64},${macos_intel},${windows_x64},${linux_x64}]}"
+              ;;
+            macos-arm64)
+              matrix="{\"include\":[${macos_arm64}]}"
+              ;;
+            macos-intel)
+              matrix="{\"include\":[${macos_intel}]}"
+              ;;
+            windows-x64)
+              matrix="{\"include\":[${windows_x64}]}"
+              ;;
+            linux-x64)
+              matrix="{\"include\":[${linux_x64}]}"
+              ;;
+            *)
+              echo "Unsupported platform: ${{ inputs.platform }}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Smoke ${{ matrix.name }}
+    needs: select-platforms
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Download platform artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.run_id }}
+          name: ${{ matrix.artifact }}
+          path: artifacts/${{ matrix.artifact }}
+
+      - name: Smoke bundled tools from macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_dir="artifacts/${{ matrix.artifact }}"
+          dmg="$(find "$artifact_dir" -type f -name '*.dmg' | head -n 1)"
+          if [[ -z "$dmg" ]]; then
+            echo "No DMG found in $artifact_dir" >&2
+            exit 1
+          fi
+
+          mount_dir="$RUNNER_TEMP/openclip-${{ matrix.name }}-dmg"
+          mkdir -p "$mount_dir"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount_dir" "$dmg"
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true' EXIT
+
+          app_path="$(find "$mount_dir" -maxdepth 2 -type d -name '*.app' | head -n 1)"
+          if [[ -z "$app_path" ]]; then
+            echo "No .app bundle found in $dmg" >&2
+            exit 1
+          fi
+
+          helper="$app_path/Contents/MacOS/openbrief-helper"
+          tools="$app_path/Contents/Resources/media-tools/${{ matrix.rust_target }}"
+          ytdlp="$tools/yt-dlp"
+          ffmpeg="$tools/ffmpeg"
+          ffprobe="$tools/ffprobe"
+
+          test -x "$helper"
+          test -x "$ytdlp"
+          test -x "$ffmpeg"
+          test -x "$ffprobe"
+
+          file "$helper" "$ytdlp" "$ffmpeg" "$ffprobe"
+          otool -L "$helper"
+
+          "$ytdlp" --version
+          "$ffmpeg" -version | head -n 1
+          "$ffprobe" -version | head -n 1
+
+          wav="$RUNNER_TEMP/openclip-stt-smoke.wav"
+          "$ffmpeg" -hide_banner -loglevel error -y \
+            -f lavfi -i sine=frequency=1000:duration=1 \
+            -ar 16000 -ac 1 -c:a pcm_s16le "$wav"
+          "$ffprobe" -v error -show_streams "$wav" | grep -E 'sample_rate=16000|channels=1'
+
+          no_model_request="$(jq -nc \
+            --arg audio "$wav" \
+            --arg model "$RUNNER_TEMP/missing-ggml-tiny.bin" \
+            --arg output "$RUNNER_TEMP/no-model-transcript.json" \
+            '{protocolVersion:1,jobId:"stt-no-model",command:"transcribe_audio",audioPath:$audio,modelPath:$model,outputPath:$output}')"
+          set +e
+          no_model_output="$("$helper" --json "$no_model_request" 2>&1)"
+          no_model_status=$?
+          set -e
+          echo "$no_model_output"
+          if [[ "$no_model_status" -eq 0 ]]; then
+            echo "Expected STT without model to fail." >&2
+            exit 1
+          fi
+          grep -q "transcribe_audio_model_not_found" <<<"$no_model_output"
+
+          if [[ "${{ inputs.run_tiny_model }}" == "true" ]]; then
+            model="$RUNNER_TEMP/ggml-tiny.bin"
+            curl -L --fail --retry 3 --retry-delay 5 \
+              -o "$model" \
+              https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+            model_request="$(jq -nc \
+              --arg audio "$wav" \
+              --arg model "$model" \
+              --arg output "$RUNNER_TEMP/tiny-model-transcript.json" \
+              '{protocolVersion:1,jobId:"stt-tiny-model",command:"transcribe_audio",audioPath:$audio,modelPath:$model,outputPath:$output}')"
+            "$helper" --json "$model_request" | tee "$RUNNER_TEMP/tiny-model-output.jsonl"
+            grep -q '"event":"job_completed"' "$RUNNER_TEMP/tiny-model-output.jsonl"
+            test -s "$RUNNER_TEMP/tiny-model-transcript.json"
+          fi
+
+      - name: Smoke bundled tools from Linux DEB
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_dir="artifacts/${{ matrix.artifact }}"
+          deb="$(find "$artifact_dir" -type f -name '*.deb' | head -n 1)"
+          if [[ -z "$deb" ]]; then
+            echo "No DEB found in $artifact_dir" >&2
+            exit 1
+          fi
+
+          root="$RUNNER_TEMP/openclip-deb-root"
+          mkdir -p "$root"
+          dpkg-deb -x "$deb" "$root"
+
+          helper="$root/usr/bin/openbrief-helper"
+          tools="$root/usr/lib/openclip/media-tools/${{ matrix.rust_target }}"
+          ytdlp="$tools/yt-dlp"
+          ffmpeg="$tools/ffmpeg"
+          ffprobe="$tools/ffprobe"
+
+          test -x "$helper"
+          test -x "$ytdlp"
+          test -x "$ffmpeg"
+          test -x "$ffprobe"
+
+          file "$helper" "$ytdlp" "$ffmpeg" "$ffprobe"
+          ldd "$helper"
+          ldd "$ytdlp" || true
+
+          "$ytdlp" --version
+          "$ffmpeg" -version | head -n 1
+          "$ffprobe" -version | head -n 1
+
+          wav="$RUNNER_TEMP/openclip-stt-smoke.wav"
+          "$ffmpeg" -hide_banner -loglevel error -y \
+            -f lavfi -i sine=frequency=1000:duration=1 \
+            -ar 16000 -ac 1 -c:a pcm_s16le "$wav"
+          "$ffprobe" -v error -show_streams "$wav" | grep -E 'sample_rate=16000|channels=1'
+
+          no_model_request="$(jq -nc \
+            --arg audio "$wav" \
+            --arg model "$RUNNER_TEMP/missing-ggml-tiny.bin" \
+            --arg output "$RUNNER_TEMP/no-model-transcript.json" \
+            '{protocolVersion:1,jobId:"stt-no-model",command:"transcribe_audio",audioPath:$audio,modelPath:$model,outputPath:$output}')"
+          set +e
+          no_model_output="$("$helper" --json "$no_model_request" 2>&1)"
+          no_model_status=$?
+          set -e
+          echo "$no_model_output"
+          if [[ "$no_model_status" -eq 0 ]]; then
+            echo "Expected STT without model to fail." >&2
+            exit 1
+          fi
+          grep -q "transcribe_audio_model_not_found" <<<"$no_model_output"
+
+          if [[ "${{ inputs.run_tiny_model }}" == "true" ]]; then
+            model="$RUNNER_TEMP/ggml-tiny.bin"
+            curl -L --fail --retry 3 --retry-delay 5 \
+              -o "$model" \
+              https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
+            model_request="$(jq -nc \
+              --arg audio "$wav" \
+              --arg model "$model" \
+              --arg output "$RUNNER_TEMP/tiny-model-transcript.json" \
+              '{protocolVersion:1,jobId:"stt-tiny-model",command:"transcribe_audio",audioPath:$audio,modelPath:$model,outputPath:$output}')"
+            "$helper" --json "$model_request" | tee "$RUNNER_TEMP/tiny-model-output.jsonl"
+            grep -q '"event":"job_completed"' "$RUNNER_TEMP/tiny-model-output.jsonl"
+            test -s "$RUNNER_TEMP/tiny-model-transcript.json"
+          fi
+
+      - name: Smoke bundled tools from Windows MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $artifactDir = "artifacts/${{ matrix.artifact }}"
+          $msi = Get-ChildItem -Path $artifactDir -Recurse -Filter *.msi | Select-Object -First 1
+          if (-not $msi) {
+            throw "No MSI found in $artifactDir"
+          }
+
+          $root = Join-Path $env:RUNNER_TEMP "openclip-msi-root"
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @(
+            "/a",
+            "`"$($msi.FullName)`"",
+            "/qn",
+            "TARGETDIR=`"$root`""
+          ) -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "MSI administrative extract failed with exit code $($process.ExitCode)"
+          }
+
+          $helper = Get-ChildItem -Path $root -Recurse -Filter "openbrief-helper.exe" | Select-Object -First 1
+          $toolsRoot = Get-ChildItem -Path $root -Recurse -Directory |
+            Where-Object { $_.FullName -like "*media-tools*${{ matrix.rust_target }}*" } |
+            Select-Object -First 1
+
+          if (-not $helper) {
+            throw "openbrief-helper.exe not found in extracted MSI"
+          }
+          if (-not $toolsRoot) {
+            throw "media-tools/${{ matrix.rust_target }} not found in extracted MSI"
+          }
+
+          $ytDlp = Join-Path $toolsRoot.FullName "yt-dlp.exe"
+          $ffmpeg = Join-Path $toolsRoot.FullName "ffmpeg.exe"
+          $ffprobe = Join-Path $toolsRoot.FullName "ffprobe.exe"
+
+          foreach ($path in @($helper.FullName, $ytDlp, $ffmpeg, $ffprobe)) {
+            if (-not (Test-Path $path)) {
+              throw "Required bundled executable missing: $path"
+            }
+            Get-Item $path | Format-List FullName,Length
+          }
+
+          & $ytDlp --version
+          if ($LASTEXITCODE -ne 0) { throw "yt-dlp --version failed" }
+          & $ffmpeg -version
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg -version failed" }
+          & $ffprobe -version
+          if ($LASTEXITCODE -ne 0) { throw "ffprobe -version failed" }
+
+          $wav = Join-Path $env:RUNNER_TEMP "openclip-stt-smoke.wav"
+          & $ffmpeg -hide_banner -loglevel error -y `
+            -f lavfi -i "sine=frequency=1000:duration=1" `
+            -ar 16000 -ac 1 -c:a pcm_s16le $wav
+          if ($LASTEXITCODE -ne 0) { throw "ffmpeg WAV smoke failed" }
+          & $ffprobe -v error -show_streams $wav
+          if ($LASTEXITCODE -ne 0) { throw "ffprobe WAV smoke failed" }
+
+          $noModelRequest = @{
+            protocolVersion = 1
+            jobId = "stt-no-model"
+            command = "transcribe_audio"
+            audioPath = $wav
+            modelPath = (Join-Path $env:RUNNER_TEMP "missing-ggml-tiny.bin")
+            outputPath = (Join-Path $env:RUNNER_TEMP "no-model-transcript.json")
+          } | ConvertTo-Json -Compress
+
+          $noModelOutput = & $helper.FullName --json $noModelRequest 2>&1
+          $noModelStatus = $LASTEXITCODE
+          $noModelOutput | Write-Output
+          if ($noModelStatus -eq 0) {
+            throw "Expected STT without model to fail."
+          }
+          if (($noModelOutput -join "`n") -notmatch "transcribe_audio_model_not_found") {
+            throw "STT without model did not report transcribe_audio_model_not_found"
+          }
+
+          if ("${{ inputs.run_tiny_model }}" -eq "true") {
+            $model = Join-Path $env:RUNNER_TEMP "ggml-tiny.bin"
+            curl.exe -L --fail --retry 3 --retry-delay 5 `
+              -o $model `
+              "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+            if ($LASTEXITCODE -ne 0) { throw "Whisper tiny model download failed" }
+
+            $modelRequest = @{
+              protocolVersion = 1
+              jobId = "stt-tiny-model"
+              command = "transcribe_audio"
+              audioPath = $wav
+              modelPath = $model
+              outputPath = (Join-Path $env:RUNNER_TEMP "tiny-model-transcript.json")
+            } | ConvertTo-Json -Compress
+
+            $modelOutputPath = Join-Path $env:RUNNER_TEMP "tiny-model-output.jsonl"
+            & $helper.FullName --json $modelRequest | Tee-Object -FilePath $modelOutputPath
+            if ($LASTEXITCODE -ne 0) { throw "STT with tiny model failed" }
+            if (-not (Select-String -Path $modelOutputPath -Pattern '"event":"job_completed"' -Quiet)) {
+              throw "STT with tiny model did not emit job_completed"
+            }
+            if (-not (Test-Path (Join-Path $env:RUNNER_TEMP "tiny-model-transcript.json"))) {
+              throw "STT with tiny model did not write transcript"
+            }
+          }

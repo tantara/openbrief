@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 In-app feedback form
+    url: https://openclip.app/feedback
+    about: Send a feature request or bug report without leaving the app. We get the same content, attached to your session if you're signed in.
+  - name: ❓ Question or discussion
+    url: https://github.com/tantara/openclip/discussions
+    about: For open-ended questions, ideas you want to talk through, or anything that isn't a clear bug or feature request.

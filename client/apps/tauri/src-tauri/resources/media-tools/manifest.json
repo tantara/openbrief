@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "toolRoot": "media-tools/{targetTriple}",
+  "preparationScript": "client/apps/tauri/scripts/prepare-media-assets.js",
+  "defaultYtDlpVersion": "2026.03.17",
+  "releasePolicy": "release builds require prepared target-triple binaries plus generated per-target manifest.json",
+  "tools": [
+    {
+      "name": "yt-dlp",
+      "versionDiscoveryArgs": ["--version"],
+      "purpose": "youtube-download",
+      "source": "https://github.com/yt-dlp/yt-dlp/releases",
+      "license": "Unlicense",
+      "phaseStatus": "prepared-by-script"
+    },
+    {
+      "name": "ffmpeg",
+      "versionDiscoveryArgs": ["-version"],
+      "purpose": "audio-extraction",
+      "source": "@ffmpeg-installer/ffmpeg host target package",
+      "license": "LGPL-2.1-compatible package metadata; verify linked binary before public release",
+      "phaseStatus": "prepared-by-script"
+    },
+    {
+      "name": "ffprobe",
+      "versionDiscoveryArgs": ["-version"],
+      "purpose": "media-probe",
+      "source": "@ffprobe-installer/ffprobe host target package",
+      "license": "LGPL-2.1 package metadata",
+      "phaseStatus": "prepared-by-script"
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpenBrief",
+  "version": "0.1.0",
+  "identifier": "dev.tantara.openbrief",
+  "build": {
+    "beforeDevCommand": "pnpm setup:dev-sidecars && pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "OpenBrief",
+        "label": "main",
+        "width": 1280,
+        "height": 960,
+        "minWidth": 600,
+        "minHeight": 600
+      },
+      {
+        "label": "transcript-overlay",
+        "title": "OpenBrief transcript overlay",
+        "url": "overlay.html",
+        "width": 520,
+        "height": 180,
+        "alwaysOnTop": true,
+        "visible": false,
+        "transparent": true,
+        "decorations": false,
+        "skipTaskbar": true,
+        "resizable": true,
+        "minimizable": false,
+        "maximizable": false,
+        "center": true,
+        "backgroundColor": "#00000000"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; media-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost data: blob:; connect-src ipc: http://ipc.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/library/**/*"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "externalBin": ["binaries/openbrief-helper"],
+    "macOS": {
+      "signingIdentity": "-",
+      "hardenedRuntime": false,
+      "minimumSystemVersion": "10.15"
+    },
+    "resources": {
+      "resources/media-tools": "media-tools"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "cli": {
+      "description": "OpenBrief command line tools.",
+      "subcommands": {
+        "download": {
+          "description": "Download a single video with OpenBrief's bundled media tools and print metadata as JSON.",
+          "args": [
+            {
+              "name": "url",
+              "index": 1,
+              "takesValue": true,
+              "required": true,
+              "description": "YouTube or video URL to download"
+            },
+            {
+              "name": "output",
+              "short": "o",
+              "takesValue": true,
+              "required": false,
+              "description": "Output directory. Uses the current directory when omitted or empty."
+            }
+          ]
+        },
+        "yt-dlp": {
+          "description": "Run bundled yt-dlp directly.",
+          "args": [
+            {
+              "name": "args",
+              "index": 1,
+              "takesValue": true,
+              "multiple": true,
+              "required": false,
+              "description": "Arguments to pass to yt-dlp. One quoted command string is also supported."
+            }
+          ]
+        }
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ0MUI1QjMyQjBFOEEyRjMKUldUem91aXdNbHNiMU1mRzhJcHFwUG1WT2tYZnRRd25uQkZEc3d0eFByNWZQNHRhelJSTXMzVFEK",
+      "endpoints": [
+        "https://github.com/tantara/openbrief/releases/latest/download/latest.json?download="
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

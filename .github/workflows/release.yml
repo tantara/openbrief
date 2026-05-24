@@ -1,0 +1,407 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to build"
+        required: true
+        type: choice
+        default: "all"
+        options:
+          - all
+          - macos-arm64
+          - macos-intel
+          - windows-x64
+          - linux-x64
+      draft:
+        description: "Create GitHub release as draft"
+        required: true
+        type: boolean
+        default: true
+      upload_release:
+        description: "Upload assets to a GitHub release. Requires release_tag."
+        required: true
+        type: boolean
+        default: false
+      notarize_macos:
+        description: "Sign and notarize macOS artifacts with Apple Developer credentials."
+        required: true
+        type: boolean
+        default: false
+      release_tag:
+        description: "Release tag to publish, for example v0.1.0. Leave empty for artifact-only builds."
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  select-platforms:
+    name: Select platforms
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        run: |
+          macos_arm64='{"name":"macos-arm64","os":"macos-latest","rust_target":"aarch64-apple-darwin","tauri_args":"--target aarch64-apple-darwin","artifact_glob":"client/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.dmg\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz.sig"}'
+          macos_intel='{"name":"macos-intel","os":"macos-15-intel","rust_target":"x86_64-apple-darwin","tauri_args":"--target x86_64-apple-darwin","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.dmg\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz.sig"}'
+          windows_x64='{"name":"windows-x64","os":"windows-latest","rust_target":"x86_64-pc-windows-msvc","tauri_args":"--target x86_64-pc-windows-msvc --bundles nsis","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.msi\nclient/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.exe\nclient/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.zip\nclient/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.sig"}'
+          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04","rust_target":"x86_64-unknown-linux-gnu","tauri_args":"--target x86_64-unknown-linux-gnu","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.AppImage\nclient/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.deb\nclient/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.rpm\nclient/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.sig"}'
+
+          case "${{ inputs.platform }}" in
+            all)
+              matrix="{\"include\":[${macos_arm64},${macos_intel},${windows_x64},${linux_x64}]}"
+              ;;
+            macos-arm64)
+              matrix="{\"include\":[${macos_arm64}]}"
+              ;;
+            macos-intel)
+              matrix="{\"include\":[${macos_intel}]}"
+              ;;
+            windows-x64)
+              matrix="{\"include\":[${windows_x64}]}"
+              ;;
+            linux-x64)
+              matrix="{\"include\":[${linux_x64}]}"
+              ;;
+            *)
+              echo "Unsupported platform: ${{ inputs.platform }}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  preflight:
+    name: Shared checks
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libasound2-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.9
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./client/apps/tauri/src-tauri -> target"
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
+
+      - name: Run frontend tests
+        working-directory: client
+        run: pnpm --filter @acme/tauri test:run
+
+      - name: Run typecheck
+        working-directory: client
+        run: pnpm --filter @acme/tauri typecheck
+
+      - name: Run Rust tests
+        working-directory: client/apps/tauri/src-tauri
+        run: cargo test
+
+      - name: Run helper sidecar tests
+        working-directory: client/apps/tauri/src-tauri
+        run: cargo test --manifest-path helper/Cargo.toml
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs:
+      - select-platforms
+      - preflight
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libasound2-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.9
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./client/apps/tauri/src-tauri -> target"
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
+
+      - name: Prepare bundled media tools
+        working-directory: client/apps/tauri
+        run: pnpm run prepare:media-assets -- --target ${{ matrix.rust_target }}
+
+      - name: Build helper sidecar
+        timeout-minutes: 20
+        working-directory: client/apps/tauri
+        run: pnpm run build:helper-sidecar -- --target ${{ matrix.rust_target }}
+
+      - name: Validate release upload inputs
+        if: inputs.upload_release == true && inputs.release_tag == ''
+        shell: bash
+        run: |
+          echo "release_tag is required when upload_release is true." >&2
+          exit 1
+
+      - name: Validate Apple notarization secrets
+        if: runner.os == 'macOS' && inputs.notarize_macos == true
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=()
+          for name in \
+            APPLE_CERTIFICATE \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_ID \
+            APPLE_PASSWORD \
+            APPLE_TEAM_ID
+          do
+            if [[ -z "${!name}" ]]; then
+              missing+=("$name")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required notarization secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Import Apple Developer certificate
+        if: runner.os == 'macOS' && inputs.notarize_macos == true
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY_SECRET: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          certificate_path="$RUNNER_TEMP/developer-id-application.p12"
+          keychain_path="$RUNNER_TEMP/openbrief-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 32)"
+
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$keychain_path" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security list-keychains -d user -s "$keychain_path" $(security list-keychains -d user | sed 's/"//g')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
+
+          signing_identity="$APPLE_SIGNING_IDENTITY_SECRET"
+          if [[ -z "$signing_identity" ]]; then
+            signing_identity="$(
+              security find-identity -v -p codesigning "$keychain_path" |
+                awk -F'"' '/Developer ID Application/ { print $2; exit }'
+            )"
+          fi
+
+          if [[ -z "$signing_identity" ]]; then
+            echo "No Developer ID Application signing identity found in the imported certificate." >&2
+            security find-identity -v -p codesigning "$keychain_path" >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$signing_identity"
+          echo "APPLE_SIGNING_IDENTITY=$signing_identity" >> "$GITHUB_ENV"
+
+      - name: Sign macOS media tool resources
+        if: runner.os == 'macOS' && inputs.notarize_macos == true
+        shell: bash
+        working-directory: client/apps/tauri
+        run: |
+          media_tools_dir="src-tauri/resources/media-tools/${{ matrix.rust_target }}"
+          if [[ ! -d "$media_tools_dir" ]]; then
+            echo "Missing media tools directory: $media_tools_dir" >&2
+            exit 1
+          fi
+
+          for tool in ffmpeg ffprobe yt-dlp; do
+            tool_path="$media_tools_dir/$tool"
+            if [[ ! -f "$tool_path" ]]; then
+              echo "Missing media tool: $tool_path" >&2
+              exit 1
+            fi
+            codesign \
+              --force \
+              --options runtime \
+              --timestamp \
+              --sign "$APPLE_SIGNING_IDENTITY" \
+              "$tool_path"
+            codesign --verify --verbose=2 "$tool_path"
+          done
+
+      - name: Build Tauri app
+        working-directory: client/apps/tauri
+        shell: bash
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD_SECRET: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          build_config='{"bundle":{"createUpdaterArtifacts":false}}'
+          if [[ "${{ runner.os }}" == "macOS" && "${{ inputs.notarize_macos }}" == "true" ]]; then
+            export APPLE_ID="$APPLE_ID_SECRET"
+            export APPLE_PASSWORD="$APPLE_PASSWORD_SECRET"
+            export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
+            build_config="$(
+              node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:false,macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY,hardenedRuntime:true}}}))'
+            )"
+          fi
+
+          pnpm tauri build ${{ matrix.tauri_args }} --config "$build_config"
+
+      - name: Notarize macOS DMG
+        if: runner.os == 'macOS' && inputs.notarize_macos == true
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          bundle_dir="client/apps/tauri/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg"
+          dmg_path="$(find "$bundle_dir" -maxdepth 1 -type f -name '*.dmg' | head -n 1)"
+          if [[ -z "$dmg_path" ]]; then
+            echo "No DMG found in $bundle_dir" >&2
+            exit 1
+          fi
+
+          codesign --verify --verbose=2 "$dmg_path"
+          xcrun notarytool submit "$dmg_path" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$dmg_path"
+          xcrun stapler validate "$dmg_path"
+          spctl -a -t open -vvv --context context:primary-signature "$dmg_path"
+
+      - name: Upload installers to GitHub release
+        if: inputs.upload_release == true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ inputs.release_tag }}"
+          title="OpenBrief ${tag}"
+          body="OpenBrief installer build. See assets for platform installers."
+
+          release_args=()
+          if [[ "${{ inputs.draft }}" == "true" ]]; then
+            release_args+=(--draft)
+          fi
+
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "$title" \
+              --notes "$body" \
+              "${release_args[@]}" \
+            || gh release view "$tag" >/dev/null
+          fi
+
+          bundle_dir="client/apps/tauri/src-tauri/target/${{ matrix.rust_target }}/release/bundle"
+          artifact_list="$(mktemp)"
+          find "$bundle_dir" -type f \( \
+              -name '*.AppImage' -o \
+              -name '*.deb' -o \
+              -name '*.dmg' -o \
+              -name '*.exe' -o \
+              -name '*.msi' -o \
+              -name '*.rpm' \
+            \) -print0 > "$artifact_list"
+
+          if [[ ! -s "$artifact_list" ]]; then
+            echo "No installer artifacts found to upload." >&2
+            exit 1
+          fi
+
+          xargs -0 -I {} gh release upload "$tag" "{}" --clobber < "$artifact_list"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbrief-${{ matrix.name }}
+          path: ${{ matrix.artifact_glob }}
+          if-no-files-found: error
+
+  smoke-next-step:
+    name: Smoke workflow handoff
+    needs: build
+    if: always() && !cancelled() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Summarize smoke command
+        shell: bash
+        run: |
+          {
+            echo "Release artifacts are uploaded for run ${{ github.run_id }}."
+            echo "Run the bundled binary smoke workflow with run_id=${{ github.run_id }} when installer smoke coverage is needed."
+          } >> "$GITHUB_STEP_SUMMARY"
