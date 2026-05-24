@@ -2,11 +2,11 @@
 
 ## Scope
 
-These instructions apply to the entire OpenClip repository.
+These instructions apply to the entire OpenBrief repository.
 
 ## Project Shape
 
-OpenClip is a Tauri v2 desktop app with a React/TypeScript renderer and a Rust trusted boundary. The app manages local video imports, yt-dlp downloads, transcription, markdown summaries, chat, playlists, and artifact export.
+OpenBrief is a Tauri v2 desktop app with a React/TypeScript renderer and a Rust trusted boundary. The app manages local video, audio, and PDF imports, yt-dlp downloads, transcription, markdown summaries, chat, playlists, and artifact export.
 
 ## Worktree Rules
 
@@ -24,6 +24,15 @@ OpenClip is a Tauri v2 desktop app with a React/TypeScript renderer and a Rust t
 - Rust owns authority for credentials, filesystem paths, sidecar execution, provider secret resolution, and app-library roots.
 - Renderer code must not receive raw provider secrets or authority-bearing filesystem roots.
 - Helper subprocess execution must use argv arrays, not shell-concatenated commands.
+
+## Self-Contained Library Structure
+
+- Treat each imported asset directory as a portable bundle that can be zipped and imported on another device.
+- Store per-asset artifacts under `./{videos,audios,pdfs}/{id}/...`, where `.` is the app library root or the root of an exported bundle.
+- Keep the source media, transcript, transcript variants, summaries, chat sessions, generated TTS audio, thumbnails/previews, metadata, and bundle manifest inside the corresponding asset directory.
+- Do not add new top-level per-asset artifact buckets such as `transcripts/`, `summaries/`, `thumbnails/`, or global TTS `generations/`. Shared indexes, playlists, model checkpoints, and job-temp/cache data may live outside the asset bundle.
+- Store artifact references in manifests as library-relative paths so moving or zipping `videos/{id}`, `audios/{id}`, or `pdfs/{id}` preserves the artifact graph.
+- Path helpers should be media-type aware. Avoid hard-coding `videos/{id}` for artifacts that can belong to audio or PDF assets.
 
 ## Validation
 

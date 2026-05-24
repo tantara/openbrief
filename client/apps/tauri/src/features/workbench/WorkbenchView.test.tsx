@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -651,6 +651,47 @@ describe("WorkbenchView", () => {
     );
   });
 
+  it("shows the submitted user chat while waiting for the assistant", async () => {
+    let resolveSend: () => void = () => {};
+    const onSendChat = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          summary: summaryFixture,
+          onSendChat,
+        })}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/chat question/i), {
+      target: { value: "What mattered?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    expect(await screen.findByText("What mattered?")).toBeInTheDocument();
+    expect(screen.getByLabelText(/chat question/i)).toHaveValue("");
+    await waitFor(() =>
+      expect(onSendChat).toHaveBeenCalledWith({
+        question: "What mattered?",
+        contextMode: "summary",
+        provider: "openai",
+        model: "gpt-5.4-mini",
+        summaryId: "summary-video-1",
+        streamingMode: false,
+      }),
+    );
+
+    await act(async () => {
+      resolveSend();
+    });
+  });
+
   it("starts transcription from the summary-required warning", async () => {
     const onExtractTranscript = vi.fn().mockResolvedValue(undefined);
 
@@ -1099,15 +1140,21 @@ describe("WorkbenchView", () => {
     render(
       <WorkbenchView
         {...defaultProps({
-          chatMessages: chatFixture,
+          chatMessages: [
+            {
+              ...chatFixture[0],
+              content: "**Answer** from transcript\n\n- Key point",
+            },
+          ],
           onResetChat,
         })}
       />,
     );
 
-    expect(screen.getByText("Answer from transcript")).toBeInTheDocument();
-    expect(screen.getByText("Answer from transcript"))
-      .toHaveClass("rounded-lg");
+    expect(screen.getByText("Answer").closest("strong")).not.toBeNull();
+    expect(screen.getByText("Key point")).toBeInTheDocument();
+    expect(screen.queryByText("**Answer** from transcript"))
+      .not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New chat" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New chat" }))
       .toHaveClass("h-8");

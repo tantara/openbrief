@@ -48,6 +48,7 @@ import {
   TooltipTrigger,
 } from "@acme/ui/tooltip";
 import { MarkdownSummaryEditor } from "@/components/markdown/MarkdownSummaryEditor";
+import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { PdfViewer } from "@/components/media/PdfViewer";
 import { ProviderIcon } from "@/components/provider/ProviderIcon";
@@ -219,6 +220,7 @@ export function WorkbenchView({
       streamingMode: chatStreamingMode,
     });
   const [question, setQuestion] = useState("");
+  const [pendingChatMessage, setPendingChatMessage] = useState<ChatMessage>();
   const [isExtractingTranscript, setIsExtractingTranscript] = useState(false);
   const [isReviewingTranscript, setIsReviewingTranscript] = useState(false);
   const [isTranslatingTranscript, setIsTranslatingTranscript] = useState(false);
@@ -257,6 +259,21 @@ export function WorkbenchView({
     { value: "summary" as const, label: t("workbench.chat.summary") },
     { value: "transcript" as const, label: t("workbench.chat.transcript") },
   ];
+  const displayedChatMessages = useMemo(() => {
+    if (!pendingChatMessage) return chatMessages;
+
+    const pendingMessageIsPersisted = chatMessages.some(
+      (message) =>
+        message.role === "user" &&
+        message.videoId === pendingChatMessage.videoId &&
+        message.contextMode === pendingChatMessage.contextMode &&
+        message.content === pendingChatMessage.content,
+    );
+
+    return pendingMessageIsPersisted
+      ? chatMessages
+      : [...chatMessages, pendingChatMessage];
+  }, [chatMessages, pendingChatMessage]);
   const summaryTabs = normalizeSummaryTabs(summaries, summary);
   const activeTranscriptVariant = transcriptVariants.find(
     (variant) => variant.id === activeTranscriptVariantId,
@@ -451,7 +468,20 @@ export function WorkbenchView({
   async function submitChat() {
     const submittedQuestion = question.trim();
     if (!submittedQuestion || isSendingChat) return;
+    const pendingMessage: ChatMessage | undefined = video
+      ? {
+          id: `chat-pending-${video.id}-${Date.now().toString(36)}`,
+          videoId: video.id,
+          role: "user",
+          content: submittedQuestion,
+          contextMode,
+          createdAtIso: new Date().toISOString(),
+        }
+      : undefined;
 
+    if (pendingMessage) {
+      setPendingChatMessage(pendingMessage);
+    }
     setQuestion("");
     try {
       await onSendChat({
@@ -464,6 +494,12 @@ export function WorkbenchView({
       });
     } catch {
       // The library hook records failed chat jobs for the Workbench status panel.
+    } finally {
+      if (pendingMessage) {
+        setPendingChatMessage((current) =>
+          current?.id === pendingMessage.id ? undefined : current,
+        );
+      }
     }
   }
 
@@ -940,7 +976,10 @@ export function WorkbenchView({
                     className="h-8 w-8"
                     disabled={isSendingChat}
                     aria-label={t("workbench.chat.newChat")}
-                    onClick={onResetChat}
+                    onClick={() => {
+                      setPendingChatMessage(undefined);
+                      onResetChat?.();
+                    }}
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -954,17 +993,17 @@ export function WorkbenchView({
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
           <div className="min-h-0 flex-1 overflow-y-auto py-2 text-sm">
-            {chatMessages.length === 0 ? (
+            {displayedChatMessages.length === 0 ? (
               <p className="text-muted-foreground">
                 {t("workbench.chat.empty")}
               </p>
             ) : (
               <ol className="space-y-4">
-                {chatMessages.map((message, index) => (
+                {displayedChatMessages.map((message, index) => (
                   <ChatBubble
                     key={message.id}
                     message={message}
-                    isLast={index === chatMessages.length - 1}
+                    isLast={index === displayedChatMessages.length - 1}
                   />
                 ))}
               </ol>
@@ -1071,16 +1110,16 @@ function ChatBubble({
       onPointerEnter={() => setIsActionRegionHovered(true)}
       onPointerLeave={() => setIsActionRegionHovered(false)}
     >
-      <p
+      <div
         className={cn(
-          "max-w-[88%] whitespace-pre-wrap rounded-lg px-3 py-2 leading-relaxed",
+          "max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed",
           message.role === "user"
             ? "bg-primary text-primary-foreground"
             : "bg-muted text-foreground",
         )}
       >
-        {message.content}
-      </p>
+        <MarkdownRenderer markdown={message.content} />
+      </div>
       <div className="mt-1 flex h-7 items-center gap-1">
         {showActions ? (
           <>
@@ -1147,9 +1186,9 @@ function ChatBubble({
 function StreamingChatDraft({ draftText }: { draftText: string }) {
   return (
     <div className="flex items-start">
-      <p className="max-w-[88%] whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
-        {draftText}
-      </p>
+      <div className="max-w-[88%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
+        <MarkdownRenderer markdown={draftText} />
+      </div>
     </div>
   );
 }

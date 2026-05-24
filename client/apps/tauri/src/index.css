@@ -81,4 +81,49 @@
   .openbrief-markdown-editor pre code {
     @apply bg-transparent p-0;
   }
+
+  .openbrief-chat-markdown {
+    @apply text-sm leading-relaxed;
+  }
+
+  .openbrief-chat-markdown > * + * {
+    @apply mt-2;
+  }
+
+  .openbrief-chat-markdown p {
+    @apply whitespace-pre-wrap;
+  }
+
+  .openbrief-chat-markdown ul,
+  .openbrief-chat-markdown ol {
+    @apply ml-4 space-y-1;
+  }
+
+  .openbrief-chat-markdown ul {
+    @apply list-disc;
+  }
+
+  .openbrief-chat-markdown ol {
+    @apply list-decimal;
+  }
+
+  .openbrief-chat-markdown blockquote {
+    @apply border-current/30 text-current/80 border-l-2 pl-3;
+  }
+
+  .openbrief-chat-markdown code {
+    @apply bg-background/40 rounded px-1 py-0.5 font-mono text-xs;
+  }
+
+  .openbrief-chat-markdown pre {
+    @apply bg-background/40 overflow-x-auto rounded-md p-3;
+  }
+
+  .openbrief-chat-markdown pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .openbrief-chat-markdown a {
+    @apply underline underline-offset-2;
+  }
 }

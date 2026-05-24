@@ -61,12 +61,56 @@ This document defines how OpenBrief should store local model checkpoints and rel
   supertonic/
     voices/
       builtin/
+        M1.json
+        M2.json
+        M3.json
+        M4.json
+        M5.json
+        F1.json
+        F2.json
+        F3.json
+        F4.json
+        F5.json
       imported/
-    generations/
+        <voice-style-id>.json
     logs/
+      sidecar.log
+
+  library/
+    {videos,audios,pdfs}/
+      <asset-id>/
+        summary/
+          <summary-id>.md
+          tts/
+            <summary-id>/
+              <generation-id>/
+                audio.wav
+                metadata.json
+        chat/
+          <session-id>.jsonl
+          tts/
+            <chat-message-id>/
+              <generation-id>/
+                audio.wav
+                metadata.json
 ```
 
-`models/supertonic/hf` is a cache/download area. `models/supertonic/supertonic-3` is the app-owned ready-to-run model directory. Runtime state, imported voice styles, generated WAV files, and logs belong under `app-data/supertonic`, not inside the model checkpoint directory.
+`models/supertonic/hf` is a cache/download area. `models/supertonic/supertonic-3` is the app-owned ready-to-run model directory. Runtime state such as imported voice styles and logs belongs under `app-data/supertonic`, not inside the model checkpoint directory. Generated TTS audio belongs beside the summary or chat artifact it reads, under `app-data/library/{videos,audios,pdfs}/{asset-id}`.
+
+`app-data/supertonic` is model-family runtime data, not checkpoint data:
+
+- `voices/builtin` contains app-owned copies or links of the built-in Supertonic style JSON files that are safe to show in the voice picker. These should mirror the model bundle's `voice_styles` files and should be recreated if the model is reinstalled.
+- `voices/imported` contains user-imported Supertonic Voice Builder JSON files. File names should use a stable app-generated `voiceStyleId`, not the original user filename, so duplicate names and path characters cannot affect storage. Each imported JSON should be validated before it appears in the voice picker.
+- `logs` contains sidecar runtime logs such as `sidecar.log`. Logs should be bounded or rotated because generation requests can be frequent. They must not include raw provider secrets, arbitrary filesystem roots, or full user text unless the user has enabled an explicit diagnostic mode.
+
+Generated TTS artifacts should be source-scoped:
+
+- Summary read-aloud output goes under the same media asset's `summary/tts/<summary-id>/<generation-id>/` directory. This keeps audio cleanup tied to the summary document that produced it.
+- Chat bubble read-aloud output goes under the same media asset's `chat/tts/<chat-message-id>/<generation-id>/` directory. The chat session remains the source of message order and content; the TTS directory stores derived audio for a specific message.
+- `audio.wav` is the local output artifact. `metadata.json` should record `sourceKind`, source relative path, `summaryId` or `chatMessageId`, optional `chatSessionId`, text hash, engine, model ID, model revision, voice style ID, language, generation settings, sample rate, duration, created time, and license/provenance fields needed for export history.
+- The TTS sidecar should receive a Rust-validated library-relative output target. It should not choose arbitrary output paths from renderer input.
+
+Deleting `models/supertonic/supertonic-3` removes the model checkpoint and makes new generation unavailable, but it should not delete imported voices or previously generated summary/chat audio. Deleting `app-data/supertonic` resets Supertonic voice imports and logs, but it should not be required for model upgrades and should not remove library-scoped TTS artifacts.
 
 ## Whisper
 
