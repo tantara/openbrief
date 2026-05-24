@@ -9,6 +9,7 @@ fn main() {
 }
 
 const HELPER_BASE_NAME: &str = "openbrief-helper";
+const FLUIDAUDIO_BASE_NAME: &str = "openbrief-fluidaudio";
 const MEDIA_TOOL_NAMES: [&str; 3] = ["yt-dlp", "ffmpeg", "ffprobe"];
 const PLACEHOLDER_MARKER: &str = "OpenBrief dev sidecar placeholder";
 const MIN_REAL_BINARY_SIZE_BYTES: u64 = 10_000;
@@ -25,6 +26,7 @@ fn ensure_sidecar_contract() {
         ensure_debug_sidecar_placeholder(&sidecar_path);
     } else {
         enforce_release_sidecar(&sidecar_path);
+        enforce_release_fluidaudio_sidecar_if_needed();
     }
 }
 
@@ -45,6 +47,30 @@ fn target_sidecar_path() -> std::path::PathBuf {
     let binaries_dir = std::path::Path::new(&manifest_dir).join("binaries");
 
     binaries_dir.join(binary_name)
+}
+
+fn enforce_release_fluidaudio_sidecar_if_needed() {
+    let target = build_target_triple();
+    if target != "aarch64-apple-darwin" {
+        return;
+    }
+
+    enforce_release_sidecar(&target_named_sidecar_path(FLUIDAUDIO_BASE_NAME, &target));
+}
+
+fn target_named_sidecar_path(base_name: &str, target: &str) -> std::path::PathBuf {
+    let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+        Ok(value) => value,
+        Err(_) => return std::path::PathBuf::from("binaries").join(base_name),
+    };
+    let suffix = if target.contains("windows") {
+        ".exe"
+    } else {
+        ""
+    };
+    std::path::Path::new(&manifest_dir)
+        .join("binaries")
+        .join(format!("{base_name}-{target}{suffix}"))
 }
 
 fn ensure_media_tool_contract() {

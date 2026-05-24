@@ -107,3 +107,14 @@ export type SettingsSnapshot = {
   llm: ProviderSetupStatus;
   compatibility: PlatformCompatibilityReport;
 };
+
+export function selectPreferredSttModel(
+  models: SttModelStatus["models"],
+  selectedModelId?: string,
+) {
+  return (
+    models.find((model) => model.id === selectedModelId) ??
+    models.find((model) => model.recommended) ??
+    models[0]
+  );
+}

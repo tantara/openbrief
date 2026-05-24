@@ -134,13 +134,18 @@ export function SetupDialog({
   }
 
   async function downloadWhisperModel(modelId: string) {
+    const isFluidAudioModel =
+      settings?.stt.models.find((model) => model.id === modelId)?.engine ===
+      "fluidaudio";
     setErrorMessage(undefined);
     setDownloadingModelId(modelId);
-    setDownloadProgressPercent(0);
+    setDownloadProgressPercent(isFluidAudioModel ? 5 : 0);
     try {
       await onDownloadWhisperModel(modelId, {
         onProgress(progress) {
-          setDownloadProgressPercent(progress.progressPercent);
+          setDownloadProgressPercent(
+            Math.max(isFluidAudioModel ? 5 : 0, progress.progressPercent),
+          );
         },
       });
       setDownloadProgressPercent(100);
@@ -358,6 +363,10 @@ function ModelPicker({
           model.id,
         );
         const blocked = compatibility?.severity === "blocked";
+        const showProgressPercent = downloadProgressPercent > 0;
+        const progressWidth = showProgressPercent
+          ? `${Math.max(2, Math.min(downloadProgressPercent, 100))}%`
+          : "100%";
 
         return (
           <label
@@ -402,7 +411,9 @@ function ModelPicker({
                     }}
                   >
                     {isDownloading
-                      ? `${downloadProgressPercent}%`
+                      ? showProgressPercent
+                        ? `${downloadProgressPercent}%`
+                        : t("setup.whisper.downloading")
                       : t("setup.whisper.download")}
                   </Button>
                 ) : null}
@@ -421,12 +432,16 @@ function ModelPicker({
               <span className="mt-2 block">
                 <span className="mb-1 flex justify-between text-xs text-muted-foreground">
                   <span>{t("setup.whisper.downloadingModel")}</span>
-                  <span>{downloadProgressPercent}%</span>
+                  {showProgressPercent ? (
+                    <span>{downloadProgressPercent}%</span>
+                  ) : null}
                 </span>
                 <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
                   <span
-                    className="block h-full bg-primary"
-                    style={{ width: `${downloadProgressPercent}%` }}
+                    className={`block h-full bg-primary ${
+                      showProgressPercent ? "" : "animate-pulse"
+                    }`}
+                    style={{ width: progressWidth }}
                   />
                 </span>
               </span>

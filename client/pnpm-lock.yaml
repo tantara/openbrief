@@ -440,6 +440,9 @@ importers:
 
   apps/tauri:
     dependencies:
+      '@acme/model-card':
+        specifier: workspace:*
+        version: link:../../packages/model-card
       '@acme/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -676,6 +679,30 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+
+  packages/model-card:
+    devDependencies:
+      '@acme/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint
+      '@acme/prettier-config':
+        specifier: workspace:*
+        version: link:../../tooling/prettier
+      '@acme/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/typescript
+      eslint:
+        specifier: 'catalog:'
+        version: 9.38.0(jiti@2.6.1)
+      prettier:
+        specifier: 'catalog:'
+        version: 3.6.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(@types/node@22.18.12)(jsdom@26.1.0(bufferutil@4.0.8))(vite@7.1.12(@types/node@22.18.12)(jiti@2.6.1)(lightningcss@1.30.1)(terser@5.44.0)(tsx@4.20.6)(yaml@2.8.1))
 
   packages/ui:
     dependencies:

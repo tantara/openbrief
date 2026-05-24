@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/openbrief-helper",
+      "binaries/openbrief-fluidaudio"
+    ]
+  }
+}

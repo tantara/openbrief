@@ -1,4 +1,5 @@
 mod credentials;
+mod fluidaudio;
 pub mod headless_download;
 mod helper;
 #[allow(dead_code)]

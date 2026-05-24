@@ -1,8 +1,107 @@
-import { ExternalLink, Info, Loader2, Search } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
+import type { ChatContextMode } from "@/domain/chat";
+import type { DownloadRecoveryActionKind } from "@/domain/download-error";
+import type { CaptionLanguage } from "@/domain/helper-protocol";
+import type {
+  IngestJob,
+  MediaSourceType,
+  ProviderKind,
+  SummaryDocument,
+  TranscriptSegment,
+  VideoAsset,
+  VideoLibraryQuery,
+} from "@/domain/media-library";
+import type {
+  SettingsSnapshot,
+  VideoDownloadAccessAction,
+} from "@/domain/settings";
+import type {
+  SummaryLengthMode,
+  VideoSummaryTemplateId,
+} from "@/domain/summary";
+import type { TranscriptLanguageOption } from "@/domain/transcript-actions";
+import type { SetupDialogMode } from "@/features/setup/SetupDialog";
+import type { TranslationKey } from "@/i18n";
+import type {
+  AiProviderPreferences,
+  AiWorkflowProviderConfig,
+} from "@/services/aiProviderPreferencesService";
+import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
+import type { SystemPromptSettings } from "@/services/systemPromptSettingsService";
+import type { AppColorSeed, AppTheme } from "@/services/themeSettingsService";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/app/AppLayout";
 import { CopyDropdownMenuItem } from "@/components/CopyAction";
+import { FloatingMiniPlayer } from "@/components/video/FloatingMiniPlayer";
+import { VideoDownloadMenuButton } from "@/components/video/VideoDownloadMenu";
+import {
+  isSupportedLocalMediaFile,
+  mediaSourceTypeFromFileName,
+} from "@/domain/ingest";
+import { mediaSourceTypeForAsset } from "@/domain/media-library";
+import { defaultProviderModels } from "@/domain/provider";
+import { selectPreferredSttModel } from "@/domain/settings";
+import { formatTimestamp } from "@/domain/summary";
+import { FaqView } from "@/features/faq/FaqView";
+import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
+import { FinderView } from "@/features/finder/FinderView";
+import { OnboardingView } from "@/features/onboarding/OnboardingView";
+import { PlaylistView } from "@/features/playlists/PlaylistView";
+import { SettingsView } from "@/features/settings/SettingsView";
+import { SetupDialog } from "@/features/setup/SetupDialog";
+import { TutorialView } from "@/features/tutorial/TutorialView";
+import { WorkbenchView } from "@/features/workbench/WorkbenchView";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useMediaLibrary } from "@/hooks/useMediaLibrary";
+import { useSettingsSnapshot } from "@/hooks/useSettingsSnapshot";
+import { useTauriFileDrop } from "@/hooks/useTauriFileDrop";
+import {
+  shouldShowMiniPlayer,
+  useVideoPlayback,
+} from "@/hooks/useVideoPlayback";
+import { useI18n } from "@/i18n";
+import {
+  loadAiProviderPreferences,
+  saveAiProviderPreferences,
+} from "@/services/aiProviderPreferencesService";
+import { createArtifactExportService } from "@/services/artifactExportService";
+import {
+  isOpenableWebUrl,
+  openExternalWebUrl,
+  providerLabelForWebUrl,
+} from "@/services/externalUrlService";
+import { revealExportedFile } from "@/services/fileRevealService";
+import { createPlaylistCoverService } from "@/services/playlistCoverService";
+import {
+  setYtDlpAutoUpdatePolicy,
+  updateAppNow,
+  updateYtDlpNow,
+} from "@/services/settingsService";
+import { createSetupService, whisperModelPath } from "@/services/setupService";
+import {
+  loadSystemPromptSettings,
+  resetSystemPromptSettings,
+  saveSystemPromptSettings,
+} from "@/services/systemPromptSettingsService";
+import { canUseTauriRuntime } from "@/services/tauriHelperClient";
+import {
+  applyAppTheme,
+  loadAppColorSeed,
+  loadAppTheme,
+  saveAppColorSeed,
+  saveAppTheme,
+} from "@/services/themeSettingsService";
+import {
+  createTranscriptOverlayPayload,
+  showTranscriptOverlay,
+  transcriptOverlayHiddenEvent,
+} from "@/services/transcriptOverlayService";
+import { describeVideoDownloadAccessAction } from "@/services/videoDownloadAccessNoticeService";
+import { listen } from "@tauri-apps/api/event";
+import { ExternalLink, Info, Loader2, Search } from "lucide-react";
+
+import type { TranscriptionLanguageCode } from "@acme/model-card";
+import { transcriptionLanguagesForModel } from "@acme/model-card";
+import { cn } from "@acme/ui";
 import { Button } from "@acme/ui/button";
 import {
   Dialog,
@@ -25,106 +124,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@acme/ui/select";
-import { FloatingMiniPlayer } from "@/components/video/FloatingMiniPlayer";
-import { VideoDownloadMenuButton } from "@/components/video/VideoDownloadMenu";
-import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
-import { FaqView } from "@/features/faq/FaqView";
-import { FinderView } from "@/features/finder/FinderView";
-import { OnboardingView } from "@/features/onboarding/OnboardingView";
-import { PlaylistView } from "@/features/playlists/PlaylistView";
-import { SettingsView } from "@/features/settings/SettingsView";
-import {
-  SetupDialog,
-  type SetupDialogMode,
-} from "@/features/setup/SetupDialog";
-import { TutorialView } from "@/features/tutorial/TutorialView";
-import { WorkbenchView } from "@/features/workbench/WorkbenchView";
-import { useMediaLibrary } from "@/hooks/useMediaLibrary";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useSettingsSnapshot } from "@/hooks/useSettingsSnapshot";
-import { useTauriFileDrop } from "@/hooks/useTauriFileDrop";
-import {
-  shouldShowMiniPlayer,
-  useVideoPlayback,
-} from "@/hooks/useVideoPlayback";
-import { cn } from "@acme/ui";
-import type { CaptionLanguage } from "@/domain/helper-protocol";
-import type {
-  IngestJob,
-  MediaSourceType,
-  ProviderKind,
-  SummaryDocument,
-  TranscriptSegment,
-  VideoAsset,
-  VideoLibraryQuery,
-} from "@/domain/media-library";
-import { mediaSourceTypeForAsset } from "@/domain/media-library";
-import {
-  isSupportedLocalMediaFile,
-  mediaSourceTypeFromFileName,
-} from "@/domain/ingest";
-import { defaultProviderModels } from "@/domain/provider";
-import {
-  createSetupService,
-  whisperModelPath,
-} from "@/services/setupService";
-import {
-  createArtifactExportService,
-  type VideoArtifactDownloadKind,
-} from "@/services/artifactExportService";
-import {
-  isOpenableWebUrl,
-  openExternalWebUrl,
-  providerLabelForWebUrl,
-} from "@/services/externalUrlService";
-import { revealExportedFile } from "@/services/fileRevealService";
-import { useI18n, type TranslationKey } from "@/i18n";
-import {
-  setYtDlpAutoUpdatePolicy,
-  updateAppNow,
-  updateYtDlpNow,
-} from "@/services/settingsService";
-import { createPlaylistCoverService } from "@/services/playlistCoverService";
-import {
-  loadSystemPromptSettings,
-  resetSystemPromptSettings,
-  saveSystemPromptSettings,
-  type SystemPromptSettings,
-} from "@/services/systemPromptSettingsService";
-import {
-  loadAiProviderPreferences,
-  saveAiProviderPreferences,
-  type AiProviderPreferences,
-  type AiWorkflowProviderConfig,
-} from "@/services/aiProviderPreferencesService";
-import { describeVideoDownloadAccessAction } from "@/services/videoDownloadAccessNoticeService";
-import {
-  applyAppTheme,
-  loadAppColorSeed,
-  loadAppTheme,
-  saveAppColorSeed,
-  saveAppTheme,
-  type AppColorSeed,
-  type AppTheme,
-} from "@/services/themeSettingsService";
-import type { ChatContextMode } from "@/domain/chat";
-import { formatTimestamp } from "@/domain/summary";
-import type {
-  SummaryLengthMode,
-  VideoSummaryTemplateId,
-} from "@/domain/summary";
-import type { TranscriptLanguageOption } from "@/domain/transcript-actions";
-import {
-  createTranscriptOverlayPayload,
-  showTranscriptOverlay,
-  transcriptOverlayHiddenEvent,
-} from "@/services/transcriptOverlayService";
-import { canUseTauriRuntime } from "@/services/tauriHelperClient";
-import type { DownloadRecoveryActionKind } from "@/domain/download-error";
-import type {
-  SettingsSnapshot,
-  VideoDownloadAccessAction,
-} from "@/domain/settings";
 
 type PendingAction =
   | { mode: "transcription"; videoId: string }
@@ -190,18 +189,6 @@ type CaptionLanguageDialogState = {
   whisperModelPath?: string;
 };
 
-const whisperLanguageOptions = [
-  { code: "auto", labelKey: "transcript.languageDialog.whisperAuto" },
-  { code: "en", label: "English" },
-  { code: "ko", label: "Korean" },
-  { code: "ja", label: "Japanese" },
-  { code: "zh", label: "Chinese" },
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-] as const;
-
 const onboardingStorageKey = "openbrief.onboarding-complete";
 const videoPlaybackMenuEvent = "openbrief://video-playback-command";
 
@@ -257,15 +244,21 @@ export function AppShell() {
     refreshSettings,
   } = useSettingsSnapshot();
   const setupService = useMemo(() => createSetupService(), []);
-  const artifactExportService = useMemo(() => createArtifactExportService(), []);
+  const artifactExportService = useMemo(
+    () => createArtifactExportService(),
+    [],
+  );
   const playlistCoverService = useMemo(() => createPlaylistCoverService(), []);
-  const [selectedWhisperModelId, setSelectedWhisperModelId] =
-    useState("whisper-small");
+  const [selectedWhisperModelId, setSelectedWhisperModelId] = useState(
+    "parakeet-tdt-0.6b-v3",
+  );
   const [setupProvider, setSetupProvider] = useState<ProviderKind>("openai");
   const [setupProviderModel, setSetupProviderModel] = useState(
     defaultProviderModels.openai,
   );
-  const [pendingAction, setPendingAction] = useState<PendingAction | undefined>();
+  const [pendingAction, setPendingAction] = useState<
+    PendingAction | undefined
+  >();
   const [downloadedWhisperModelIds, setDownloadedWhisperModelIds] = useState<
     string[]
   >([]);
@@ -284,9 +277,12 @@ export function AppShell() {
   );
   const [appNotice, setAppNotice] = useState<AppNotice | undefined>();
   const [isAddVideoDialogOpen, setIsAddVideoDialogOpen] = useState(false);
-  const [addVideoPlaylistId, setAddVideoPlaylistId] = useState<string | undefined>();
-  const [captionLanguageDialog, setCaptionLanguageDialog] =
-    useState<CaptionLanguageDialogState | undefined>();
+  const [addVideoPlaylistId, setAddVideoPlaylistId] = useState<
+    string | undefined
+  >();
+  const [captionLanguageDialog, setCaptionLanguageDialog] = useState<
+    CaptionLanguageDialogState | undefined
+  >();
   const [finderQuery, setFinderQuery] = useState<VideoLibraryQuery>({
     sourceKind: "all",
     transcriptStatus: "all",
@@ -305,11 +301,16 @@ export function AppShell() {
   const [activeSummaryIdsByVideoId, setActiveSummaryIdsByVideoId] = useState<
     Record<string, string>
   >({});
-  const [activeTranscriptVariantIdsByVideoId, setActiveTranscriptVariantIdsByVideoId] =
-    useState<Record<string, string>>({});
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | undefined>();
-  const [transcriptOverlayVideoId, setTranscriptOverlayVideoId] =
-    useState<string | undefined>();
+  const [
+    activeTranscriptVariantIdsByVideoId,
+    setActiveTranscriptVariantIdsByVideoId,
+  ] = useState<Record<string, string>>({});
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<
+    string | undefined
+  >();
+  const [transcriptOverlayVideoId, setTranscriptOverlayVideoId] = useState<
+    string | undefined
+  >();
   const [playlistImportJobTargets, setPlaylistImportJobTargets] = useState<
     Record<string, string>
   >({});
@@ -397,20 +398,39 @@ export function AppShell() {
         accounts: settings.llm.accounts.map((account) => ({
           ...account,
           configured:
-            account.configured || configuredProviderIds.includes(account.provider),
+            account.configured ||
+            configuredProviderIds.includes(account.provider),
         })),
       },
     };
   }, [configuredProviderIds, downloadedWhisperModelIds, settings]);
 
-  const selectedWhisperModel = effectiveSettings?.stt.models.find(
-    (model) => model.id === selectedWhisperModelId,
+  const sttModels = effectiveSettings?.stt.models ?? [];
+  const selectedWhisperModel = selectPreferredSttModel(
+    sttModels,
+    selectedWhisperModelId,
   );
+  useEffect(() => {
+    if (
+      !effectiveSettings ||
+      sttModels.length === 0 ||
+      selectedWhisperModel?.id === selectedWhisperModelId
+    ) {
+      return;
+    }
+
+    setSelectedWhisperModelId(selectedWhisperModel?.id ?? "whisper-small");
+  }, [
+    effectiveSettings,
+    selectedWhisperModel,
+    selectedWhisperModelId,
+    sttModels.length,
+  ]);
   const setupMode: SetupDialogMode =
     pendingAction?.mode === "transcript-review" ||
     pendingAction?.mode === "transcript-translation"
       ? "summary"
-      : pendingAction?.mode ?? "transcription";
+      : (pendingAction?.mode ?? "transcription");
   const activePlaybackMedia = playbackState.activeVideoId
     ? state.videos.find((video) => video.id === playbackState.activeVideoId)
     : undefined;
@@ -439,7 +459,7 @@ export function AppShell() {
     findActiveSummary(selectedSummaryHistory, activeSummaryId) ??
     selectedSummary;
   const activeTranscriptVariantId = selectedVideo
-    ? activeTranscriptVariantIdsByVideoId[selectedVideo.id] ?? "original"
+    ? (activeTranscriptVariantIdsByVideoId[selectedVideo.id] ?? "original")
     : "original";
   const pageTitle = pageTitleForView(
     state.activeView,
@@ -457,7 +477,7 @@ export function AppShell() {
         {state.videos.length > 0 ? (
           <div className="relative w-full max-w-xl">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
               aria-hidden="true"
             />
             <label className="sr-only" htmlFor="video-library-search">
@@ -491,7 +511,12 @@ export function AppShell() {
           side="bottom"
           align="end"
           onDownloadArtifact={(kind) => {
-            void downloadVideoArtifact(selectedVideo, kind, undefined, selectedTranscript);
+            void downloadVideoArtifact(
+              selectedVideo,
+              kind,
+              undefined,
+              selectedTranscript,
+            );
           }}
         />
       </div>
@@ -603,7 +628,9 @@ export function AppShell() {
   useEffect(() => {
     const completedTargets = Object.entries(playlistImportJobTargets).filter(
       ([jobId]) => {
-        const job = state.ingestJobs.find((candidate) => candidate.id === jobId);
+        const job = state.ingestJobs.find(
+          (candidate) => candidate.id === jobId,
+        );
         return job?.status === "completed" && Boolean(job.videoId);
       },
     );
@@ -699,7 +726,9 @@ export function AppShell() {
   }
 
   function configureProvider(provider: ProviderKind) {
-    const model = effectiveSettings?.llm.defaultModels[provider] ?? defaultProviderModels[provider];
+    const model =
+      effectiveSettings?.llm.defaultModels[provider] ??
+      defaultProviderModels[provider];
     setSetupProvider(provider);
     setSetupProviderModel(model);
     setPendingAction({ mode: "provider", provider, model });
@@ -725,7 +754,8 @@ export function AppShell() {
         videoId,
         languages: [],
         captionStatus: "loading",
-        providerLabel: providerLabelForWebUrl(targetVideo.originalUri) ?? "Provider",
+        providerLabel:
+          providerLabelForWebUrl(targetVideo.originalUri) ?? "Provider",
         whisperModelId: selectedWhisperModel?.id,
         whisperModelName: selectedWhisperModel?.name,
         ...(selectedWhisperModel?.downloaded
@@ -767,34 +797,48 @@ export function AppShell() {
     if (!captionLanguageDialog) return;
 
     const dialog = captionLanguageDialog;
+    const dialogModel = selectPreferredSttModel(
+      sttModels,
+      dialog.whisperModelId ?? selectedWhisperModel?.id,
+    );
+    const dialogModelId = dialog.whisperModelId ?? dialogModel?.id;
+    const dialogModelPath =
+      dialog.whisperModelPath ??
+      (dialogModel?.downloaded ? whisperModelPath(dialogModel) : undefined);
     const whisperLanguage = language === "auto" ? undefined : language;
     const updateWhisperDialog = (
       patch: Partial<CaptionLanguageDialogState>,
     ) => {
       setCaptionLanguageDialog((current) =>
-        current?.videoId === dialog.videoId ? { ...current, ...patch } : current,
+        current?.videoId === dialog.videoId
+          ? { ...current, ...patch }
+          : current,
       );
     };
 
-    if (!dialog.whisperModelPath && !dialog.whisperModelId) {
+    if (!dialogModelPath && !dialogModelId) {
       setCaptionLanguageDialog(undefined);
       setPendingAction({ mode: "transcription", videoId: dialog.videoId });
       return;
     }
 
     try {
-      if (!dialog.whisperModelPath && dialog.whisperModelId) {
-        const modelId = dialog.whisperModelId;
+      if (!dialogModelPath && dialogModelId) {
+        const modelId = dialogModelId;
+        const isFluidAudioModel = dialogModel?.engine === "fluidaudio";
         updateWhisperDialog({
           whisperStatus: "downloading",
-          whisperDownloadProgressPercent: 0,
+          whisperDownloadProgressPercent: isFluidAudioModel ? 5 : 0,
           whisperErrorMessage: undefined,
         });
         const result = await setupService.downloadWhisperModel(modelId, {
           onProgress(progress) {
             updateWhisperDialog({
               whisperStatus: "downloading",
-              whisperDownloadProgressPercent: progress.progressPercent,
+              whisperDownloadProgressPercent: Math.max(
+                isFluidAudioModel ? 5 : 0,
+                progress.progressPercent,
+              ),
             });
           },
         });
@@ -821,7 +865,7 @@ export function AppShell() {
 
       setCaptionLanguageDialog(undefined);
       await extractTranscript(dialog.videoId, {
-        whisperModelPath: dialog.whisperModelPath,
+        whisperModelPath: dialogModelPath,
         ...(whisperLanguage ? { whisperLanguage } : {}),
         sourcePreference: "local-stt",
       });
@@ -838,7 +882,9 @@ export function AppShell() {
     }
   }
 
-  async function extractTranscriptWithCaptionLanguage(language: CaptionLanguage) {
+  async function extractTranscriptWithCaptionLanguage(
+    language: CaptionLanguage,
+  ) {
     if (!captionLanguageDialog) return;
 
     const dialog = captionLanguageDialog;
@@ -972,13 +1018,18 @@ export function AppShell() {
     }
 
     if (action.mode === "summary") {
-      const summary = await generateSummary(action.videoId, setupProvider, setupProviderModel, {
-        templateId: action.templateId,
-        lengthMode: action.lengthMode,
-        outputLanguage: action.outputLanguage,
-        streamingMode: action.streamingMode,
-        transcript: action.transcript,
-      });
+      const summary = await generateSummary(
+        action.videoId,
+        setupProvider,
+        setupProviderModel,
+        {
+          templateId: action.templateId,
+          lengthMode: action.lengthMode,
+          outputLanguage: action.outputLanguage,
+          streamingMode: action.streamingMode,
+          transcript: action.transcript,
+        },
+      );
       setActiveSummaryTab(action.videoId, summary.id);
       return;
     }
@@ -1094,24 +1145,16 @@ export function AppShell() {
 
     switch (actionKind) {
       case "provide-cookies":
-        setAppNotice(
-          t("notice.downloadRecovery.cookies", { target }),
-        );
+        setAppNotice(t("notice.downloadRecovery.cookies", { target }));
         return;
       case "open-webview-cookies":
-        setAppNotice(
-          t("notice.downloadRecovery.webviewCookies", { target }),
-        );
+        setAppNotice(t("notice.downloadRecovery.webviewCookies", { target }));
         return;
       case "provide-credentials":
-        setAppNotice(
-          t("notice.downloadRecovery.credentials", { target }),
-        );
+        setAppNotice(t("notice.downloadRecovery.credentials", { target }));
         return;
       case "provide-video-password":
-        setAppNotice(
-          t("notice.downloadRecovery.videoPassword", { target }),
-        );
+        setAppNotice(t("notice.downloadRecovery.videoPassword", { target }));
         return;
       case "retry-later":
         setAppNotice(t("notice.downloadRecovery.retryLater"));
@@ -1141,17 +1184,17 @@ export function AppShell() {
   ) {
     const transcriptForExport =
       kind === "transcription"
-        ? transcriptOverride ??
+        ? (transcriptOverride ??
           (video.id === selectedVideo?.id
             ? selectedTranscript
-            : state.transcriptsByVideoId[video.id])
+            : state.transcriptsByVideoId[video.id]))
         : undefined;
     const summaryForExport =
       kind === "summary"
-        ? summaryOverride ??
+        ? (summaryOverride ??
           (video.id === selectedVideo?.id
             ? activeSummary
-            : state.summariesByVideoId[video.id])
+            : state.summariesByVideoId[video.id]))
         : undefined;
 
     try {
@@ -1164,7 +1207,9 @@ export function AppShell() {
 
       if (result) {
         setAppNotice({
-          message: t("notice.artifactExport.success", { path: result.targetPath }),
+          message: t("notice.artifactExport.success", {
+            path: result.targetPath,
+          }),
           action: {
             label: t("notice.open"),
             onClick: async () => {
@@ -1208,7 +1253,9 @@ export function AppShell() {
       playbackState.activeVideoId &&
       playbackState.status !== "idle"
     ) {
-      openPictureInPicture(playbackState.activeVideoId, { preserveStatus: true });
+      openPictureInPicture(playbackState.activeVideoId, {
+        preserveStatus: true,
+      });
     }
 
     setActiveView(nextView);
@@ -1231,7 +1278,10 @@ export function AppShell() {
     openVideoTab(videoId);
     setSelectedVideoId(videoId);
 
-    if (playbackState.activeVideoId === videoId && playbackState.status !== "idle") {
+    if (
+      playbackState.activeVideoId === videoId &&
+      playbackState.status !== "idle"
+    ) {
       openPictureInPicture(videoId, { preserveStatus: true });
     }
 
@@ -1246,7 +1296,9 @@ export function AppShell() {
   }
 
   function closeVideoTab(videoId: string) {
-    const nextTabs = openWorkbenchVideoIds.filter((candidate) => candidate !== videoId);
+    const nextTabs = openWorkbenchVideoIds.filter(
+      (candidate) => candidate !== videoId,
+    );
     setOpenWorkbenchVideoIds(nextTabs);
 
     if (state.selectedVideoId === videoId) {
@@ -1375,7 +1427,10 @@ export function AppShell() {
 
   async function changePlaylistCover(playlistId: string, sourcePath: string) {
     try {
-      const result = await playlistCoverService.importCover(playlistId, sourcePath);
+      const result = await playlistCoverService.importCover(
+        playlistId,
+        sourcePath,
+      );
       setPlaylistCover(playlistId, result.libraryRelativePath);
     } catch (error) {
       setAppNotice({
@@ -1405,6 +1460,11 @@ export function AppShell() {
     }
   }
 
+  const captionDialogWhisperModel = selectPreferredSttModel(
+    sttModels,
+    captionLanguageDialog?.whisperModelId ?? selectedWhisperModel?.id,
+  );
+
   return (
     <AppLayout
       activeView={state.activeView}
@@ -1414,247 +1474,249 @@ export function AppShell() {
       onSearchShortcut={focusFinderSearch}
       onAddVideoShortcut={openAddVideoDialog}
     >
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "finder" ? "block" : "hidden",
-            )}
-          >
-            <FinderView
-              videos={state.videos}
-              ingestJobs={state.ingestJobs}
-              transcriptsByVideoId={state.transcriptsByVideoId}
-              summariesByVideoId={state.summariesByVideoId}
-              selectedVideoId={state.selectedVideoId}
-              query={finderQuery}
-              onQueryChange={setFinderQuery}
-              onImportLocalFile={(sourcePath) => importLocalFile({ sourcePath })}
-              onImportYoutubeUrl={(url) => importYoutubeUrl({ url })}
-              onCancelIngestJob={cancelIngestJob}
-              onRemoveFailedIngestJob={removeFailedIngestJob}
-              onDownloadRecoveryAction={handleDownloadRecoveryAction}
-              onRenameVideoTitle={renameVideoTitle}
-              onDeleteVideo={deleteVideo}
-              onDownloadArtifact={(video, kind, transcript) => {
-                void downloadVideoArtifact(video, kind, undefined, transcript);
-              }}
-              onOpenTutorial={() => showView("tutorial")}
-              onAddVideo={openAddVideoDialog}
-              onPlayVideo={(videoId) => {
-                setSelectedVideoId(videoId);
-                playVideo(videoId);
-              }}
-              onOpenVideo={openVideoDetail}
-            />
-          </div>
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "workbench" ? "block" : "hidden",
-            )}
-          >
-            <WorkbenchView
-              video={selectedVideo}
-              openVideos={openWorkbenchVideos}
-              activeVideoId={state.selectedVideoId}
-              transcript={selectedTranscript}
-              transcriptVariants={selectedTranscriptVariants}
-              activeTranscriptVariantId={activeTranscriptVariantId}
-              transcriptJob={selectedTranscriptJob}
-              summary={activeSummary}
-              summaries={selectedSummaryHistory}
-              activeSummaryId={activeSummary?.id}
-              summaryJob={selectedSummaryJob}
-              chatJob={selectedChatJob}
-              chatMessages={selectedChatMessages}
-              onAddVideo={openAddVideoDialog}
-              onSelectVideoTab={setSelectedVideoId}
-              onCloseVideoTab={closeVideoTab}
-              onSelectSummaryTab={(summaryId) =>
-                selectedVideo ? setActiveSummaryTab(selectedVideo.id, summaryId) : undefined
-              }
-              playbackState={playbackState}
-              isInlinePlayerSuppressed={miniPlayerVisible}
-              onPlayVideo={playVideo}
-              onPauseVideo={pauseVideo}
-              onVideoTimeUpdate={updateVideoTime}
-              onVideoEnded={stopVideo}
-              onOpenPictureInPicture={openPictureInPicture}
-              onExtractTranscript={() =>
-                selectedVideo
-                  ? extractTranscriptWithSetup(selectedVideo.id)
-                  : Promise.resolve()
-              }
-              onSelectTranscriptVariant={(variantId) => {
-                if (!selectedVideo) return;
-                setActiveTranscriptVariant(selectedVideo.id, variantId);
-              }}
-              onReviewTranscript={(provider, model) =>
-                selectedVideo
-                  ? reviewTranscriptWithSetup(selectedVideo.id, provider, model)
-                  : Promise.resolve()
-              }
-              onTranslateTranscript={(provider, model, language) =>
-                selectedVideo
-                  ? translateTranscriptWithSetup({
-                      videoId: selectedVideo.id,
-                      provider,
-                      model,
-                      language,
-                    })
-                  : Promise.resolve()
-              }
-              onOpenTranscriptOverlay={openTranscriptOverlayForSelectedVideo}
-              onGenerateSummary={(
-                provider,
-                model,
-                templateId,
-                lengthMode,
-                outputLanguage,
-                streamingMode,
-                transcript,
-              ) =>
-                selectedVideo
-                  ? generateSummaryWithSetup(
-                      selectedVideo.id,
-                      provider,
-                      model,
-                      templateId,
-                      lengthMode,
-                      outputLanguage,
-                      streamingMode,
-                      transcript,
-                    )
-                  : Promise.resolve()
-              }
-              onSendChat={(request) =>
-                selectedVideo
-                  ? sendChatWithSetup({
-                      videoId: selectedVideo.id,
-                      ...request,
-                    })
-                  : Promise.resolve([])
-              }
-              onResetChat={() => {
-                if (selectedVideo) resetChatSession(selectedVideo.id);
-              }}
-              summaryProvider={aiProviderPreferences.summary.provider}
-              summaryProviderModel={aiProviderPreferences.summary.model}
-              summaryStreamingMode={aiProviderPreferences.summary.streamingMode}
-              chatProvider={aiProviderPreferences.chat.provider}
-              chatProviderModel={aiProviderPreferences.chat.model}
-              chatStreamingMode={aiProviderPreferences.chat.streamingMode}
-              onSummaryProviderPreferenceChange={(config) =>
-                saveAiProviderWorkflowPreference("summary", config)
-              }
-              onChatProviderPreferenceChange={(config) =>
-                saveAiProviderWorkflowPreference("chat", config)
-              }
-              onSaveMarkdown={(summaryId) =>
-                selectedVideo
-                  ? downloadVideoArtifact(
-                      selectedVideo,
-                      "summary",
-                      findActiveSummary(
-                        selectedSummaryHistory,
-                        summaryId ?? activeSummary?.id,
-                      ) ?? activeSummary,
-                    )
-                  : undefined
-              }
-              onUpdateTranscriptSegment={(segmentId, text) => {
-                if (!selectedVideo) return;
-                updateTranscriptSegment(selectedVideo.id, segmentId, text);
-              }}
-              onUpdateSummaryMarkdown={(summaryId, markdown) => {
-                if (!selectedVideo) return;
-                updateSummaryMarkdown(selectedVideo.id, summaryId, markdown);
-              }}
-            />
-          </div>
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "playlists" ? "block" : "hidden",
-            )}
-          >
-            <PlaylistView
-              playlists={state.playlists}
-              videos={state.videos}
-              selectedPlaylistId={selectedPlaylistId}
-              onSelectPlaylist={setSelectedPlaylistId}
-              onBackToPlaylists={() => setSelectedPlaylistId(undefined)}
-              onCreatePlaylist={createPlaylist}
-              onRenamePlaylist={renamePlaylist}
-              onChangePlaylistCover={changePlaylistCover}
-              onAddExistingVideo={addPlaylistVideo}
-              onOpenAddVideoDialog={(playlistId) => {
-                setAddVideoPlaylistId(playlistId);
-                setIsAddVideoDialogOpen(true);
-              }}
-              onImportLocalFile={importLocalFileFromAddDialog}
-              onImportYoutubeUrl={importYoutubeUrlFromAddDialog}
-              onReorderVideo={reorderPlaylistVideo}
-              onOpenVideo={openVideoDetail}
-            />
-          </div>
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "settings" ? "block" : "hidden",
-            )}
-          >
-            <SettingsView
-              settings={effectiveSettings}
-              errorMessage={settingsErrorMessage}
-              onUpdateAppNow={updateAppFromSettings}
-              onSetYtDlpAutoUpdate={setYtDlpAutoUpdate}
-              onUpdateYtDlpNow={updateYtDlpFromSettings}
-              onVideoDownloadAccessAction={handleVideoDownloadAccessAction}
-              onOpenOnboarding={showOnboarding}
-              onConfigureProvider={configureProvider}
-              appTheme={appTheme}
-              onThemeChange={changeAppTheme}
-              appColorSeed={appColorSeed}
-              onColorSeedChange={changeAppColorSeed}
-              aiProviderPreferences={aiProviderPreferences}
-              onAiProviderPreferencesChange={saveAiProviderPreferencesFromSettings}
-              systemPromptSettings={systemPromptSettings}
-              onSaveSystemPrompts={saveSystemPrompts}
-              onResetSystemPrompts={resetSystemPrompts}
-            />
-          </div>
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "tutorial" ? "block" : "hidden",
-            )}
-          >
-            <TutorialView onOpenOnboarding={showOnboarding} />
-          </div>
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "faq" ? "block" : "hidden",
-            )}
-          >
-            <FaqView />
-          </div>
-          <div
-            className={cn(
-              "h-full",
-              state.activeView === "onboarding" ? "block" : "hidden",
-            )}
-          >
-            <OnboardingView
-              appColorSeed={appColorSeed}
-              onColorSeedChange={changeAppColorSeed}
-              onFinish={finishOnboarding}
-            />
-          </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "finder" ? "block" : "hidden",
+        )}
+      >
+        <FinderView
+          videos={state.videos}
+          ingestJobs={state.ingestJobs}
+          transcriptsByVideoId={state.transcriptsByVideoId}
+          summariesByVideoId={state.summariesByVideoId}
+          selectedVideoId={state.selectedVideoId}
+          query={finderQuery}
+          onQueryChange={setFinderQuery}
+          onImportLocalFile={(sourcePath) => importLocalFile({ sourcePath })}
+          onImportYoutubeUrl={(url) => importYoutubeUrl({ url })}
+          onCancelIngestJob={cancelIngestJob}
+          onRemoveFailedIngestJob={removeFailedIngestJob}
+          onDownloadRecoveryAction={handleDownloadRecoveryAction}
+          onRenameVideoTitle={renameVideoTitle}
+          onDeleteVideo={deleteVideo}
+          onDownloadArtifact={(video, kind, transcript) => {
+            void downloadVideoArtifact(video, kind, undefined, transcript);
+          }}
+          onOpenTutorial={() => showView("tutorial")}
+          onAddVideo={openAddVideoDialog}
+          onPlayVideo={(videoId) => {
+            setSelectedVideoId(videoId);
+            playVideo(videoId);
+          }}
+          onOpenVideo={openVideoDetail}
+        />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "workbench" ? "block" : "hidden",
+        )}
+      >
+        <WorkbenchView
+          video={selectedVideo}
+          openVideos={openWorkbenchVideos}
+          activeVideoId={state.selectedVideoId}
+          transcript={selectedTranscript}
+          transcriptVariants={selectedTranscriptVariants}
+          activeTranscriptVariantId={activeTranscriptVariantId}
+          transcriptJob={selectedTranscriptJob}
+          summary={activeSummary}
+          summaries={selectedSummaryHistory}
+          activeSummaryId={activeSummary?.id}
+          summaryJob={selectedSummaryJob}
+          chatJob={selectedChatJob}
+          chatMessages={selectedChatMessages}
+          onAddVideo={openAddVideoDialog}
+          onSelectVideoTab={setSelectedVideoId}
+          onCloseVideoTab={closeVideoTab}
+          onSelectSummaryTab={(summaryId) =>
+            selectedVideo
+              ? setActiveSummaryTab(selectedVideo.id, summaryId)
+              : undefined
+          }
+          playbackState={playbackState}
+          isInlinePlayerSuppressed={miniPlayerVisible}
+          onPlayVideo={playVideo}
+          onPauseVideo={pauseVideo}
+          onVideoTimeUpdate={updateVideoTime}
+          onVideoEnded={stopVideo}
+          onOpenPictureInPicture={openPictureInPicture}
+          onExtractTranscript={() =>
+            selectedVideo
+              ? extractTranscriptWithSetup(selectedVideo.id)
+              : Promise.resolve()
+          }
+          onSelectTranscriptVariant={(variantId) => {
+            if (!selectedVideo) return;
+            setActiveTranscriptVariant(selectedVideo.id, variantId);
+          }}
+          onReviewTranscript={(provider, model) =>
+            selectedVideo
+              ? reviewTranscriptWithSetup(selectedVideo.id, provider, model)
+              : Promise.resolve()
+          }
+          onTranslateTranscript={(provider, model, language) =>
+            selectedVideo
+              ? translateTranscriptWithSetup({
+                  videoId: selectedVideo.id,
+                  provider,
+                  model,
+                  language,
+                })
+              : Promise.resolve()
+          }
+          onOpenTranscriptOverlay={openTranscriptOverlayForSelectedVideo}
+          onGenerateSummary={(
+            provider,
+            model,
+            templateId,
+            lengthMode,
+            outputLanguage,
+            streamingMode,
+            transcript,
+          ) =>
+            selectedVideo
+              ? generateSummaryWithSetup(
+                  selectedVideo.id,
+                  provider,
+                  model,
+                  templateId,
+                  lengthMode,
+                  outputLanguage,
+                  streamingMode,
+                  transcript,
+                )
+              : Promise.resolve()
+          }
+          onSendChat={(request) =>
+            selectedVideo
+              ? sendChatWithSetup({
+                  videoId: selectedVideo.id,
+                  ...request,
+                })
+              : Promise.resolve([])
+          }
+          onResetChat={() => {
+            if (selectedVideo) resetChatSession(selectedVideo.id);
+          }}
+          summaryProvider={aiProviderPreferences.summary.provider}
+          summaryProviderModel={aiProviderPreferences.summary.model}
+          summaryStreamingMode={aiProviderPreferences.summary.streamingMode}
+          chatProvider={aiProviderPreferences.chat.provider}
+          chatProviderModel={aiProviderPreferences.chat.model}
+          chatStreamingMode={aiProviderPreferences.chat.streamingMode}
+          onSummaryProviderPreferenceChange={(config) =>
+            saveAiProviderWorkflowPreference("summary", config)
+          }
+          onChatProviderPreferenceChange={(config) =>
+            saveAiProviderWorkflowPreference("chat", config)
+          }
+          onSaveMarkdown={(summaryId) =>
+            selectedVideo
+              ? downloadVideoArtifact(
+                  selectedVideo,
+                  "summary",
+                  findActiveSummary(
+                    selectedSummaryHistory,
+                    summaryId ?? activeSummary?.id,
+                  ) ?? activeSummary,
+                )
+              : undefined
+          }
+          onUpdateTranscriptSegment={(segmentId, text) => {
+            if (!selectedVideo) return;
+            updateTranscriptSegment(selectedVideo.id, segmentId, text);
+          }}
+          onUpdateSummaryMarkdown={(summaryId, markdown) => {
+            if (!selectedVideo) return;
+            updateSummaryMarkdown(selectedVideo.id, summaryId, markdown);
+          }}
+        />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "playlists" ? "block" : "hidden",
+        )}
+      >
+        <PlaylistView
+          playlists={state.playlists}
+          videos={state.videos}
+          selectedPlaylistId={selectedPlaylistId}
+          onSelectPlaylist={setSelectedPlaylistId}
+          onBackToPlaylists={() => setSelectedPlaylistId(undefined)}
+          onCreatePlaylist={createPlaylist}
+          onRenamePlaylist={renamePlaylist}
+          onChangePlaylistCover={changePlaylistCover}
+          onAddExistingVideo={addPlaylistVideo}
+          onOpenAddVideoDialog={(playlistId) => {
+            setAddVideoPlaylistId(playlistId);
+            setIsAddVideoDialogOpen(true);
+          }}
+          onImportLocalFile={importLocalFileFromAddDialog}
+          onImportYoutubeUrl={importYoutubeUrlFromAddDialog}
+          onReorderVideo={reorderPlaylistVideo}
+          onOpenVideo={openVideoDetail}
+        />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "settings" ? "block" : "hidden",
+        )}
+      >
+        <SettingsView
+          settings={effectiveSettings}
+          errorMessage={settingsErrorMessage}
+          onUpdateAppNow={updateAppFromSettings}
+          onSetYtDlpAutoUpdate={setYtDlpAutoUpdate}
+          onUpdateYtDlpNow={updateYtDlpFromSettings}
+          onVideoDownloadAccessAction={handleVideoDownloadAccessAction}
+          onOpenOnboarding={showOnboarding}
+          onConfigureProvider={configureProvider}
+          appTheme={appTheme}
+          onThemeChange={changeAppTheme}
+          appColorSeed={appColorSeed}
+          onColorSeedChange={changeAppColorSeed}
+          aiProviderPreferences={aiProviderPreferences}
+          onAiProviderPreferencesChange={saveAiProviderPreferencesFromSettings}
+          systemPromptSettings={systemPromptSettings}
+          onSaveSystemPrompts={saveSystemPrompts}
+          onResetSystemPrompts={resetSystemPrompts}
+        />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "tutorial" ? "block" : "hidden",
+        )}
+      >
+        <TutorialView onOpenOnboarding={showOnboarding} />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "faq" ? "block" : "hidden",
+        )}
+      >
+        <FaqView />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "onboarding" ? "block" : "hidden",
+        )}
+      >
+        <OnboardingView
+          appColorSeed={appColorSeed}
+          onColorSeedChange={changeAppColorSeed}
+          onFinish={finishOnboarding}
+        />
+      </div>
       {isDraggingFiles ? (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center border-4 border-primary/70 bg-background/80 backdrop-blur-sm">
-          <div className="rounded-md border border-border bg-card px-5 py-3 text-sm font-medium shadow-lg">
+        <div className="border-primary/70 bg-background/80 pointer-events-none fixed inset-0 z-50 flex items-center justify-center border-4 backdrop-blur-sm">
+          <div className="border-border bg-card rounded-md border px-5 py-3 text-sm font-medium shadow-lg">
             {t("drop.files")}
           </div>
         </div>
@@ -1662,7 +1724,7 @@ export function AppShell() {
       {appNotice ? (
         <div
           role="status"
-          className="fixed right-6 top-20 z-50 max-w-sm rounded-md border border-border bg-card px-4 py-3 text-sm shadow-lg"
+          className="border-border bg-card fixed top-20 right-6 z-50 max-w-sm rounded-md border px-4 py-3 text-sm shadow-lg"
         >
           <div className="flex items-start justify-between gap-3">
             <span>
@@ -1726,9 +1788,12 @@ export function AppShell() {
           captionLanguageDialog?.whisperDownloadProgressPercent ?? 0
         }
         whisperErrorMessage={captionLanguageDialog?.whisperErrorMessage}
-        whisperModels={effectiveSettings?.stt.models ?? []}
-        whisperModelId={captionLanguageDialog?.whisperModelId}
-        whisperModelName={captionLanguageDialog?.whisperModelName}
+        whisperModels={sttModels}
+        whisperModelId={captionDialogWhisperModel?.id}
+        whisperModelName={
+          captionDialogWhisperModel?.name ??
+          captionLanguageDialog?.whisperModelName
+        }
         onClose={() => setCaptionLanguageDialog(undefined)}
         onWhisperModelChange={(modelId) => {
           setSelectedWhisperModelId(modelId);
@@ -1747,7 +1812,9 @@ export function AppShell() {
               whisperErrorMessage: undefined,
               whisperModelId: modelId,
               whisperModelName: model?.name,
-              ...(model?.downloaded ? { whisperModelPath: whisperModelPath(model) } : {}),
+              ...(model?.downloaded
+                ? { whisperModelPath: whisperModelPath(model) }
+                : {}),
             };
           });
         }}
@@ -1761,7 +1828,9 @@ export function AppShell() {
       <AddVideoDialog
         open={isAddVideoDialogOpen}
         onOpenChange={setIsAddVideoDialogOpen}
-        playlist={state.playlists.find((playlist) => playlist.id === addVideoPlaylistId)}
+        playlist={state.playlists.find(
+          (playlist) => playlist.id === addVideoPlaylistId,
+        )}
         videos={state.videos}
         onAddExistingVideo={addPlaylistVideo}
         onImportLocalFile={importLocalFileFromAddDialog}
@@ -1941,17 +2010,28 @@ function CaptionLanguageDialog({
   whisperModelName?: string;
   onClose(): void;
   onWhisperModelChange(modelId: string): void;
-  onTranscribe(language: string): void;
+  onTranscribe(language: TranscriptionLanguageCode): void;
   onSelect(language: CaptionLanguage): void;
 }) {
   const { t } = useI18n();
-  const [selectedLanguageKey, setSelectedLanguageKey] = useState<string | undefined>();
-  const [selectedWhisperLanguage, setSelectedWhisperLanguage] = useState("auto");
-  const [activeTab, setActiveTab] = useState<"transcribe" | "provider">("transcribe");
+  const [selectedLanguageKey, setSelectedLanguageKey] = useState<
+    string | undefined
+  >();
+  const [selectedWhisperLanguage, setSelectedWhisperLanguage] =
+    useState<TranscriptionLanguageCode>("auto");
+  const [activeTab, setActiveTab] = useState<"transcribe" | "provider">(
+    "transcribe",
+  );
   const [showWhisperModelSelect, setShowWhisperModelSelect] = useState(false);
+  const transcriptionLanguageOptions = useMemo(
+    () => transcriptionLanguagesForModel(whisperModelId),
+    [whisperModelId],
+  );
 
   useEffect(() => {
-    setSelectedLanguageKey(languages[0] ? languageKey(languages[0]) : undefined);
+    setSelectedLanguageKey(
+      languages[0] ? languageKey(languages[0]) : undefined,
+    );
   }, [languages, open]);
 
   useEffect(() => {
@@ -1960,6 +2040,16 @@ function CaptionLanguageDialog({
       setShowWhisperModelSelect(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (
+      !transcriptionLanguageOptions.some(
+        (language) => language.code === selectedWhisperLanguage,
+      )
+    ) {
+      setSelectedWhisperLanguage("auto");
+    }
+  }, [selectedWhisperLanguage, transcriptionLanguageOptions]);
 
   const selectedLanguage = languages.find(
     (language) => languageKey(language) === selectedLanguageKey,
@@ -1987,7 +2077,7 @@ function CaptionLanguageDialog({
         <div
           role="tablist"
           aria-label={t("transcript.languageDialog.title")}
-          className="grid grid-cols-2 rounded-md bg-muted p-1"
+          className="bg-muted grid grid-cols-2 rounded-md p-1"
         >
           <Button
             type="button"
@@ -2019,7 +2109,7 @@ function CaptionLanguageDialog({
                 <div className="text-sm font-medium">
                   {t("transcript.languageDialog.whisperModel")}
                 </div>
-                <div className="mt-1 text-sm text-muted-foreground">
+                <div className="text-muted-foreground mt-1 text-sm">
                   {whisperModelName ??
                     t("transcript.languageDialog.whisperUnavailable")}
                 </div>
@@ -2070,7 +2160,9 @@ function CaptionLanguageDialog({
               </div>
               <Select
                 value={selectedWhisperLanguage}
-                onValueChange={setSelectedWhisperLanguage}
+                onValueChange={(value) =>
+                  setSelectedWhisperLanguage(value as TranscriptionLanguageCode)
+                }
                 disabled={whisperBusy}
               >
                 <SelectTrigger
@@ -2079,9 +2171,11 @@ function CaptionLanguageDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {whisperLanguageOptions.map((language) => (
+                  {transcriptionLanguageOptions.map((language) => (
                     <SelectItem key={language.code} value={language.code}>
-                      {"labelKey" in language ? t(language.labelKey) : language.label}
+                      {language.code === "auto"
+                        ? t("transcript.languageDialog.whisperAuto")
+                        : language.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2091,18 +2185,18 @@ function CaptionLanguageDialog({
         ) : (
           <div className="grid gap-3">
             {captionStatus === "loading" ? (
-              <div className="flex items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">
+              <div className="text-muted-foreground flex items-center gap-2 rounded-md border p-3 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 {t("transcript.languageDialog.providerLoading")}
               </div>
             ) : null}
             {captionStatus === "failed" ? (
-              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+              <div className="text-muted-foreground rounded-md border p-3 text-sm">
                 {t("transcript.languageDialog.providerFailed")}
               </div>
             ) : null}
             {captionStatus === "ready" && languages.length === 0 ? (
-              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+              <div className="text-muted-foreground rounded-md border p-3 text-sm">
                 {t("transcript.languageDialog.providerEmpty")}
               </div>
             ) : null}
@@ -2118,7 +2212,10 @@ function CaptionLanguageDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {languages.map((language) => (
-                    <SelectItem key={languageKey(language)} value={languageKey(language)}>
+                    <SelectItem
+                      key={languageKey(language)}
+                      value={languageKey(language)}
+                    >
                       {languageOptionLabel(language, t)}
                     </SelectItem>
                   ))}
@@ -2128,11 +2225,7 @@ function CaptionLanguageDialog({
           </div>
         )}
         <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             {t("transcript.languageDialog.cancel")}
           </Button>
           {activeTab === "transcribe" ? (
@@ -2174,21 +2267,25 @@ function WhisperModelStatus({
   needsDownload: boolean;
 }) {
   const { t } = useI18n();
+  const showPercent = progressPercent > 0;
+  const progressWidth = showPercent
+    ? `${Math.max(2, Math.min(progressPercent, 100))}%`
+    : "100%";
 
   if (status === "downloading") {
     return (
-      <div className="mt-2 text-xs text-muted-foreground">
+      <div className="text-muted-foreground mt-2 text-xs">
         <div className="mb-1 flex items-center justify-between gap-3">
           <span className="flex items-center gap-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
             {t("transcript.languageDialog.whisperDownloading")}
           </span>
-          <span>{progressPercent}%</span>
+          {showPercent ? <span>{progressPercent}%</span> : null}
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="bg-muted h-1.5 overflow-hidden rounded-full">
           <div
-            className="h-full bg-primary"
-            style={{ width: `${progressPercent}%` }}
+            className={cn("bg-primary h-full", !showPercent && "animate-pulse")}
+            style={{ width: progressWidth }}
           />
         </div>
       </div>
@@ -2197,7 +2294,7 @@ function WhisperModelStatus({
 
   if (status === "preparing") {
     return (
-      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
         {t("transcript.languageDialog.whisperPreparing")}
       </div>
@@ -2206,7 +2303,7 @@ function WhisperModelStatus({
 
   if (status === "failed") {
     return (
-      <div className="mt-2 text-xs text-destructive">
+      <div className="text-destructive mt-2 text-xs">
         {errorMessage ?? t("transcript.languageDialog.whisperFailed")}
       </div>
     );
@@ -2214,7 +2311,7 @@ function WhisperModelStatus({
 
   if (needsDownload) {
     return (
-      <div className="mt-2 text-xs text-muted-foreground">
+      <div className="text-muted-foreground mt-2 text-xs">
         {t("transcript.languageDialog.whisperDownloadNeeded")}
       </div>
     );
@@ -2264,9 +2361,9 @@ function syncPathForView(view: string, mode: "push" | "replace" = "push") {
         ? "/onboarding"
         : view === "faq"
           ? "/faq"
-        : view === "playlists"
-          ? "/playlists"
-          : "/";
+          : view === "playlists"
+            ? "/playlists"
+            : "/";
   if (window.location.pathname === path) return;
 
   if (mode === "replace") {
@@ -2314,13 +2411,13 @@ function jobIdFromImportResult(result: unknown) {
   return undefined;
 }
 
-function findSegmentForTime<TSegment extends { startSeconds: number; endSeconds?: number }>(
-  segments: TSegment[],
-  currentTimeSeconds: number,
-) {
+function findSegmentForTime<
+  TSegment extends { startSeconds: number; endSeconds?: number },
+>(segments: TSegment[], currentTimeSeconds: number) {
   return segments.find((segment, index) => {
     const nextSegment = segments[index + 1];
-    const endSeconds = segment.endSeconds ?? nextSegment?.startSeconds ?? Infinity;
+    const endSeconds =
+      segment.endSeconds ?? nextSegment?.startSeconds ?? Infinity;
 
     return (
       currentTimeSeconds >= segment.startSeconds &&

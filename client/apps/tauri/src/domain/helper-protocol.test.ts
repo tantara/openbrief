@@ -123,6 +123,8 @@ describe("helper protocol contracts", () => {
         command: "transcribe_audio",
         jobId: "job-stt",
         audioPath: "job-temp/video-1/audio.wav",
+        enginePreference: "auto",
+        modelId: "parakeet-tdt-0.6b-v3",
         modelPath: "models/whisper.bin",
         language: "ko",
         outputPath: "videos/video-1/transcript/transcript.json",

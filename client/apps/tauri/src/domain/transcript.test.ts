@@ -67,9 +67,29 @@ describe("transcript domain", () => {
     expect(stt).toMatchObject({
       command: "transcribe_audio",
       audioPath: "videos/video-1/audio/Design-Review-audio.wav",
+      enginePreference: "auto",
       modelPath: "models/tiny.bin",
       language: "ko",
       outputPath: "videos/video-1/transcript/transcript.json",
+    });
+  });
+
+  it("uses Parakeet v3 as an auto STT preference with Whisper fallback path", () => {
+    const stt = createTranscribeAudioCommand({
+      request: {
+        video,
+        whisperModelPath: "models/fluidaudio/parakeet-tdt-0.6b-v3",
+        languages: ["en-US"],
+      },
+      audioPath: "videos/video-1/audio/Design-Review-audio.wav",
+    });
+
+    expect(stt).toMatchObject({
+      command: "transcribe_audio",
+      enginePreference: "auto",
+      modelId: "parakeet-tdt-0.6b-v3",
+      modelPath: "models/ggml-small.bin",
+      language: "en-US",
     });
   });
 

@@ -62,7 +62,7 @@ struct SttModelDefinition {
     recommended: bool,
 }
 
-const STT_MODELS: [SttModelDefinition; 6] = [
+const WHISPER_MODELS: [SttModelDefinition; 6] = [
     SttModelDefinition {
         id: "whisper-tiny",
         name: "Whisper Tiny",
@@ -127,6 +127,17 @@ const STT_MODELS: [SttModelDefinition; 6] = [
     },
 ];
 
+const PARAKEET_V3_MODEL: SttModelDefinition = SttModelDefinition {
+    id: crate::fluidaudio::PARAKEET_V3_MODEL_ID,
+    name: "Parakeet v3",
+    engine: crate::fluidaudio::PARAKEET_V3_ENGINE,
+    file_name: crate::fluidaudio::PARAKEET_V3_MODEL_DIR,
+    download_url: "FluidInference/parakeet-tdt-0.6b-v3-coreml",
+    sha1: "directory-managed-by-fluidaudio",
+    size_mb: crate::fluidaudio::PARAKEET_V3_SIZE_MB,
+    recommended: true,
+};
+
 #[tauri::command]
 pub fn stt_model_catalog<R: Runtime>(app: AppHandle<R>) -> Result<SttModelCatalog, String> {
     let models_dir = models_dir_for_app(&app)?;
@@ -149,28 +160,63 @@ pub async fn download_stt_model<R: Runtime>(
 }
 
 fn catalog_for_models_dir(models_dir: &Path) -> SttModelCatalog {
+    catalog_for_models_dir_with_fluidaudio(
+        models_dir,
+        crate::fluidaudio::can_use_fluidaudio_sidecar(),
+    )
+}
+
+fn catalog_for_models_dir_with_fluidaudio(
+    models_dir: &Path,
+    parakeet_available: bool,
+) -> SttModelCatalog {
+    let mut models = Vec::new();
+    if parakeet_available {
+        models.push(SttModelInfo {
+            id: PARAKEET_V3_MODEL.id,
+            name: PARAKEET_V3_MODEL.name,
+            engine: PARAKEET_V3_MODEL.engine,
+            file_name: PARAKEET_V3_MODEL.file_name,
+            download_url: PARAKEET_V3_MODEL.download_url,
+            sha1: PARAKEET_V3_MODEL.sha1,
+            size_mb: PARAKEET_V3_MODEL.size_mb,
+            downloaded: crate::fluidaudio::parakeet_model_downloaded(models_dir),
+            recommended: true,
+        });
+    }
+
+    models.extend(WHISPER_MODELS.iter().map(|model| SttModelInfo {
+        id: model.id,
+        name: model.name,
+        engine: model.engine,
+        file_name: model.file_name,
+        download_url: model.download_url,
+        sha1: model.sha1,
+        size_mb: model.size_mb,
+        downloaded: models_dir.join(model.file_name).is_file(),
+        recommended: !parakeet_available && model.recommended,
+    }));
+
     SttModelCatalog {
-        models: STT_MODELS
-            .iter()
-            .map(|model| SttModelInfo {
-                id: model.id,
-                name: model.name,
-                engine: model.engine,
-                file_name: model.file_name,
-                download_url: model.download_url,
-                sha1: model.sha1,
-                size_mb: model.size_mb,
-                downloaded: models_dir.join(model.file_name).is_file(),
-                recommended: model.recommended,
-            })
-            .collect(),
+        models,
         download_requires_user_confirmation: true,
         storage: "app-data/models",
     }
 }
 
 fn model_by_id(model_id: &str) -> Result<&'static SttModelDefinition, String> {
-    STT_MODELS
+    model_by_id_with_fluidaudio(model_id, crate::fluidaudio::can_use_fluidaudio_sidecar())
+}
+
+fn model_by_id_with_fluidaudio(
+    model_id: &str,
+    parakeet_available: bool,
+) -> Result<&'static SttModelDefinition, String> {
+    if parakeet_available && model_id == PARAKEET_V3_MODEL.id {
+        return Ok(&PARAKEET_V3_MODEL);
+    }
+
+    WHISPER_MODELS
         .iter()
         .find(|model| model.id == model_id)
         .ok_or_else(|| "stt_model_unknown".to_string())
@@ -195,6 +241,19 @@ async fn download_model_to_dir(
     models_dir: &Path,
 ) -> Result<SttModelDownloadResult, String> {
     fs::create_dir_all(models_dir).map_err(|error| format!("models_dir_create_failed:{error}"))?;
+
+    if model.id == crate::fluidaudio::PARAKEET_V3_MODEL_ID {
+        let (sha1, size_bytes) =
+            crate::fluidaudio::download_parakeet_model(app, models_dir).await?;
+        emit_download_progress(app, model, size_bytes, Some(size_bytes));
+        return Ok(SttModelDownloadResult {
+            model_id: model.id,
+            file_name: model.file_name,
+            downloaded: true,
+            sha1,
+            size_bytes,
+        });
+    }
 
     let destination = models_dir.join(model.file_name);
     if destination.is_file() {
@@ -301,9 +360,15 @@ mod tests {
         let default_model = catalog
             .models
             .iter()
-            .find(|model| model.id == "whisper-small")
+            .find(|model| model.recommended)
             .unwrap();
-        assert_eq!(default_model.engine, "whisper.cpp");
+        if crate::fluidaudio::can_use_fluidaudio_sidecar() {
+            assert_eq!(default_model.engine, "fluidaudio");
+            assert_eq!(default_model.id, "parakeet-tdt-0.6b-v3");
+        } else {
+            assert_eq!(default_model.engine, "whisper.cpp");
+            assert_eq!(default_model.id, "whisper-small");
+        }
         assert!(default_model.recommended);
         assert!(!default_model.downloaded);
     }
@@ -321,6 +386,89 @@ mod tests {
             .find(|model| model.id == "whisper-small")
             .unwrap();
         assert!(small.downloaded);
+    }
+
+    #[test]
+    fn catalog_marks_parakeet_downloaded_by_fluidaudio_directory() {
+        if !crate::fluidaudio::can_use_fluidaudio_sidecar() {
+            return;
+        }
+
+        let root = temp_models_dir();
+        let model_dir = crate::fluidaudio::parakeet_model_dir(&root);
+        fs::create_dir_all(&model_dir).unwrap();
+        for file_name in [
+            "Preprocessor.mlmodelc",
+            "Encoder.mlmodelc",
+            "Decoder.mlmodelc",
+            "JointDecisionv3.mlmodelc",
+            "parakeet_vocab.json",
+        ] {
+            fs::write(model_dir.join(file_name), b"placeholder").unwrap();
+        }
+
+        let catalog = catalog_for_models_dir(&root);
+
+        let parakeet = catalog
+            .models
+            .iter()
+            .find(|model| model.id == "parakeet-tdt-0.6b-v3")
+            .unwrap();
+        assert!(parakeet.downloaded);
+    }
+
+    #[test]
+    fn catalog_includes_parakeet_only_for_supported_fluidaudio_platforms() {
+        let cases = [
+            ("macOS Apple Silicon", "macos", "aarch64", Some(14), true),
+            ("macOS Intel", "macos", "x86_64", Some(15), false),
+            ("Windows", "windows", "x86_64", None, false),
+            ("Linux x64", "linux", "x86_64", None, false),
+            ("Linux arm64", "linux", "aarch64", None, false),
+        ];
+
+        for (label, os, arch, macos_major, expected_parakeet) in cases {
+            let root = temp_models_dir();
+            let parakeet_available =
+                crate::fluidaudio::can_use_fluidaudio_sidecar_for_target(os, arch, macos_major);
+            let catalog = catalog_for_models_dir_with_fluidaudio(&root, parakeet_available);
+            let has_parakeet = catalog
+                .models
+                .iter()
+                .any(|model| model.id == crate::fluidaudio::PARAKEET_V3_MODEL_ID);
+
+            assert_eq!(has_parakeet, expected_parakeet, "{label}");
+
+            let recommended = catalog
+                .models
+                .iter()
+                .find(|model| model.recommended)
+                .unwrap();
+            if expected_parakeet {
+                assert_eq!(recommended.id, crate::fluidaudio::PARAKEET_V3_MODEL_ID);
+                assert_eq!(recommended.engine, crate::fluidaudio::PARAKEET_V3_ENGINE);
+            } else {
+                assert_eq!(recommended.id, "whisper-small", "{label}");
+                assert_eq!(recommended.engine, "whisper.cpp", "{label}");
+            }
+
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    #[test]
+    fn rejects_parakeet_model_id_when_fluidaudio_is_unavailable() {
+        assert_eq!(
+            model_by_id_with_fluidaudio(crate::fluidaudio::PARAKEET_V3_MODEL_ID, false)
+                .unwrap_err(),
+            "stt_model_unknown"
+        );
+        assert_eq!(
+            model_by_id_with_fluidaudio(crate::fluidaudio::PARAKEET_V3_MODEL_ID, true)
+                .unwrap()
+                .id,
+            crate::fluidaudio::PARAKEET_V3_MODEL_ID
+        );
     }
 
     #[test]

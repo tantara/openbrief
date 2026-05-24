@@ -4,6 +4,14 @@ Turn videos and audio into clear, listenable briefings.
 
 OpenBrief is a pnpm/Turborepo workspace centered on a Tauri v2 desktop app. It supports importing local media or video URLs, downloading media through bundled tools, transcribing audio, generating grounded summaries, chatting with media context, organizing playlists, and exporting reusable notes.
 
+## Model Support
+
+| Model type | Supported | TODO |
+| --- | --- | --- |
+| Speech to text | Whisper, Parakeet | Qwen3-ASR |
+| Text to speech | - | Qwen3-TTS, Supertonic 3 |
+| Large language model | OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter DeepSeek | Local Gemma 4 |
+
 ## Repository Layout
 
 ```text
@@ -157,13 +165,15 @@ Use `pnpm --filter <workspace> <script>` or `pnpm -F <workspace> <script>` for a
 
 ## Roadmap
 
-- Improve audio file support for transcription, summaries, playback, and exports.
-- Support more document and web source types, including PDFs, HTML pages, and other document formats.
-- Support additional ASR models, including Parakeet and Qwen3-ASR.
-- Support local LLMs, including Gemma 4.
-- Add voice cloning so summaries can be read aloud in a selected voice.
-- Share summaries through the web and mobile apps.
-- Support more artifact formats, including flashcards and other reusable study or publishing outputs.
+- [x] Improve audio file support for transcription, summaries, playback, and exports.
+- [ ] Support more document and web source types, including PDFs, HTML pages, and other document formats.
+- [x] Support Parakeet ASR.
+- [ ] Support Qwen3-ASR and Qwen3-ForcedAligner.
+- [ ] Support Supertonic 3 TTS.
+- [ ] Support local LLMs, including Gemma 4.
+- [ ] Add voice cloning so summaries can be read aloud in a selected voice.
+- [ ] Share summaries through the web and mobile apps.
+- [ ] Support more artifact formats, including flashcards and other reusable study or publishing outputs.
 
 ## Development Notes
 

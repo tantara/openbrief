@@ -68,6 +68,8 @@ export type TranscodeVideoCommand = HelperCommandBase<"transcode_video"> & {
 
 export type TranscribeAudioCommand = HelperCommandBase<"transcribe_audio"> & {
   audioPath: string;
+  enginePreference?: "auto" | "whisper" | "fluidaudio";
+  modelId?: string;
   modelPath: string;
   outputPath: string;
   language?: string;
@@ -172,6 +174,9 @@ export type HelperCommandResult =
       transcriptPath: string;
       text?: string;
       segments?: TranscriptSegment[];
+      engine?: "whisper" | "fluidaudio";
+      modelId?: string;
+      language?: string;
     }
   | {
       command: "cancel_job";

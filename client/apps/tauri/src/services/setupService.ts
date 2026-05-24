@@ -25,6 +25,7 @@ export type SttModelDownloadProgress = {
   totalBytes?: number;
   progress: number;
   progressPercent: number;
+  message?: string;
 };
 
 export type SttModelDownloadOptions = {
@@ -108,6 +109,7 @@ type RawSttModelDownloadProgress = {
   downloadedBytes: number;
   totalBytes?: number;
   progress: number;
+  message?: string;
 };
 
 function mapSttModelDownloadProgress(

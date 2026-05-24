@@ -110,14 +110,20 @@ export function createTranscribeAudioCommand({
   request: TranscriptPipelineRequest;
   audioPath: string;
 }): TranscribeAudioCommand {
+  const requestedModelPath = request.whisperModelPath ?? "models/whisper-small-default.bin";
+  const prefersParakeet = requestedModelPath.includes("fluidaudio/parakeet-tdt-0.6b-v3");
+  const language = request.whisperLanguage ?? request.languages?.[0] ?? "en";
+
   return {
     protocolVersion: helperProtocolVersion,
     command: "transcribe_audio",
     jobId: createTranscriptJobId(request.video.id, "stt"),
     audioPath,
-    modelPath: request.whisperModelPath ?? "models/whisper-small-default.bin",
+    enginePreference: "auto",
+    ...(prefersParakeet ? { modelId: "parakeet-tdt-0.6b-v3" } : {}),
+    modelPath: prefersParakeet ? "models/ggml-small.bin" : requestedModelPath,
     outputPath: createVideoTranscriptJsonArtifactPath(request.video.id),
-    ...(request.whisperLanguage ? { language: request.whisperLanguage } : {}),
+    ...(language ? { language } : {}),
   };
 }
 

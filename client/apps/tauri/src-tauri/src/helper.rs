@@ -56,15 +56,15 @@ pub struct BundledMediaToolContract {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct HelperRunResult {
-    events: Vec<Value>,
-    result: Value,
+    pub(crate) events: Vec<Value>,
+    pub(crate) result: Value,
 }
 
 #[derive(Debug)]
-struct ParsedHelperOutput {
-    events: Vec<Value>,
-    completed_result: Option<Value>,
-    failed_message: Option<String>,
+pub(crate) struct ParsedHelperOutput {
+    pub(crate) events: Vec<Value>,
+    pub(crate) completed_result: Option<Value>,
+    pub(crate) failed_message: Option<String>,
 }
 
 #[derive(Clone, Default)]
@@ -169,6 +169,22 @@ pub async fn run_helper_command<R: Runtime>(
         })
         .await
         .map_err(|error| format!("helper_stream_join_failed:{error}"))?;
+    }
+
+    if request.command == helper_sidecar::HelperCommandName::TranscribeAudio {
+        if let Some(normalized_language) =
+            crate::fluidaudio::should_route_transcribe_to_fluidaudio(&request.payload)?
+        {
+            return crate::fluidaudio::run_transcribe_audio(
+                &app,
+                &request,
+                sidecar_command,
+                &library_root,
+                &models_root,
+                normalized_language,
+            )
+            .await;
+        }
     }
 
     let command_json = serde_json::to_string(&sidecar_command)
@@ -845,7 +861,10 @@ fn model_absolute_path(models_root: &Path, relative_path: &str) -> Result<PathBu
     Ok(models_root.join(relative))
 }
 
-fn parse_helper_output(stdout: &str, library_root: &Path) -> Result<ParsedHelperOutput, String> {
+pub(crate) fn parse_helper_output(
+    stdout: &str,
+    library_root: &Path,
+) -> Result<ParsedHelperOutput, String> {
     let events = stdout
         .lines()
         .filter(|line| !line.trim().is_empty())
