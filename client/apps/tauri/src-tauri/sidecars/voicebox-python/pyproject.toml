@@ -25,7 +25,8 @@ qwen-asr = [
   "soundfile>=0.12",
 ]
 torch = [
-  "torch>=2.4",
+  "torch>=2.2,<2.3; platform_system == 'Darwin' and platform_machine == 'x86_64'",
+  "torch>=2.4; platform_system != 'Darwin' or platform_machine != 'x86_64'",
 ]
 mlx = [
   "mlx>=0.25; platform_system == 'Darwin' and platform_machine == 'arm64'",
