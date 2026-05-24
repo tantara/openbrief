@@ -7,14 +7,20 @@ import { describe, expect, it, vi } from "vitest";
 
 describe("voiceService", () => {
   it("uses the first 20 preview characters for the default WAV filename", () => {
+    const now = new Date("2026-05-24T04:52:19.551Z");
+    const shortId = now.getTime().toString(36).slice(-6);
+
     expect(
       createTtsPreviewDefaultFileName(
         "Generate this simple preview.",
         "Default",
+        now,
       ),
-    ).toBe("Generate this simple_Default.wav");
-    expect(createTtsPreviewDefaultFileName(" / bad:name? ", "Voice/One")).toBe(
-      "bad name_Voice One.wav",
+    ).toBe(`Generate this simple_Default_${shortId}.wav`);
+    expect(
+      createTtsPreviewDefaultFileName(" / bad:name? ", "Voice/One", now),
+    ).toBe(
+      `bad name_Voice One_${shortId}.wav`,
     );
   });
 

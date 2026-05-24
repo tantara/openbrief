@@ -8,6 +8,10 @@ import type {
 import type { TauriInvoke } from "@/services/tauriHelperClient";
 import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
 import { canUseTauriRuntime } from "@/services/tauriHelperClient";
+import {
+  createReadableVoiceAudioFileName,
+  createShortVoiceAudioId,
+} from "@/services/voiceDownloadFileName";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 
 export type SupertonicChatTtsResult = {
@@ -21,6 +25,7 @@ export type SupertonicChatTtsResult = {
 export type SupertonicChatTtsArtifact = {
   audioPath: string;
   generationId: string;
+  voiceName?: string;
   sizeBytes: number;
 };
 
@@ -35,16 +40,20 @@ export type ReadChatBubbleRequest = {
 };
 
 export function createVoiceMessageDownloadFileName(
-  audio?: Pick<SupertonicChatTtsArtifact, "audioPath">,
+  audio?: Pick<SupertonicChatTtsArtifact, "audioPath"> &
+    Partial<Pick<SupertonicChatTtsArtifact, "generationId">>,
+  options: {
+    text?: string;
+    voiceName?: string;
+  } = {},
   now = new Date(),
 ) {
-  const existingName = audio?.audioPath.split(/[\\/]/).at(-1);
-  if (existingName?.startsWith("voice-message-") && existingName.endsWith(".wav")) {
-    return existingName;
-  }
-
-  const timestamp = now.toISOString().replace(/[:.]/g, "-");
-  return `voice-message-${timestamp}.wav`;
+  return createReadableVoiceAudioFileName({
+    text: options.text,
+    voiceName: options.voiceName,
+    shortId: createShortVoiceAudioId(audio?.generationId ?? audio?.audioPath, now),
+    fallbackStem: "voice-message",
+  });
 }
 
 export async function readChatBubbleWithSupertonic(

@@ -8,6 +8,10 @@ import type {
 } from "@/services/ttsSettingsService";
 import { createLocalFileDialogService } from "@/services/localFileDialogService";
 import { canUseTauriRuntime } from "@/services/tauriHelperClient";
+import {
+  createReadableVoiceAudioFileName,
+  createShortVoiceAudioId,
+} from "@/services/voiceDownloadFileName";
 import { invoke } from "@tauri-apps/api/core";
 
 export type TtsVoiceCatalogModel = {
@@ -133,25 +137,14 @@ export async function saveTtsPreviewAudio(
 export function createTtsPreviewDefaultFileName(
   text: string,
   voiceName?: string,
+  now = new Date(),
 ) {
-  const promptStem = sanitizeFileNamePart(text, 20);
-  const voiceStem = sanitizeFileNamePart(voiceName ?? "");
-  const stem = [promptStem, voiceStem].filter(Boolean).join("_");
-
-  return `${stem || "voice-preview"}.wav`;
-}
-
-function sanitizeFileNamePart(value: string, maxCharacters?: number) {
-  const limited =
-    typeof maxCharacters === "number"
-      ? Array.from(value.trim()).slice(0, maxCharacters).join("")
-      : value.trim();
-
-  return limited
-    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^[.\s-]+|[.\s-]+$/g, "");
+  return createReadableVoiceAudioFileName({
+    text,
+    voiceName,
+    shortId: createShortVoiceAudioId(undefined, now),
+    fallbackStem: "voice-preview",
+  });
 }
 
 function ensureWavFileName(fileName: string) {

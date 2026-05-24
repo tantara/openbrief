@@ -253,6 +253,21 @@ type ChatTtsGeneration = {
 const onboardingStorageKey = "openbrief.onboarding-complete";
 const videoPlaybackMenuEvent = "openbrief://video-playback-command";
 
+function chatTtsVoiceName(
+  modelId: TtsModelId,
+  voiceStyleId: SupertonicVoiceStyleId,
+  qwenPresetVoiceId: QwenPresetVoiceId,
+) {
+  if (ttsEngineForModel(modelId) === "qwen") {
+    return (
+      qwenPresetVoices.find((voice) => voice.id === qwenPresetVoiceId)?.label ??
+      qwenPresetVoiceId
+    );
+  }
+
+  return supertonicPresetVoiceStyleLabel(voiceStyleId);
+}
+
 export function AppShell() {
   const { t } = useI18n();
   const {
@@ -1538,6 +1553,7 @@ export function AppShell() {
       const voiceMessage = {
         audioPath: result.audioPath,
         generationId: result.generationId,
+        voiceName: chatTtsVoiceName(modelId, voiceStyleId, qwenPresetVoiceId),
         sizeBytes: result.sizeBytes,
         createdAtIso: new Date().toISOString(),
       };
@@ -1610,11 +1626,13 @@ export function AppShell() {
     message: ChatMessage,
     audio: SupertonicChatTtsArtifact,
   ) {
-    void message;
     try {
       const result = await artifactExportService.exportLibraryArtifact({
         sourceRelativePath: audio.audioPath,
-        defaultFileName: createVoiceMessageDownloadFileName(audio),
+        defaultFileName: createVoiceMessageDownloadFileName(audio, {
+          text: message.content,
+          voiceName: audio.voiceName,
+        }),
         label: "voice message",
         filters: [{ name: "Audio", extensions: ["wav"] }],
       });

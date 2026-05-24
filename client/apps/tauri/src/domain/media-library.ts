@@ -114,6 +114,7 @@ export type AiTokenUsage = {
 export type ChatVoiceMessageArtifact = {
   audioPath: string;
   generationId: string;
+  voiceName?: string;
   sizeBytes: number;
   createdAtIso: string;
 };
