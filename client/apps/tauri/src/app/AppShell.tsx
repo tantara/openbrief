@@ -311,6 +311,7 @@ export function AppShell() {
     () => createArtifactExportService(),
     [],
   );
+  const activeViewRef = useRef(state.activeView);
   const chatTtsAudioRef = useRef<HTMLAudioElement | null>(null);
   const chatTtsGenerationRef = useRef<ChatTtsGeneration | undefined>(
     undefined,
@@ -405,6 +406,7 @@ export function AppShell() {
   const ingestJobStatusesRef = useRef(new Map<string, IngestJob["status"]>());
   const onboardingCompleteRef = useRef(onboardingComplete);
   const lastOverlaySegmentKeyRef = useRef<string | undefined>(undefined);
+  activeViewRef.current = state.activeView;
   const { isDraggingFiles } = useTauriFileDrop({
     disabled: !onboardingComplete,
     onDrop: importDroppedFiles,
@@ -1096,7 +1098,37 @@ export function AppShell() {
       return [];
     }
 
-    return sendChat(request);
+    return sendChatAndNotify(request);
+  }
+
+  async function sendChatAndNotify(request: Parameters<typeof sendChat>[0]) {
+    const messages = await sendChat(request);
+    const hasAssistantResponse = messages.some(
+      (message) => message.role === "assistant",
+    );
+
+    if (hasAssistantResponse && activeViewRef.current !== "workbench") {
+      const video = state.videos.find(
+        (candidate) => candidate.id === request.videoId,
+      );
+      setAppNotice({
+        message: t("notice.chat.completed", {
+          title: video?.title ?? t("page.video"),
+        }),
+        action: {
+          label: t("notice.open"),
+          onClick: () => {
+            openVideoTab(request.videoId);
+            setSelectedVideoId(request.videoId);
+            setActiveView("workbench");
+            syncPathForView("workbench");
+            setAppNotice(undefined);
+          },
+        },
+      });
+    }
+
+    return messages;
   }
 
   async function reviewTranscriptWithSetup(
@@ -1196,7 +1228,7 @@ export function AppShell() {
       return;
     }
 
-    await sendChat({
+    await sendChatAndNotify({
       videoId: action.videoId,
       question: action.question,
       contextMode: action.contextMode,

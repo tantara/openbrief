@@ -1398,6 +1398,37 @@ describe("WorkbenchView", () => {
     );
   });
 
+  it("matches generated speech paths that use the Rust chat message sanitizer", () => {
+    const onPlayChatTtsAudio = vi.fn();
+    const message = {
+      ...chatFixture[0],
+      id: "chat-video-1-assistant-2026-05-23T00:00:00.000Z",
+    };
+    const audio = {
+      audioPath:
+        "videos/video-1/chat/tts/chat-video-1-assistant-2026-05-23t00-00-00-000z/voice-message-123/voice-message-123.wav",
+      generationId: "voice-message-123",
+      sizeBytes: 12,
+    };
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: [message],
+          chatTtsAudioByMessageId: { [message.id]: audio },
+          onPlayChatTtsAudio,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play voice message" }));
+
+    expect(onPlayChatTtsAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ id: message.id }),
+      audio,
+    );
+  });
+
   it("only shows generated speech controls for the owning chat bubble", () => {
     const onPlayChatTtsAudio = vi.fn();
     const onReadChatMessage = vi.fn().mockResolvedValue(undefined);

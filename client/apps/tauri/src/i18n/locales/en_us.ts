@@ -519,6 +519,7 @@ export const en_us = {
     "YouTube PO token setup is planned for the trusted Rust settings flow. The renderer will only show configured status, never the token value.",
   "notice.downloadAccess.extractorArgs":
     "Extractor args setup is planned for the trusted Rust settings flow. OpenBrief will validate and pass them to yt-dlp as argv.",
+  "notice.chat.completed": "Chat response ready for {title}",
   "notice.artifactExport.success": "Exported to {path}",
   "notice.artifactExport.failed": "Export failed: {message}",
   "notice.supertonic.failed": "Could not read chat message: {message}",

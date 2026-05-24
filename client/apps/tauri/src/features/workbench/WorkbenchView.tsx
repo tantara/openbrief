@@ -80,7 +80,6 @@ import type {
 } from "@/domain/media-library";
 import {
   mediaSourceTypeForAsset,
-  sanitizePathSegment,
 } from "@/domain/media-library";
 import type { ChatContextMode } from "@/domain/chat";
 import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
@@ -2269,12 +2268,24 @@ function chatTtsAudioBelongsToMessage(
   message: Pick<ChatMessage, "id">,
 ) {
   const normalizedAudioPath = audio.audioPath.replace(/\\/g, "/");
-  const expectedDirectory = `/chat/tts/${sanitizePathSegment(message.id)}/`;
+  const expectedDirectory = `/chat/tts/${sanitizeChatTtsMessagePathSegment(message.id)}/`;
 
   return (
     normalizedAudioPath.includes(expectedDirectory) ||
     normalizedAudioPath.startsWith(expectedDirectory.slice(1))
   );
+}
+
+function sanitizeChatTtsMessagePathSegment(value: string) {
+  const sanitized = value
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase()
+    .slice(0, 96);
+
+  return sanitized || "item";
 }
 
 function StreamingChatDraft({ draftText }: { draftText: string }) {
