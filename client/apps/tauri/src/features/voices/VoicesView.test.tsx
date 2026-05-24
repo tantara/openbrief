@@ -94,7 +94,9 @@ describe("VoicesView", () => {
     await waitFor(() => {
       expect(onSavePreviewAudio).toHaveBeenCalledWith({
         audioBytes: new Uint8Array([1, 2, 3]),
-        defaultFileName: "Generate this simple_Default.wav",
+        defaultFileName: expect.stringMatching(
+          /^Generate this simple_Default_[a-z0-9]{6}\.wav$/,
+        ),
       });
     });
     expect(screen.getByText("Preview ready (2 KB)")).toBeInTheDocument();
