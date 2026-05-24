@@ -1064,36 +1064,34 @@ export function WorkbenchView({
                 onChange={setBriefMode}
               />
             </span>
-            {briefMode === "summary" ? (
-              <SummaryProviderDialog
-                provider={summaryProviderConfig.provider}
-                model={summaryProviderConfig.model}
-                streamingMode={summaryProviderConfig.streamingMode}
-                onProviderChange={(nextProvider) => {
-                  updateSummaryProviderPreference({
-                    provider: nextProvider,
-                    model: defaultProviderModels[nextProvider],
-                    streamingMode: summaryProviderConfig.streamingMode,
-                  });
-                }}
-                onModelChange={(model) =>
-                  updateSummaryProviderPreference({
-                    provider: summaryProviderConfig.provider,
-                    model,
-                    streamingMode: summaryProviderConfig.streamingMode,
-                  })
-                }
-                onStreamingModeChange={(streamingMode) =>
-                  updateSummaryProviderPreference({
-                    provider: summaryProviderConfig.provider,
-                    model: summaryProviderConfig.model,
-                    streamingMode,
-                  })
-                }
-              />
-            ) : null}
+            <SummaryProviderDialog
+              provider={summaryProviderConfig.provider}
+              model={summaryProviderConfig.model}
+              streamingMode={summaryProviderConfig.streamingMode}
+              onProviderChange={(nextProvider) => {
+                updateSummaryProviderPreference({
+                  provider: nextProvider,
+                  model: defaultProviderModels[nextProvider],
+                  streamingMode: summaryProviderConfig.streamingMode,
+                });
+              }}
+              onModelChange={(model) =>
+                updateSummaryProviderPreference({
+                  provider: summaryProviderConfig.provider,
+                  model,
+                  streamingMode: summaryProviderConfig.streamingMode,
+                })
+              }
+              onStreamingModeChange={(streamingMode) =>
+                updateSummaryProviderPreference({
+                  provider: summaryProviderConfig.provider,
+                  model: summaryProviderConfig.model,
+                  streamingMode,
+                })
+              }
+            />
           </CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-h-9 flex-wrap items-center gap-2">
             {briefMode === "summary" && summaryMarkdown ? (
               <SummaryGenerateDialog
                 open={isSummaryGenerateDialogOpen}
