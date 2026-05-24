@@ -290,7 +290,7 @@ export function createTranscriptSourceVariant({
 export function transcriptSourceKindLabel(sourceKind: TranscriptSourceKind) {
   return sourceKind === "youtube-captions"
     ? "Provider captions"
-    : "Whisper transcription";
+    : "AI transcription";
 }
 
 export function createTranscriptArtifactPath(video: VideoAsset, suffix = "original") {

@@ -411,7 +411,7 @@ describe("WorkbenchView", () => {
 
     expect(await screen.findByRole("option", { name: "Provider captions" }))
       .toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Whisper transcription" }))
+    expect(screen.getByRole("option", { name: "AI transcription" }))
       .toBeInTheDocument();
   });
 
@@ -1738,7 +1738,7 @@ const whisperSourceVariantFixture = {
   videoId: "video-1",
   kind: "source" as const,
   sourceKind: "local-stt" as const,
-  languageLabel: "Whisper transcription",
+  languageLabel: "AI transcription",
   segments: [
     {
       id: "local-stt-1",

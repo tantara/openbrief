@@ -448,7 +448,7 @@ describe("useMediaLibrary", () => {
     expect(result.current.selectedTranscriptVariants[0]).toMatchObject({
       kind: "source",
       sourceKind: "local-stt",
-      languageLabel: "Whisper transcription",
+      languageLabel: "AI transcription",
       segments: [
         expect.objectContaining({
           text: "Whisper transcript.",
