@@ -40,7 +40,7 @@ export function TranscriptOverlayWindow({
   return (
     <main className="min-h-screen bg-transparent">
       <section
-        className="min-h-screen overflow-hidden rounded-xl bg-black/80 text-white shadow-2xl backdrop-blur"
+        className="min-h-screen overflow-hidden rounded-xl border-0 bg-black/80 text-white shadow-none outline-none ring-0 backdrop-blur"
         aria-label={t("transcriptOverlay.window")}
       >
         <div className="flex select-none items-center justify-between gap-3 px-4 py-2 text-xs text-white/65">
@@ -71,7 +71,14 @@ export function TranscriptOverlayWindow({
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
-        <p className="px-4 pb-3 text-base leading-relaxed">{payload.text}</p>
+        <div className="space-y-1 px-4 pb-3">
+          <p className="text-base leading-relaxed">{payload.text}</p>
+          {payload.nextText ? (
+            <p className="text-base leading-relaxed text-white/45">
+              {payload.nextText}
+            </p>
+          ) : null}
+        </div>
       </section>
     </main>
   );

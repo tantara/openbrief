@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::{
     fs,
     path::{Component, Path, PathBuf},
@@ -92,9 +93,25 @@ pub struct SupertonicPodcastTtsResult {
     script_path: String,
     manifest_path: String,
     turn_audio_paths: Vec<String>,
+    turn_timings: Vec<SupertonicPodcastTurnTiming>,
     model_id: String,
     duration_seconds: f64,
     size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SupertonicPodcastTurnTiming {
+    turn_id: String,
+    audio_path: String,
+    start_seconds: f64,
+    end_seconds: f64,
+    duration_seconds: f64,
+}
+
+struct StitchedPodcastAudio {
+    duration_seconds: f64,
+    turn_timings: Vec<SupertonicPodcastTurnTiming>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -422,13 +439,13 @@ fn generate_tts_preview_blocking(
         voice_style_id
     };
 
-    let metadata =
-        fs::metadata(&output_path).map_err(|error| format!("tts_preview_output_missing:{error}"))?;
+    let metadata = fs::metadata(&output_path)
+        .map_err(|error| format!("tts_preview_output_missing:{error}"))?;
     if !metadata.is_file() {
         return Err("tts_preview_output_not_file".to_string());
     }
-    let audio_bytes =
-        fs::read(&output_path).map_err(|error| format!("tts_preview_output_read_failed:{error}"))?;
+    let audio_bytes = fs::read(&output_path)
+        .map_err(|error| format!("tts_preview_output_read_failed:{error}"))?;
     let _ = fs::remove_file(&output_path);
 
     Ok(TtsPreviewResult {
@@ -475,11 +492,6 @@ fn generate_supertonic_podcast_tts_blocking(
         fs::write(&script_path, script_markdown)
             .map_err(|error| format!("supertonic_podcast_script_write_failed:{error}"))?;
     }
-    if let Some(manifest_json) = request.manifest_json.as_deref() {
-        fs::write(&manifest_path, manifest_json)
-            .map_err(|error| format!("supertonic_podcast_manifest_write_failed:{error}"))?;
-    }
-
     let models_root = app_data.join("models").join("supertonic");
     let supertonic_root = app_data.join("supertonic");
     fs::create_dir_all(models_root.join("hf"))
@@ -543,23 +555,38 @@ fn generate_supertonic_podcast_tts_blocking(
         turn_audio_paths.push(turn_relative_path);
     }
 
-    let duration_seconds = stitch_wav_files(&turn_audio_paths, &library_root, &podcast_audio_path)?;
+    let turn_ids: Vec<String> = request.turns.iter().map(|turn| turn.id.clone()).collect();
+    let stitched_audio = stitch_wav_files(
+        &turn_audio_paths,
+        &turn_ids,
+        &library_root,
+        &podcast_audio_path,
+    )?;
     let metadata = fs::metadata(&podcast_audio_path)
         .map_err(|error| format!("supertonic_podcast_output_missing:{error}"))?;
     if !metadata.is_file() {
         return Err("supertonic_podcast_output_not_file".to_string());
     }
 
-    Ok(SupertonicPodcastTtsResult {
+    let result = SupertonicPodcastTtsResult {
         podcast_id,
         audio_path: paths.audio_path,
         script_path: paths.script_path,
         manifest_path: paths.manifest_path,
         turn_audio_paths,
+        turn_timings: stitched_audio.turn_timings,
         model_id,
-        duration_seconds,
+        duration_seconds: stitched_audio.duration_seconds,
         size_bytes: metadata.len(),
-    })
+    };
+
+    if let Some(manifest_json) = request.manifest_json.as_deref() {
+        let manifest_json = podcast_manifest_with_tts_metadata(manifest_json, &result)?;
+        fs::write(&manifest_path, manifest_json)
+            .map_err(|error| format!("supertonic_podcast_manifest_write_failed:{error}"))?;
+    }
+
+    Ok(result)
 }
 
 struct SupertonicProcessOutput {
@@ -938,11 +965,15 @@ fn podcast_turn_audio_file_name(index: usize, speaker_id: &str) -> String {
 
 fn stitch_wav_files(
     turn_audio_paths: &[String],
+    turn_ids: &[String],
     library_root: &Path,
     output_path: &Path,
-) -> Result<f64, String> {
+) -> Result<StitchedPodcastAudio, String> {
     if turn_audio_paths.is_empty() {
         return Err("supertonic_podcast_stitch_inputs_empty".to_string());
+    }
+    if turn_audio_paths.len() != turn_ids.len() {
+        return Err("supertonic_podcast_turn_timing_mismatch".to_string());
     }
 
     let first_path = validated_library_output_path(library_root, &turn_audio_paths[0])?;
@@ -954,6 +985,7 @@ fn stitch_wav_files(
     let mut writer = hound::WavWriter::create(output_path, spec)
         .map_err(|error| format!("supertonic_podcast_wav_create_failed:{error}"))?;
     let mut total_samples: u64 = 0;
+    let mut turn_timings = Vec::with_capacity(turn_audio_paths.len());
     let silence_samples = (spec.sample_rate as f32 * 0.25) as u32 * spec.channels as u32;
 
     for (index, relative_path) in turn_audio_paths.iter().enumerate() {
@@ -964,6 +996,7 @@ fn stitch_wav_files(
             return Err("supertonic_podcast_wav_specs_mismatch".to_string());
         }
 
+        let turn_start_samples = total_samples;
         match spec.sample_format {
             hound::SampleFormat::Float => {
                 for sample in reader.samples::<f32>() {
@@ -973,14 +1006,6 @@ fn stitch_wav_files(
                         })?)
                         .map_err(|error| format!("supertonic_podcast_wav_write_failed:{error}"))?;
                     total_samples += 1;
-                }
-                if index + 1 < turn_audio_paths.len() {
-                    for _ in 0..silence_samples {
-                        writer.write_sample(0.0f32).map_err(|error| {
-                            format!("supertonic_podcast_wav_write_failed:{error}")
-                        })?;
-                        total_samples += 1;
-                    }
                 }
             }
             hound::SampleFormat::Int => {
@@ -992,7 +1017,30 @@ fn stitch_wav_files(
                         .map_err(|error| format!("supertonic_podcast_wav_write_failed:{error}"))?;
                     total_samples += 1;
                 }
-                if index + 1 < turn_audio_paths.len() {
+            }
+        }
+        let turn_end_samples = total_samples;
+        let start_seconds = wav_samples_to_seconds(turn_start_samples, spec);
+        let end_seconds = wav_samples_to_seconds(turn_end_samples, spec);
+        turn_timings.push(SupertonicPodcastTurnTiming {
+            turn_id: turn_ids[index].clone(),
+            audio_path: relative_path.clone(),
+            start_seconds,
+            end_seconds,
+            duration_seconds: end_seconds - start_seconds,
+        });
+
+        if index + 1 < turn_audio_paths.len() {
+            match spec.sample_format {
+                hound::SampleFormat::Float => {
+                    for _ in 0..silence_samples {
+                        writer.write_sample(0.0f32).map_err(|error| {
+                            format!("supertonic_podcast_wav_write_failed:{error}")
+                        })?;
+                        total_samples += 1;
+                    }
+                }
+                hound::SampleFormat::Int => {
                     for _ in 0..silence_samples {
                         writer.write_sample(0i32).map_err(|error| {
                             format!("supertonic_podcast_wav_write_failed:{error}")
@@ -1007,7 +1055,46 @@ fn stitch_wav_files(
     writer
         .finalize()
         .map_err(|error| format!("supertonic_podcast_wav_finalize_failed:{error}"))?;
-    Ok(total_samples as f64 / spec.sample_rate as f64 / spec.channels as f64)
+    Ok(StitchedPodcastAudio {
+        duration_seconds: wav_samples_to_seconds(total_samples, spec),
+        turn_timings,
+    })
+}
+
+fn wav_samples_to_seconds(samples: u64, spec: hound::WavSpec) -> f64 {
+    samples as f64 / spec.sample_rate as f64 / spec.channels as f64
+}
+
+fn podcast_manifest_with_tts_metadata(
+    manifest_json: &str,
+    result: &SupertonicPodcastTtsResult,
+) -> Result<String, String> {
+    let mut manifest: Value = serde_json::from_str(manifest_json)
+        .map_err(|error| format!("supertonic_podcast_manifest_invalid:{error}"))?;
+    let object = manifest
+        .as_object_mut()
+        .ok_or_else(|| "supertonic_podcast_manifest_must_be_object".to_string())?;
+
+    object.insert(
+        "durationSeconds".to_string(),
+        json!(result.duration_seconds),
+    );
+    object.insert("sizeBytes".to_string(), json!(result.size_bytes));
+    object.insert(
+        "turnTimings".to_string(),
+        serde_json::to_value(&result.turn_timings)
+            .map_err(|error| format!("supertonic_podcast_manifest_timing_failed:{error}"))?,
+    );
+
+    if let Some(artifacts) = object.get_mut("artifacts").and_then(Value::as_object_mut) {
+        artifacts.insert("manifestPath".to_string(), json!(result.manifest_path));
+        artifacts.insert("scriptPath".to_string(), json!(result.script_path));
+        artifacts.insert("podcastAudioPath".to_string(), json!(result.audio_path));
+        artifacts.insert("turnAudioPaths".to_string(), json!(result.turn_audio_paths));
+    }
+
+    serde_json::to_string_pretty(&manifest)
+        .map_err(|error| format!("supertonic_podcast_manifest_serialize_failed:{error}"))
 }
 
 fn latest_supertonic_chat_tts_from_root(
@@ -1127,6 +1214,7 @@ fn latest_supertonic_podcast_tts_from_root(
                 library_root,
                 &paths.turn_audio_directory,
             )?,
+            turn_timings: Vec::new(),
             model_id: MODEL_REPO_ID.to_string(),
             duration_seconds: 0.0,
             size_bytes: metadata.len(),
@@ -1418,17 +1506,13 @@ fn tts_model_downloaded(app_data: &Path, model_id: &str) -> bool {
         }
         QWEN_TTS_06B_MODEL_ID => {
             let models_root = app_data.join("models").join("voicebox");
-            hf_repo_cache_exists(
-                &models_root,
-                "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
-            ) || hf_repo_cache_exists(&models_root, "Qwen/Qwen3-TTS-12Hz-0.6B-Base")
+            hf_repo_cache_exists(&models_root, "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16")
+                || hf_repo_cache_exists(&models_root, "Qwen/Qwen3-TTS-12Hz-0.6B-Base")
         }
         QWEN_TTS_17B_MODEL_ID => {
             let models_root = app_data.join("models").join("voicebox");
-            hf_repo_cache_exists(
-                &models_root,
-                "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
-            ) || hf_repo_cache_exists(&models_root, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+            hf_repo_cache_exists(&models_root, "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16")
+                || hf_repo_cache_exists(&models_root, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
         }
         _ => false,
     }
@@ -1487,6 +1571,78 @@ mod tests {
         assert_eq!(
             paths.turn_audio_directory,
             "pdfs/pdf-1/podcast/podcast-2026-05-24/audio/turns"
+        );
+    }
+
+    #[test]
+    fn stitches_podcast_turns_with_turn_timings() {
+        let library_root = std::env::temp_dir().join(format!(
+            "openbrief-supertonic-stitch-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let first = "videos/video-1/podcast/podcast-1/audio/turns/0001-speaker-a.wav";
+        let second = "videos/video-1/podcast/podcast-1/audio/turns/0002-speaker-b.wav";
+        let output = library_root.join("videos/video-1/podcast/podcast-1/audio/podcast.wav");
+        write_test_wav(&library_root.join(first), 4);
+        write_test_wav(&library_root.join(second), 8);
+
+        let stitched = stitch_wav_files(
+            &[first.to_string(), second.to_string()],
+            &["turn-0001".to_string(), "turn-0002".to_string()],
+            &library_root,
+            &output,
+        )
+        .unwrap();
+
+        assert!((stitched.duration_seconds - 3.25).abs() < 0.001);
+        assert_eq!(stitched.turn_timings[0].turn_id, "turn-0001");
+        assert_eq!(stitched.turn_timings[0].start_seconds, 0.0);
+        assert!((stitched.turn_timings[0].end_seconds - 1.0).abs() < 0.001);
+        assert!((stitched.turn_timings[1].start_seconds - 1.25).abs() < 0.001);
+        assert!((stitched.turn_timings[1].end_seconds - 3.25).abs() < 0.001);
+
+        fs::remove_dir_all(library_root).unwrap();
+    }
+
+    #[test]
+    fn writes_tts_metadata_into_podcast_manifest() {
+        let result = SupertonicPodcastTtsResult {
+            podcast_id: "podcast-1".to_string(),
+            audio_path: "videos/video-1/podcast/podcast-1/audio/podcast.wav".to_string(),
+            script_path: "videos/video-1/podcast/podcast-1/script.md".to_string(),
+            manifest_path: "videos/video-1/podcast/podcast-1/podcast.json".to_string(),
+            turn_audio_paths: vec![
+                "videos/video-1/podcast/podcast-1/audio/turns/0001-speaker-a.wav".to_string(),
+            ],
+            turn_timings: vec![SupertonicPodcastTurnTiming {
+                turn_id: "turn-0001".to_string(),
+                audio_path: "videos/video-1/podcast/podcast-1/audio/turns/0001-speaker-a.wav"
+                    .to_string(),
+                start_seconds: 0.0,
+                end_seconds: 1.5,
+                duration_seconds: 1.5,
+            }],
+            model_id: MODEL_REPO_ID.to_string(),
+            duration_seconds: 1.5,
+            size_bytes: 128,
+        };
+
+        let manifest = podcast_manifest_with_tts_metadata(
+            r#"{"schemaVersion":1,"id":"podcast-1","artifacts":{}}"#,
+            &result,
+        )
+        .unwrap();
+        let value: Value = serde_json::from_str(&manifest).unwrap();
+
+        assert_eq!(value["durationSeconds"], json!(1.5));
+        assert_eq!(value["sizeBytes"], json!(128));
+        assert_eq!(value["turnTimings"][0]["turnId"], json!("turn-0001"));
+        assert_eq!(
+            value["artifacts"]["podcastAudioPath"],
+            json!("videos/video-1/podcast/podcast-1/audio/podcast.wav")
         );
     }
 
@@ -1557,9 +1713,8 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let supertonic_snapshot = app_data.join(
-            "models/supertonic/hf/hub/models--Supertone--supertonic-3/snapshots/revision",
-        );
+        let supertonic_snapshot = app_data
+            .join("models/supertonic/hf/hub/models--Supertone--supertonic-3/snapshots/revision");
         let qwen_snapshot = app_data.join(
             "models/voicebox/hf/hub/models--Qwen--Qwen3-TTS-12Hz-0.6B-Base/snapshots/revision",
         );
@@ -1661,5 +1816,22 @@ mod tests {
             asset_directory_from_library_path("../videos/video-1/source.mp4").unwrap_err(),
             "supertonic_asset_path_must_be_library_relative"
         );
+    }
+
+    fn write_test_wav(path: &Path, sample_count: usize) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: 4,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(path, spec).unwrap();
+        for _ in 0..sample_count {
+            writer.write_sample(1i16).unwrap();
+        }
+        writer.finalize().unwrap();
     }
 }

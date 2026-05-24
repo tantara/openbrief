@@ -1,8 +1,16 @@
-import type { PodcastDocument, PodcastSpeakerConfig } from "@/domain/podcast";
 import type { VideoAsset } from "@/domain/media-library";
-import type { TtsLanguageCode, TtsModelId } from "@/services/ttsSettingsService";
+import type {
+  PodcastDocument,
+  PodcastSpeakerConfig,
+  PodcastTurnTiming,
+} from "@/domain/podcast";
+import type { TauriInvoke } from "@/services/tauriHelperClient";
+import type {
+  TtsLanguageCode,
+  TtsModelId,
+} from "@/services/ttsSettingsService";
 import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
-import { canUseTauriRuntime, type TauriInvoke } from "@/services/tauriHelperClient";
+import { canUseTauriRuntime } from "@/services/tauriHelperClient";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 
 export type PodcastTtsResult = {
@@ -11,6 +19,7 @@ export type PodcastTtsResult = {
   scriptPath: string;
   manifestPath: string;
   turnAudioPaths: string[];
+  turnTimings: PodcastTurnTiming[];
   modelId: string;
   durationSeconds: number;
   sizeBytes: number;
@@ -95,8 +104,10 @@ export async function resolvePodcastAudioUrl(
   invokeCommand: TauriInvoke = invoke,
 ) {
   return (
-    (await resolveLibraryAssetUrl(podcast.artifacts.podcastAudioPath, invokeCommand)) ??
-    convertFileSrc(podcast.artifacts.podcastAudioPath)
+    (await resolveLibraryAssetUrl(
+      podcast.artifacts.podcastAudioPath,
+      invokeCommand,
+    )) ?? convertFileSrc(podcast.artifacts.podcastAudioPath)
   );
 }
 

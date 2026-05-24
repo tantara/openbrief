@@ -700,6 +700,7 @@ export function useMediaLibrary(
         },
         durationSeconds: ttsResult.durationSeconds,
         sizeBytes: ttsResult.sizeBytes,
+        turnTimings: ttsResult.turnTimings,
       } satisfies PodcastDocument;
 
       updateLibrarySnapshot(
@@ -783,9 +784,7 @@ export function useMediaLibrary(
         chatMessagesByVideoId: {
           ...current.chatMessagesByVideoId,
           [videoId]: messages.map((message) =>
-            message.id === messageId
-              ? { ...message, voiceMessage }
-              : message,
+            message.id === messageId ? { ...message, voiceMessage } : message,
           ),
         },
       };

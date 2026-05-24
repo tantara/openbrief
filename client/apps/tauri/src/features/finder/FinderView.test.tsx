@@ -8,6 +8,7 @@ import type {
   VideoAsset,
   VideoLibraryQuery,
 } from "@/domain/media-library";
+import type { PodcastDocument } from "@/domain/podcast";
 import { generateVideoThumbnail } from "@/services/browserThumbnail";
 
 vi.mock("@/services/browserThumbnail", () => ({
@@ -57,6 +58,37 @@ const defaultProps = {
   onImportYoutubeUrl: vi.fn(),
   onOpenVideo: vi.fn(),
 };
+
+function createPodcastDocument(videoId: string): PodcastDocument {
+  return {
+    schemaVersion: 1,
+    id: `podcast-${videoId}`,
+    sourceAssetId: videoId,
+    mode: "podcast-summary",
+    sourceKind: "current-summary",
+    lengthMode: "default",
+    provider: "openai",
+    createdAtIso: "2026-05-21T00:00:00.000Z",
+    script: {
+      title: "Podcast",
+      turns: [],
+      markdown: "# Podcast\n",
+    },
+    tts: {
+      modelId: "Supertone/supertonic-3",
+      languageCode: "en",
+      speakers: [],
+    },
+    artifacts: {
+      rootDirectory: `videos/${videoId}/podcast/podcast-${videoId}`,
+      manifestPath: `videos/${videoId}/podcast/podcast-${videoId}/podcast.json`,
+      scriptPath: `videos/${videoId}/podcast/podcast-${videoId}/script.md`,
+      podcastAudioPath: `videos/${videoId}/podcast/podcast-${videoId}/audio/podcast.wav`,
+      turnAudioDirectory: `videos/${videoId}/podcast/podcast-${videoId}/audio/turns`,
+      turnAudioPaths: [],
+    },
+  };
+}
 
 async function openDropdownMenu(name: RegExp) {
   const trigger = screen.getByRole("button", { name });
@@ -499,6 +531,9 @@ describe("FinderView", () => {
         createdAtIso: "2026-05-21T00:00:00.000Z",
       },
     };
+    const podcastsByVideoId: Record<string, PodcastDocument> = {
+      "video-1": createPodcastDocument("video-1"),
+    };
 
     function ControlledFinder() {
       const [query, setQuery] = useState<VideoLibraryQuery>({
@@ -506,6 +541,7 @@ describe("FinderView", () => {
           sourceKind: "all",
           transcriptStatus: "all",
           summaryStatus: "all",
+          podcastStatus: "all",
       });
 
       return (
@@ -513,6 +549,7 @@ describe("FinderView", () => {
           videos={[video, secondVideo]}
           transcriptsByVideoId={transcriptsByVideoId}
           summariesByVideoId={summariesByVideoId}
+          podcastsByVideoId={podcastsByVideoId}
           query={query}
           onQueryChange={setQuery}
           {...defaultProps}
@@ -524,6 +561,7 @@ describe("FinderView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /with transcript/i }));
     fireEvent.click(screen.getByRole("button", { name: /with summary/i }));
+    fireEvent.click(screen.getByRole("button", { name: /with podcast/i }));
 
     expect(screen.getByText("Architecture walkthrough")).toBeInTheDocument();
     expect(screen.queryByText("Travel footage")).not.toBeInTheDocument();

@@ -168,15 +168,42 @@ describe("media library contracts", () => {
           createdAtIso: "2026-05-21T00:00:00.000Z",
         },
       },
+      podcastsByVideoId: {
+        "video-1": { id: "podcast-video-1" },
+      },
       query: {
         searchText: "component architecture",
         sourceKind: "youtube",
         transcriptStatus: "with-transcript",
         summaryStatus: "with-summary",
+        podcastStatus: "with-podcast",
       },
     });
 
     expect(results.map((video) => video.id)).toEqual(["video-1"]);
+
+    expect(
+      filterVideoLibrary({
+        videos,
+        transcriptsByVideoId: {
+          "video-1": [
+            {
+              id: "s1",
+              startSeconds: 12,
+              text: "The speaker explains component architecture.",
+              sourceKind: "youtube-captions",
+            },
+          ],
+        },
+        summariesByVideoId: {},
+        podcastsByVideoId: {
+          "video-1": { id: "podcast-video-1" },
+        },
+        query: {
+          podcastStatus: "without-podcast",
+        },
+      }).map((video) => video.id),
+    ).toEqual(["video-2"]);
   });
 
   it("matches Korean search text across composed syllables and partial jamo input", () => {

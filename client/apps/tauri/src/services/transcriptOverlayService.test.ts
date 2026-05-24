@@ -79,17 +79,26 @@ describe("transcriptOverlayService", () => {
       text: "Transcript line",
       sourceKind: "youtube-captions",
     };
+    const nextSegment: TranscriptSegment = {
+      id: "segment-2",
+      startSeconds: 16,
+      endSeconds: 20,
+      text: "Next transcript line",
+      sourceKind: "youtube-captions",
+    };
 
     expect(
       createTranscriptOverlayPayload({
         video,
         segment,
+        nextSegment,
         timestamp: "0:12",
       }),
     ).toEqual({
       videoTitle: "Demo",
       timestamp: "0:12",
       text: "Transcript line",
+      nextText: "Next transcript line",
     });
     expect(
       createTranscriptOverlayPayload({

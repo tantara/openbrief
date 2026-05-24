@@ -1,13 +1,3 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
-import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
 import type {
   ChatMessage,
   SummaryDocument,
@@ -16,13 +6,23 @@ import type {
   VideoAsset,
 } from "@/domain/media-library";
 import type { PodcastDocument } from "@/domain/podcast";
+import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
+import type { ComponentProps } from "react";
 import {
   nextVoiceCloneTranscriptSegmentSelection,
   shortProviderModelName,
   WorkbenchView,
 } from "@/features/workbench/WorkbenchView";
-import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
 import { createInitialVideoPlaybackState } from "@/hooks/useVideoPlayback";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 describe("WorkbenchView", () => {
   it("renders podcast controls and submits preset Supertonic speakers", async () => {
@@ -81,6 +81,18 @@ describe("WorkbenchView", () => {
     expect(audio).toHaveAttribute("src", "asset://podcast.wav");
     fireEvent.play(audio as HTMLAudioElement);
     expect(onPauseVideo).toHaveBeenCalledWith("video-1");
+    const hostTurn = screen.getByRole("button", {
+      name: /host.*0:00.*welcome to the brief/i,
+    });
+    const guestTurn = screen.getByRole("button", {
+      name: /guest.*0:12.*here is the key point/i,
+    });
+    expect(hostTurn).toBeInTheDocument();
+    expect(guestTurn).toBeInTheDocument();
+    fireEvent.click(guestTurn);
+    expect((audio as HTMLAudioElement).currentTime).toBe(12);
+    fireEvent.timeUpdate(audio as HTMLAudioElement);
+    expect(guestTurn).toHaveAttribute("aria-current", "true");
     expect(screen.getByText("Host")).toBeInTheDocument();
     expect(screen.getByText("Welcome to the brief.")).toBeInTheDocument();
     expect(screen.getByText("Guest")).toBeInTheDocument();
@@ -89,15 +101,39 @@ describe("WorkbenchView", () => {
 
   it("limits voice clone transcript selection to three contiguous blocks", () => {
     const transcript: TranscriptSegment[] = [
-      { id: "s1", startSeconds: 0, endSeconds: 5, text: "One", sourceKind: "local-stt" },
-      { id: "s2", startSeconds: 5, endSeconds: 10, text: "Two", sourceKind: "local-stt" },
-      { id: "s3", startSeconds: 10, endSeconds: 15, text: "Three", sourceKind: "local-stt" },
-      { id: "s4", startSeconds: 15, endSeconds: 20, text: "Four", sourceKind: "local-stt" },
+      {
+        id: "s1",
+        startSeconds: 0,
+        endSeconds: 5,
+        text: "One",
+        sourceKind: "local-stt",
+      },
+      {
+        id: "s2",
+        startSeconds: 5,
+        endSeconds: 10,
+        text: "Two",
+        sourceKind: "local-stt",
+      },
+      {
+        id: "s3",
+        startSeconds: 10,
+        endSeconds: 15,
+        text: "Three",
+        sourceKind: "local-stt",
+      },
+      {
+        id: "s4",
+        startSeconds: 15,
+        endSeconds: 20,
+        text: "Four",
+        sourceKind: "local-stt",
+      },
     ];
 
-    expect(nextVoiceCloneTranscriptSegmentSelection(transcript, [], "s1")).toEqual([
-      "s1",
-    ]);
+    expect(
+      nextVoiceCloneTranscriptSegmentSelection(transcript, [], "s1"),
+    ).toEqual(["s1"]);
     expect(
       nextVoiceCloneTranscriptSegmentSelection(transcript, ["s1"], "s2"),
     ).toEqual(["s1", "s2"]);
@@ -158,10 +194,7 @@ describe("WorkbenchView", () => {
     const onAddVideo = vi.fn();
 
     render(
-      <WorkbenchView
-        {...defaultProps({ onAddVideo })}
-        video={undefined}
-      />,
+      <WorkbenchView {...defaultProps({ onAddVideo })} video={undefined} />,
     );
 
     expect(screen.getByText(/select media from library/i)).toBeInTheDocument();
@@ -174,11 +207,13 @@ describe("WorkbenchView", () => {
     render(<WorkbenchView {...defaultProps()} />);
 
     expect(screen.getByLabelText("Workbench sample")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: /brief/i }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: /brief/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Summary" })[0])
-      .toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getAllByRole("button", { name: "Summary" })[0],
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders an audio player in the first workbench column for audio assets", () => {
@@ -200,10 +235,12 @@ describe("WorkbenchView", () => {
     );
 
     expect(screen.getAllByText("Audio sample")).not.toHaveLength(0);
-    expect(screen.getByLabelText("Audio sample", { selector: "audio" }))
-      .toHaveAttribute("src", "audio/local-audio-sample/audio-sample.mp3");
-    expect(screen.queryByRole("button", { name: /^audio$/i }))
-      .not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Audio sample", { selector: "audio" }),
+    ).toHaveAttribute("src", "audio/local-audio-sample/audio-sample.mp3");
+    expect(
+      screen.queryByRole("button", { name: /^audio$/i }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /play audio sample/i }));
     expect(onPlayVideo).toHaveBeenCalledWith("audio-1");
     expect(screen.queryByLabelText("Workbench sample")).not.toBeInTheDocument();
@@ -219,7 +256,9 @@ describe("WorkbenchView", () => {
     fireEvent.timeUpdate(audio);
     expect(onVideoTimeUpdate).toHaveBeenCalledWith("audio-1", 12);
 
-    fireEvent.click(screen.getByRole("button", { name: /picture-in-picture/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /picture-in-picture/i }),
+    );
     expect(onOpenPictureInPicture).toHaveBeenCalledWith("audio-1");
   });
 
@@ -238,8 +277,7 @@ describe("WorkbenchView", () => {
       "src",
       "documents/local-pdf-sample/pdf-sample.pdf",
     );
-    expect(screen.getByRole("heading", { name: /brief/i }))
-      .toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /brief/i })).toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
   });
 
@@ -254,8 +292,9 @@ describe("WorkbenchView", () => {
       "Transcription is required for summary. Please extract transcription first.",
     );
     expect(screen.getByRole("button", { name: /summarize/i })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /save markdown/i }))
-      .not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /save markdown/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders transcript segments and generated markdown", () => {
@@ -268,10 +307,13 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /jump to 0:12/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /jump to 0:12/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Transcript detail")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: /brief/i }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: /brief/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows transcript review, translation, overlay, and variant controls", async () => {
@@ -299,10 +341,13 @@ describe("WorkbenchView", () => {
     fireEvent.click(screen.getByRole("button", { name: /^overlay$/i }));
     expect(onOpenTranscriptOverlay).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(screen.getByRole("combobox", { name: "Transcript language" }), {
-      key: "Enter",
-      code: "Enter",
-    });
+    fireEvent.keyDown(
+      screen.getByRole("combobox", { name: "Transcript language" }),
+      {
+        key: "Enter",
+        code: "Enter",
+      },
+    );
     fireEvent.click(await screen.findByRole("option", { name: "Korean" }));
     expect(onSelectTranscriptVariant).toHaveBeenCalledWith("translation-ko");
 
@@ -329,7 +374,9 @@ describe("WorkbenchView", () => {
     const translatedText = screen.getByText("번역된 자막");
     const transcriptRow = translatedText.closest("li");
 
-    expect(transcriptRow).toContainElement(screen.getByText("Transcript detail"));
+    expect(transcriptRow).toContainElement(
+      screen.getByText("Transcript detail"),
+    );
     expect(translatedText).toBeInTheDocument();
   });
 
@@ -365,8 +412,9 @@ describe("WorkbenchView", () => {
     ).toBeDisabled();
     resolveReview?.();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^review$/i }))
-        .toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^review$/i }),
+      ).toBeInTheDocument(),
     );
 
     fireEvent.click(screen.getByRole("button", { name: /^translate$/i }));
@@ -389,8 +437,9 @@ describe("WorkbenchView", () => {
 
     resolveTranslation?.();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^translate$/i }))
-        .toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /^translate$/i }),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -404,15 +453,20 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    fireEvent.keyDown(screen.getByRole("combobox", { name: "Transcript language" }), {
-      key: "Enter",
-      code: "Enter",
-    });
+    fireEvent.keyDown(
+      screen.getByRole("combobox", { name: "Transcript language" }),
+      {
+        key: "Enter",
+        code: "Enter",
+      },
+    );
 
-    expect(await screen.findByRole("option", { name: "Provider captions" }))
-      .toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "AI transcription" }))
-      .toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Provider captions" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "AI transcription" }),
+    ).toBeInTheDocument();
   });
 
   it("does not use source variant labels as summary target languages", async () => {
@@ -465,13 +519,16 @@ describe("WorkbenchView", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redo" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Heading 1" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Heading 1" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bullet list" }))
-      .toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save markdown" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Bullet list" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save markdown" }),
+    ).toBeInTheDocument();
   });
 
   it("edits transcript segment text inline", () => {
@@ -486,7 +543,9 @@ describe("WorkbenchView", () => {
     );
 
     fireEvent.focus(screen.getByRole("button", { name: /jump to 0:12/i }));
-    fireEvent.click(screen.getByRole("button", { name: /edit transcript at 0:12/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /edit transcript at 0:12/i }),
+    );
     fireEvent.change(screen.getByLabelText(/transcript text at 0:12/i), {
       target: { value: "Corrected transcript detail" },
     });
@@ -580,8 +639,12 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    const activeJumpButton = screen.getByRole("button", { name: /jump to 0:12/i });
-    const nextJumpButton = screen.getByRole("button", { name: /jump to 0:30/i });
+    const activeJumpButton = screen.getByRole("button", {
+      name: /jump to 0:12/i,
+    });
+    const nextJumpButton = screen.getByRole("button", {
+      name: /jump to 0:30/i,
+    });
 
     fireEvent.focus(activeJumpButton);
     const activeEditButton = screen.getByRole("button", {
@@ -644,11 +707,13 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByRole("progressbar", { name: /transcription progress/i }))
-      .toHaveAttribute("aria-valuenow", "64");
+    expect(
+      screen.getByRole("progressbar", { name: /transcription progress/i }),
+    ).toHaveAttribute("aria-valuenow", "64");
     expect(screen.getByText("Local STT")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /extracting transcript/i }))
-      .toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /extracting transcript/i }),
+    ).toBeDisabled();
   });
 
   it("shows local transcription preparation before stt progress starts", () => {
@@ -680,8 +745,9 @@ describe("WorkbenchView", () => {
     expect(screen.getAllByText("Generating summary...")).toHaveLength(1);
     expect(screen.getAllByText("AI is writing a response...")).toHaveLength(2);
     expect(screen.getAllByText("openai · gpt-5.4-mini")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: /ai is writing a response/i }))
-      .toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /ai is writing a response/i }),
+    ).toBeDisabled();
   });
 
   it("shortens model names in the summary generation status", () => {
@@ -698,10 +764,12 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByText("openrouter · deepseek-v4-flash"))
-      .toBeInTheDocument();
-    expect(screen.queryByText("openrouter · deepseek/deepseek-v4-flash"))
-      .not.toBeInTheDocument();
+    expect(
+      screen.getByText("openrouter · deepseek-v4-flash"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("openrouter · deepseek/deepseek-v4-flash"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders streaming summary draft markdown while generation is running", () => {
@@ -718,8 +786,9 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Draft summary" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Draft summary" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Streaming paragraph")).toBeInTheDocument();
   });
 
@@ -758,14 +827,19 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /extract transcript/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /extract transcript/i }),
+    );
     await waitFor(() => expect(onExtractTranscript).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: /^summarize$/i }));
-    fireEvent.keyDown(screen.getByRole("combobox", { name: "Summary language" }), {
-      key: "Enter",
-      code: "Enter",
-    });
+    fireEvent.keyDown(
+      screen.getByRole("combobox", { name: "Summary language" }),
+      {
+        key: "Enter",
+        code: "Enter",
+      },
+    );
     fireEvent.click(await screen.findByRole("option", { name: "Korean" }));
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
@@ -1099,10 +1173,14 @@ describe("WorkbenchView", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Second video" }));
     expect(onSelectVideoTab).toHaveBeenCalledWith("video-2");
 
-    fireEvent.click(screen.getByRole("button", { name: /close second video/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /close second video/i }),
+    );
     expect(onCloseVideoTab).toHaveBeenCalledWith("video-2");
 
-    expect(screen.getByRole("heading", { name: "Alternate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Alternate" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: /summary 1/i }));
     expect(onSelectSummaryTab).toHaveBeenCalledWith("summary-video-1");
@@ -1225,10 +1303,12 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByText("Active transcript detail").closest("li"))
-      .toHaveAttribute("aria-current", "true");
-    expect(screen.getByText("Opening transcript").closest("li"))
-      .not.toHaveAttribute("aria-current");
+    expect(
+      screen.getByText("Active transcript detail").closest("li"),
+    ).toHaveAttribute("aria-current", "true");
+    expect(
+      screen.getByText("Opening transcript").closest("li"),
+    ).not.toHaveAttribute("aria-current");
   });
 
   it("highlights transcript timing while audio playback is running", () => {
@@ -1266,10 +1346,12 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByText("Active audio transcript").closest("li"))
-      .toHaveAttribute("aria-current", "true");
-    expect(screen.getByText("Opening audio transcript").closest("li"))
-      .not.toHaveAttribute("aria-current");
+    expect(
+      screen.getByText("Active audio transcript").closest("li"),
+    ).toHaveAttribute("aria-current", "true");
+    expect(
+      screen.getByText("Opening audio transcript").closest("li"),
+    ).not.toHaveAttribute("aria-current");
   });
 
   it("opens the selected video in picture-in-picture", () => {
@@ -1283,7 +1365,9 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /picture-in-picture/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /picture-in-picture/i }),
+    );
 
     expect(onOpenPictureInPicture).toHaveBeenCalledWith("video-1");
   });
@@ -1291,9 +1375,12 @@ describe("WorkbenchView", () => {
   it("shows tooltips for video controls and the add tab button", async () => {
     render(<WorkbenchView {...defaultProps()} />);
 
-    fireEvent.focus(screen.getByRole("button", { name: /picture-in-picture/i }));
-    expect(await screen.findAllByText("Picture-in-picture player"))
-      .not.toHaveLength(0);
+    fireEvent.focus(
+      screen.getByRole("button", { name: /picture-in-picture/i }),
+    );
+    expect(
+      await screen.findAllByText("Picture-in-picture player"),
+    ).not.toHaveLength(0);
 
     fireEvent.focus(screen.getByRole("button", { name: /enter fullscreen/i }));
     expect(await screen.findAllByText("Enter fullscreen")).not.toHaveLength(0);
@@ -1320,11 +1407,13 @@ describe("WorkbenchView", () => {
 
     expect(screen.getByText("Answer").closest("strong")).not.toBeNull();
     expect(screen.getByText("Key point")).toBeInTheDocument();
-    expect(screen.queryByText("**Answer** from transcript"))
-      .not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New chat" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New chat" }))
-      .toHaveClass("h-8");
+    expect(
+      screen.queryByText("**Answer** from transcript"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New chat" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New chat" })).toHaveClass("h-8");
     fireEvent.click(screen.getByRole("button", { name: "New chat" }));
     expect(onResetChat).toHaveBeenCalledTimes(1);
   });
@@ -1354,6 +1443,29 @@ describe("WorkbenchView", () => {
     );
   });
 
+  it("hides the read message action on user chat bubbles", () => {
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: [
+            {
+              ...chatFixture[0],
+              id: "chat-user-1",
+              role: "user",
+              content: "Can you summarize this?",
+              tokenUsage: undefined,
+            },
+          ],
+          onReadChatMessage: vi.fn().mockResolvedValue(undefined),
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Read message" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows a global chat speech generation as the active read state", () => {
     render(
       <WorkbenchView
@@ -1365,8 +1477,7 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Read message" }))
-      .toBeDisabled();
+    expect(screen.getByRole("button", { name: "Read message" })).toBeDisabled();
   });
 
   it("keeps other chat bubbles clickable while a different message is generating", () => {
@@ -1387,8 +1498,9 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Read message" }))
-      .not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Read message" }),
+    ).not.toBeDisabled();
   });
 
   it("shows a download action when generated chat speech exists", () => {
@@ -1526,23 +1638,31 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "Play voice message" }))
-      .not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Download voice message" }))
-      .not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Read message" }))
-      .toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Play voice message" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download voice message" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Read message" }),
+    ).toBeInTheDocument();
 
-    const olderBubble = screen.getByText("Answer from transcript").closest("li");
+    const olderBubble = screen
+      .getByText("Answer from transcript")
+      .closest("li");
     expect(olderBubble).not.toBeNull();
     fireEvent.pointerEnter(olderBubble as HTMLElement);
 
-    expect(screen.getByRole("button", { name: "Play voice message" }))
-      .toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download voice message" }))
-      .toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Regenerate voice message" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Play voice message" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download voice message" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Regenerate voice message" }),
+    ).toBeInTheDocument();
   });
 
   it("shows pause action for the currently playing chat speech", () => {
@@ -1567,7 +1687,9 @@ describe("WorkbenchView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Pause voice message" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pause voice message" }),
+    );
 
     expect(onPauseChatTtsAudio).toHaveBeenCalledWith(
       expect.objectContaining({ id: "chat-1" }),
@@ -1599,24 +1721,31 @@ describe("WorkbenchView", () => {
 
     const olderBubble = screen.getByText("Older answer").closest("li");
     expect(olderBubble).not.toBeNull();
-    expect(screen.getAllByRole("button", { name: "Copy message" }))
-      .toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "Copy message" }),
+    ).toHaveLength(1);
 
     fireEvent.pointerEnter(olderBubble as HTMLElement);
-    expect(screen.getAllByRole("button", { name: "Copy message" }))
-      .toHaveLength(2);
+    expect(
+      screen.getAllByRole("button", { name: "Copy message" }),
+    ).toHaveLength(2);
 
     fireEvent.pointerLeave(olderBubble as HTMLElement);
-    expect(screen.getAllByRole("button", { name: "Copy message" }))
-      .toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "Copy message" }),
+    ).toHaveLength(1);
 
     fireEvent.focus(olderBubble as HTMLElement);
-    expect(screen.getAllByRole("button", { name: "Copy message" }))
-      .toHaveLength(2);
+    expect(
+      screen.getAllByRole("button", { name: "Copy message" }),
+    ).toHaveLength(2);
 
-    fireEvent.blur(olderBubble as HTMLElement, { relatedTarget: document.body });
-    expect(screen.getAllByRole("button", { name: "Copy message" }))
-      .toHaveLength(1);
+    fireEvent.blur(olderBubble as HTMLElement, {
+      relatedTarget: document.body,
+    });
+    expect(
+      screen.getAllByRole("button", { name: "Copy message" }),
+    ).toHaveLength(1);
   });
 
   it("shows chat bubble copy actions, token usage, and provider controls", async () => {
@@ -1659,10 +1788,10 @@ describe("WorkbenchView", () => {
   });
 
   it("shortens provider model names by separators", () => {
-    expect(shortProviderModelName("deepseek/deepseek-v4-flash"))
-      .toBe("deepseek-v4-flash");
-    expect(shortProviderModelName("openai:gpt-5.4-mini"))
-      .toBe("gpt-5.4-mini");
+    expect(shortProviderModelName("deepseek/deepseek-v4-flash")).toBe(
+      "deepseek-v4-flash",
+    );
+    expect(shortProviderModelName("openai:gpt-5.4-mini")).toBe("gpt-5.4-mini");
   });
 });
 
@@ -1819,12 +1948,31 @@ const podcastFixture: PodcastDocument = {
     manifestPath: "videos/video-1/podcast/podcast-video-1/podcast.json",
     scriptPath: "videos/video-1/podcast/podcast-video-1/script.md",
     turnAudioDirectory: "videos/video-1/podcast/podcast-video-1/audio/turns",
-    podcastAudioPath: "videos/video-1/podcast/podcast-video-1/audio/podcast.wav",
+    podcastAudioPath:
+      "videos/video-1/podcast/podcast-video-1/audio/podcast.wav",
     turnAudioPaths: [
       "videos/video-1/podcast/podcast-video-1/audio/turns/0001-speaker-a.wav",
       "videos/video-1/podcast/podcast-video-1/audio/turns/0002-speaker-b.wav",
     ],
   },
+  turnTimings: [
+    {
+      turnId: "turn-0001",
+      audioPath:
+        "videos/video-1/podcast/podcast-video-1/audio/turns/0001-speaker-a.wav",
+      startSeconds: 0,
+      endSeconds: 11.5,
+      durationSeconds: 11.5,
+    },
+    {
+      turnId: "turn-0002",
+      audioPath:
+        "videos/video-1/podcast/podcast-video-1/audio/turns/0002-speaker-b.wav",
+      startSeconds: 12,
+      endSeconds: 24,
+      durationSeconds: 12,
+    },
+  ],
   durationSeconds: 24,
   sizeBytes: 1024,
 };
@@ -1862,7 +2010,9 @@ const chatFixture: ChatMessage[] = [
   },
 ];
 
-function defaultProps(overrides: Partial<ComponentProps<typeof WorkbenchView>> = {}) {
+function defaultProps(
+  overrides: Partial<ComponentProps<typeof WorkbenchView>> = {},
+) {
   return {
     video: videoFixture,
     transcript: [],

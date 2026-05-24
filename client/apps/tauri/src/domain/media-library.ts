@@ -274,6 +274,7 @@ export type VideoLibraryQuery = {
   importStatus?: ImportStatus | "all";
   transcriptStatus?: "all" | "with-transcript" | "without-transcript";
   summaryStatus?: "all" | "with-summary" | "without-summary";
+  podcastStatus?: "all" | "with-podcast" | "without-podcast";
   sortBy?: VideoLibrarySortKey;
   page?: number;
 };
@@ -332,11 +333,13 @@ export function filterVideoLibrary({
   videos,
   transcriptsByVideoId = {},
   summariesByVideoId = {},
+  podcastsByVideoId = {},
   query = {},
 }: {
   videos: VideoAsset[];
   transcriptsByVideoId?: Record<string, TranscriptSegment[]>;
   summariesByVideoId?: Record<string, SummaryDocument>;
+  podcastsByVideoId?: Record<string, unknown>;
   query?: VideoLibraryQuery;
 }) {
   const searchNeedles = createSearchNeedles(query.searchText ?? "");
@@ -371,6 +374,14 @@ export function filterVideoLibrary({
       return false;
     }
     if (query.summaryStatus === "without-summary" && hasSummary) {
+      return false;
+    }
+
+    const hasPodcast = Boolean(podcastsByVideoId[video.id]);
+    if (query.podcastStatus === "with-podcast" && !hasPodcast) {
+      return false;
+    }
+    if (query.podcastStatus === "without-podcast" && hasPodcast) {
       return false;
     }
 

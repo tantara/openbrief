@@ -4,14 +4,14 @@ import type {
   TranscriptSegment,
   VideoAsset,
 } from "@/domain/media-library";
-import { mediaSourceTypeForAsset } from "@/domain/media-library";
 import type { TranscriptVariant } from "@/domain/transcript-actions";
-import { formatTranscriptSegment } from "@/domain/summary";
 import type {
   SupertonicVoiceStyleId,
   TtsLanguageCode,
   TtsModelId,
 } from "@/services/ttsSettingsService";
+import { mediaSourceTypeForAsset } from "@/domain/media-library";
+import { formatTranscriptSegment } from "@/domain/summary";
 
 export type PodcastOutputMode = "podcast-summary" | "audiobook-brief";
 export type PodcastLengthMode = "short" | "default" | "long";
@@ -56,6 +56,14 @@ export type PodcastArtifactPaths = {
   turnAudioDirectory: string;
 };
 
+export type PodcastTurnTiming = {
+  turnId: string;
+  audioPath: string;
+  startSeconds: number;
+  endSeconds: number;
+  durationSeconds: number;
+};
+
 export type PodcastDocument = {
   schemaVersion: 1;
   id: string;
@@ -78,6 +86,7 @@ export type PodcastDocument = {
   };
   durationSeconds?: number;
   sizeBytes?: number;
+  turnTimings?: PodcastTurnTiming[];
   sourceSummaryId?: string;
   sourceTranscriptVariantId?: string;
 };
@@ -115,7 +124,10 @@ const lengthGuidance: Record<PodcastLengthMode, string> = {
   long: "10 to 16 detailed turns",
 };
 
-export function createPodcastId(assetId: string, nowIso = new Date().toISOString()) {
+export function createPodcastId(
+  assetId: string,
+  nowIso = new Date().toISOString(),
+) {
   return `podcast-${sanitizePathSegment(assetId)}-${sanitizePathSegment(nowIso)}`;
 }
 
@@ -123,7 +135,8 @@ export function createPodcastArtifactPaths(
   asset: VideoAsset,
   podcastId: string,
 ): PodcastArtifactPaths {
-  const directory = podcastDirectoryBySourceType[mediaSourceTypeForAsset(asset)];
+  const directory =
+    podcastDirectoryBySourceType[mediaSourceTypeForAsset(asset)];
   const rootDirectory = `${directory}/${sanitizePathSegment(asset.id)}/podcast/${sanitizePathSegment(podcastId)}`;
 
   return {
@@ -166,7 +179,9 @@ export function createPodcastScriptPrompt({
       `Source type: ${mediaSourceTypeForAsset(video)}`,
       `Source: ${sourceLabel}`,
       `Length: ${lengthGuidance[lengthMode]}`,
-      outputLanguage ? `Output language: ${outputLanguage}` : "Output language: match the source.",
+      outputLanguage
+        ? `Output language: ${outputLanguage}`
+        : "Output language: match the source.",
       `Speaker A: ${speakers[0].label}`,
       `Speaker B: ${speakers[1].label}`,
       "",
@@ -206,7 +221,9 @@ export function validatePodcastScriptResponse(
     throw new Error("podcast_script_too_short");
   }
 
-  const speakers = new Map(request.speakers.map((speaker) => [speaker.id, speaker]));
+  const speakers = new Map(
+    request.speakers.map((speaker) => [speaker.id, speaker]),
+  );
   const turns = rawTurns.map((turn, index) => {
     if (!isRecord(turn)) {
       throw new Error("podcast_turn_invalid");
@@ -264,6 +281,7 @@ export function createPodcastDocument({
   artifacts,
   durationSeconds,
   sizeBytes,
+  turnTimings,
   sourceSummaryId,
   sourceTranscriptVariantId,
   nowIso = new Date().toISOString(),
@@ -281,6 +299,7 @@ export function createPodcastDocument({
   artifacts?: PodcastDocument["artifacts"];
   durationSeconds?: number;
   sizeBytes?: number;
+  turnTimings?: PodcastTurnTiming[];
   sourceSummaryId?: string;
   sourceTranscriptVariantId?: string;
   nowIso?: string;
@@ -302,12 +321,14 @@ export function createPodcastDocument({
     tts,
     artifacts: artifacts ?? {
       ...paths,
-      turnAudioPaths: script.turns.map((turn, index) =>
-        `${paths.turnAudioDirectory}/${turnAudioFileName(index, turn.speakerId)}`,
+      turnAudioPaths: script.turns.map(
+        (turn, index) =>
+          `${paths.turnAudioDirectory}/${turnAudioFileName(index, turn.speakerId)}`,
       ),
     },
     durationSeconds,
     sizeBytes,
+    turnTimings,
     sourceSummaryId,
     sourceTranscriptVariantId,
   };
@@ -317,16 +338,20 @@ export function createPodcastScriptMarkdown({
   title,
   turns,
 }: Pick<PodcastScriptDocument, "title" | "turns">) {
-  return [
-    `# ${title}`,
-    "",
-    ...turns.flatMap((turn) => [
-      `**${turn.speakerLabel}**`,
+  return (
+    [
+      `# ${title}`,
       "",
-      turn.text,
-      "",
-    ]),
-  ].join("\n").trimEnd() + "\n";
+      ...turns.flatMap((turn) => [
+        `**${turn.speakerLabel}**`,
+        "",
+        turn.text,
+        "",
+      ]),
+    ]
+      .join("\n")
+      .trimEnd() + "\n"
+  );
 }
 
 export function turnAudioFileName(index: number, speakerId: PodcastSpeakerId) {
@@ -376,7 +401,9 @@ function normalizePodcastAnchor(anchor: unknown, video: VideoAsset) {
     ...(isValidSeconds(startSeconds, video.durationSeconds)
       ? { startSeconds }
       : {}),
-    ...(isValidSeconds(endSeconds, video.durationSeconds) ? { endSeconds } : {}),
+    ...(isValidSeconds(endSeconds, video.durationSeconds)
+      ? { endSeconds }
+      : {}),
     ...(isValidPage(pageStart, video.pageCount) ? { pageStart } : {}),
     ...(isValidPage(pageEnd, video.pageCount) ? { pageEnd } : {}),
   };
@@ -403,7 +430,9 @@ function isValidPage(value: number | undefined, pageCount?: number) {
 }
 
 function numberOrUndefined(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function stringOrDefault(value: unknown, fallback: string) {
@@ -411,12 +440,14 @@ function stringOrDefault(value: unknown, fallback: string) {
 }
 
 function sanitizePathSegment(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120) || "item";
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || "item"
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -13,6 +13,7 @@ export type TranscriptOverlayPayload = {
   videoTitle: string;
   timestamp: string;
   text: string;
+  nextText?: string;
 };
 
 export async function showTranscriptOverlay(
@@ -39,15 +40,18 @@ export async function hideTranscriptOverlay(
 export function createTranscriptOverlayPayload({
   video,
   segment,
+  nextSegment,
   timestamp,
 }: {
   video: VideoAsset;
   segment?: TranscriptSegment;
+  nextSegment?: TranscriptSegment;
   timestamp: string;
 }): TranscriptOverlayPayload {
   return {
     videoTitle: video.title,
     timestamp,
     text: segment?.text ?? "No transcript at the current timestamp.",
+    ...(nextSegment ? { nextText: nextSegment.text } : {}),
   };
 }

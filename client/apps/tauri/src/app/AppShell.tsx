@@ -890,11 +890,11 @@ export function AppShell() {
       (variant) => variant.id === activeTranscriptVariantId,
     );
     const renderedTranscript = activeVariant?.segments ?? selectedTranscript;
-    const segment = findSegmentForTime(
+    const { segment, nextSegment } = findSegmentContextForTime(
       renderedTranscript,
       playbackState.currentTimeSeconds,
     );
-    const overlayKey = `${selectedVideo.id}:${activeTranscriptVariantId}:${segment?.id ?? "none"}:${Math.floor(playbackState.currentTimeSeconds)}`;
+    const overlayKey = `${selectedVideo.id}:${activeTranscriptVariantId}:${segment?.id ?? "none"}:${nextSegment?.id ?? "none"}:${Math.floor(playbackState.currentTimeSeconds)}`;
     if (lastOverlaySegmentKeyRef.current === overlayKey) return;
 
     lastOverlaySegmentKeyRef.current = overlayKey;
@@ -902,6 +902,7 @@ export function AppShell() {
       createTranscriptOverlayPayload({
         video: selectedVideo,
         segment,
+        nextSegment,
         timestamp: formatTimestamp(playbackState.currentTimeSeconds),
       }),
     );
@@ -1909,7 +1910,7 @@ export function AppShell() {
       (variant) => variant.id === activeTranscriptVariantId,
     );
     const renderedTranscript = activeVariant?.segments ?? selectedTranscript;
-    const segment = findSegmentForTime(
+    const { segment, nextSegment } = findSegmentContextForTime(
       renderedTranscript,
       playbackState.currentTimeSeconds,
     );
@@ -1920,6 +1921,7 @@ export function AppShell() {
       createTranscriptOverlayPayload({
         video: selectedVideo,
         segment,
+        nextSegment,
         timestamp: formatTimestamp(playbackState.currentTimeSeconds),
       }),
     );
@@ -2064,6 +2066,7 @@ export function AppShell() {
           ingestJobs={state.ingestJobs}
           transcriptsByVideoId={state.transcriptsByVideoId}
           summariesByVideoId={state.summariesByVideoId}
+          podcastsByVideoId={state.podcastsByVideoId}
           selectedVideoId={state.selectedVideoId}
           query={finderQuery}
           onQueryChange={setFinderQuery}
@@ -3183,19 +3186,37 @@ function jobIdFromImportResult(result: unknown) {
   return undefined;
 }
 
-function findSegmentForTime<
+function findSegmentContextForTime<
   TSegment extends { startSeconds: number; endSeconds?: number },
 >(segments: TSegment[], currentTimeSeconds: number) {
-  return segments.find((segment, index) => {
-    const nextSegment = segments[index + 1];
-    const endSeconds =
-      segment.endSeconds ?? nextSegment?.startSeconds ?? Infinity;
+  let nextUpcomingSegment: TSegment | undefined;
+  let segmentIndex = -1;
 
-    return (
-      currentTimeSeconds >= segment.startSeconds &&
-      currentTimeSeconds < endSeconds
-    );
+  const segment = segments.find((candidate, index) => {
+    if (!nextUpcomingSegment && currentTimeSeconds < candidate.startSeconds) {
+      nextUpcomingSegment = candidate;
+      return false;
+    }
+
+    const followingSegment = segments[index + 1];
+    const endSeconds =
+      candidate.endSeconds ?? followingSegment?.startSeconds ?? Infinity;
+
+    const isCurrent =
+      currentTimeSeconds >= candidate.startSeconds &&
+      currentTimeSeconds < endSeconds;
+
+    if (isCurrent) {
+      segmentIndex = index;
+    }
+
+    return isCurrent;
   });
+
+  return {
+    segment,
+    nextSegment: segment ? segments[segmentIndex + 1] : nextUpcomingSegment,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

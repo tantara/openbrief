@@ -9,10 +9,11 @@ use tauri::{AppHandle, Manager, Runtime};
 
 #[tauri::command]
 pub fn load_media_library_snapshot<R: Runtime>(app: AppHandle<R>) -> Result<Value, String> {
-    let db_path = media_library_db_path_for_app(&app)?;
+    let library_root = openbrief_library_root_for_app(&app)?;
+    let db_path = library_root.join("openbrief.sqlite3");
     let connection = open_media_library_connection(&db_path)?;
 
-    load_media_library_snapshot_from_connection(&connection)
+    load_media_library_snapshot_from_connection(&connection, &library_root)
 }
 
 #[tauri::command]
@@ -196,6 +197,32 @@ fn save_media_library_snapshot_to_connection(
         }
     }
 
+    let mut podcasts: BTreeMap<(String, String), Value> = BTreeMap::new();
+    for (video_id, podcast) in object_field(snapshot, "podcastsByVideoId") {
+        podcasts.insert(
+            (video_id.to_string(), value_id(podcast).to_string()),
+            podcast.clone(),
+        );
+    }
+    for (video_id, history) in object_field(snapshot, "podcastHistoryByVideoId") {
+        for podcast in as_array(history) {
+            podcasts.insert(
+                (video_id.to_string(), value_id(podcast).to_string()),
+                podcast.clone(),
+            );
+        }
+    }
+    for ((video_id, podcast_id), podcast) in podcasts {
+        insert_record(
+            &tx,
+            "podcast",
+            &format!("{video_id}:{podcast_id}"),
+            Some(&video_id),
+            value_sort_key(&podcast),
+            &podcast,
+        )?;
+    }
+
     tx.commit()
         .map_err(|error| format!("media_library_db_commit_failed:{error}"))?;
 
@@ -294,7 +321,10 @@ fn migrate_legacy_artifact_field(
     Ok(())
 }
 
-fn load_media_library_snapshot_from_connection(connection: &Connection) -> Result<Value, String> {
+fn load_media_library_snapshot_from_connection(
+    connection: &Connection,
+    library_root: &Path,
+) -> Result<Value, String> {
     let mut statement = connection
         .prepare(
             "SELECT kind, record_key, video_id, json
@@ -321,6 +351,7 @@ fn load_media_library_snapshot_from_connection(connection: &Connection) -> Resul
     let mut transcript_variants_by_video_id: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let mut summaries_by_video_id = Map::new();
     let mut chat_messages_by_video_id: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    let mut podcast_history_by_video_id: BTreeMap<String, Vec<Value>> = BTreeMap::new();
 
     for row in rows {
         let (kind, key, video_id, json_text) =
@@ -360,7 +391,25 @@ fn load_media_library_snapshot_from_connection(connection: &Connection) -> Resul
                         .push(value);
                 }
             }
+            "podcast" => {
+                if let Some(video_id) = video_id {
+                    podcast_history_by_video_id
+                        .entry(video_id)
+                        .or_default()
+                        .push(value);
+                }
+            }
             _ => {}
+        }
+    }
+
+    recover_podcast_history_from_files(library_root, &videos, &mut podcast_history_by_video_id)?;
+
+    let mut podcasts_by_video_id = Map::new();
+    for (video_id, podcasts) in &mut podcast_history_by_video_id {
+        sort_created_at_desc(podcasts);
+        if let Some(latest) = podcasts.first() {
+            podcasts_by_video_id.insert(video_id.clone(), latest.clone());
         }
     }
 
@@ -373,6 +422,8 @@ fn load_media_library_snapshot_from_connection(connection: &Connection) -> Resul
         "transcriptVariantsByVideoId": transcript_variants_by_video_id,
         "summariesByVideoId": summaries_by_video_id,
         "chatMessagesByVideoId": chat_messages_by_video_id,
+        "podcastsByVideoId": podcasts_by_video_id,
+        "podcastHistoryByVideoId": podcast_history_by_video_id,
     }))
 }
 
@@ -420,6 +471,96 @@ fn write_chat_session_artifact(
     )
 }
 
+fn recover_podcast_history_from_files(
+    library_root: &Path,
+    videos: &[Value],
+    history: &mut BTreeMap<String, Vec<Value>>,
+) -> Result<(), String> {
+    for video in videos {
+        let video_id = value_id(video).to_string();
+        let Some(asset_library_path) = video.get("libraryPath").and_then(Value::as_str) else {
+            continue;
+        };
+        let Ok(asset_directory) = asset_directory_from_library_path(asset_library_path) else {
+            continue;
+        };
+        let podcast_parent_relative = format!("{asset_directory}/podcast");
+        let podcast_parent = library_root.join(&podcast_parent_relative);
+        reject_existing_relative_symlinks(library_root, &podcast_parent)?;
+
+        if !podcast_parent.exists() {
+            continue;
+        }
+        if path_is_symlink(&podcast_parent)? {
+            return Err("media_library_podcast_parent_must_not_be_symlink".to_string());
+        }
+
+        for entry in fs::read_dir(&podcast_parent)
+            .map_err(|error| format!("media_library_podcast_parent_read_failed:{error}"))?
+        {
+            let entry = entry
+                .map_err(|error| format!("media_library_podcast_entry_read_failed:{error}"))?;
+            let file_type = entry
+                .file_type()
+                .map_err(|error| format!("media_library_podcast_entry_type_failed:{error}"))?;
+            if file_type.is_symlink() || !file_type.is_dir() {
+                continue;
+            }
+
+            let manifest_path = entry.path().join("podcast.json");
+            if path_is_symlink(&manifest_path)? {
+                return Err("media_library_podcast_manifest_must_not_be_symlink".to_string());
+            }
+            let Ok(manifest_json) = fs::read_to_string(&manifest_path) else {
+                continue;
+            };
+            let Ok(podcast) = serde_json::from_str::<Value>(&manifest_json) else {
+                continue;
+            };
+            if !podcast_audio_exists(library_root, &podcast)? {
+                continue;
+            }
+            let podcast_id = value_id(&podcast);
+            let podcasts = history.entry(video_id.clone()).or_default();
+            if !podcasts
+                .iter()
+                .any(|candidate| value_id(candidate) == podcast_id)
+            {
+                podcasts.push(podcast);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn podcast_audio_exists(library_root: &Path, podcast: &Value) -> Result<bool, String> {
+    let Some(audio_path) = podcast
+        .get("artifacts")
+        .and_then(Value::as_object)
+        .and_then(|artifacts| artifacts.get("podcastAudioPath"))
+        .and_then(Value::as_str)
+    else {
+        return Ok(false);
+    };
+    validate_library_relative_file_path(audio_path)?;
+    let path = library_root.join(audio_path);
+    if let Some(parent) = path.parent() {
+        reject_existing_relative_symlinks(library_root, parent)?;
+    }
+    if path_is_symlink(&path)? {
+        return Err("media_library_podcast_audio_must_not_be_symlink".to_string());
+    }
+
+    match fs::metadata(&path) {
+        Ok(metadata) => Ok(metadata.is_file()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(format!(
+            "media_library_podcast_audio_metadata_failed:{error}"
+        )),
+    }
+}
+
 fn write_video_bundle_manifests(library_root: &Path, snapshot: &Value) -> Result<(), String> {
     for video in array_field(snapshot, "videos") {
         let video_id = value_id(video);
@@ -445,6 +586,14 @@ fn write_video_bundle_manifests(library_root: &Path, snapshot: &Value) -> Result
         artifacts.insert(
             "chatSessionPaths".to_string(),
             string_array_value(chat_session_paths_for_video(snapshot, video_id)),
+        );
+        artifacts.insert(
+            "podcastManifestPaths".to_string(),
+            string_array_value(podcast_manifest_paths_for_video(snapshot, video_id)),
+        );
+        artifacts.insert(
+            "podcastAudioPaths".to_string(),
+            string_array_value(podcast_audio_paths_for_video(snapshot, video_id)),
         );
         let manifest = json!({
             "schemaVersion": 1,
@@ -629,6 +778,23 @@ fn validate_library_relative_file_path(relative_path: &str) -> Result<(), String
     Ok(())
 }
 
+fn asset_directory_from_library_path(relative_path: &str) -> Result<String, String> {
+    validate_library_relative_file_path(relative_path)?;
+    let mut components = Path::new(relative_path).components();
+    let Some(Component::Normal(directory)) = components.next() else {
+        return Err("media_library_asset_path_missing_directory".to_string());
+    };
+    let Some(Component::Normal(asset_id)) = components.next() else {
+        return Err("media_library_asset_path_missing_asset_id".to_string());
+    };
+    let directory = directory.to_string_lossy();
+    if !matches!(directory.as_ref(), "videos" | "audios" | "pdfs") {
+        return Err("media_library_asset_path_unsupported_directory".to_string());
+    }
+
+    Ok(format!("{directory}/{}", asset_id.to_string_lossy()))
+}
+
 fn reject_existing_relative_symlinks(root: &Path, path: &Path) -> Result<(), String> {
     let relative = path.strip_prefix(root).unwrap_or(path);
     let mut current = root.to_path_buf();
@@ -687,6 +853,14 @@ fn value_sort_key(value: &Value) -> Option<String> {
         .or_else(|| value.get("id"))
         .and_then(Value::as_str)
         .map(str::to_string)
+}
+
+fn sort_created_at_desc(values: &mut [Value]) {
+    values.sort_by(|left, right| {
+        value_sort_key(right)
+            .unwrap_or_default()
+            .cmp(&value_sort_key(left).unwrap_or_default())
+    });
 }
 
 fn ensure_string_field(value: &mut Value, key: &str, field_value: &str) {
@@ -842,6 +1016,55 @@ fn chat_session_paths_for_video(snapshot: &Value, video_id: &str) -> Vec<String>
     paths
 }
 
+fn podcast_manifest_paths_for_video(snapshot: &Value, video_id: &str) -> Vec<String> {
+    podcast_artifact_paths_for_video(snapshot, video_id, "manifestPath")
+}
+
+fn podcast_audio_paths_for_video(snapshot: &Value, video_id: &str) -> Vec<String> {
+    podcast_artifact_paths_for_video(snapshot, video_id, "podcastAudioPath")
+}
+
+fn podcast_artifact_paths_for_video(
+    snapshot: &Value,
+    video_id: &str,
+    artifact_key: &str,
+) -> Vec<String> {
+    let mut paths = object_field(snapshot, "podcastHistoryByVideoId")
+        .find(|(candidate_video_id, _)| *candidate_video_id == video_id)
+        .map(|(_, podcasts)| {
+            as_array(podcasts)
+                .iter()
+                .filter_map(|podcast| {
+                    podcast
+                        .get("artifacts")
+                        .and_then(Value::as_object)
+                        .and_then(|artifacts| artifacts.get(artifact_key))
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if let Some(latest_path) = object_field(snapshot, "podcastsByVideoId")
+        .find(|(candidate_video_id, _)| *candidate_video_id == video_id)
+        .and_then(|(_, podcast)| {
+            podcast
+                .get("artifacts")
+                .and_then(Value::as_object)
+                .and_then(|artifacts| artifacts.get(artifact_key))
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+    {
+        paths.push(latest_path);
+    }
+
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
 fn string_array_value(values: Vec<String>) -> Value {
     Value::Array(values.into_iter().map(Value::String).collect())
 }
@@ -898,7 +1121,7 @@ mod tests {
         let snapshot = sample_snapshot();
 
         save_media_library_snapshot_to_connection(&mut connection, &library, &snapshot).unwrap();
-        let reloaded = load_media_library_snapshot_from_connection(&connection).unwrap();
+        let reloaded = load_media_library_snapshot_from_connection(&connection, &library).unwrap();
 
         assert_eq!(reloaded["videos"][0]["id"], "video-1");
         assert_eq!(
@@ -923,6 +1146,14 @@ mod tests {
                 .unwrap()
                 .contains("\"content\":\"Question\"")
         );
+        assert_eq!(
+            reloaded["podcastsByVideoId"]["video-1"]["id"],
+            "podcast-video-1-2026-05-21"
+        );
+        assert_eq!(
+            reloaded["podcastHistoryByVideoId"]["video-1"][0]["artifacts"]["podcastAudioPath"],
+            "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/podcast.wav"
+        );
         let manifest: Value = serde_json::from_str(
             &fs::read_to_string(library.join("videos/video-1/openbrief-video.json")).unwrap(),
         )
@@ -940,6 +1171,14 @@ mod tests {
         assert_eq!(
             manifest["artifacts"]["chatSessionPaths"][0],
             "videos/video-1/chat/default.jsonl"
+        );
+        assert_eq!(
+            manifest["artifacts"]["podcastManifestPaths"][0],
+            "videos/video-1/podcast/podcast-video-1-2026-05-21/podcast.json"
+        );
+        assert_eq!(
+            manifest["artifacts"]["podcastAudioPaths"][0],
+            "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/podcast.wav"
         );
     }
 
@@ -976,7 +1215,7 @@ mod tests {
         });
 
         save_media_library_snapshot_to_connection(&mut connection, &library, &snapshot).unwrap();
-        let reloaded = load_media_library_snapshot_from_connection(&connection).unwrap();
+        let reloaded = load_media_library_snapshot_from_connection(&connection, &library).unwrap();
 
         assert_eq!(
             reloaded["videos"][0]["thumbnailPath"],
@@ -1000,6 +1239,46 @@ mod tests {
     }
 
     #[test]
+    fn recovers_podcast_history_from_existing_bundle_manifests() {
+        let fixture = TestFixture::new("media-library-podcast-recovery");
+        let db = fixture.root.join("library.sqlite3");
+        let library = fixture.create_dir("library").canonicalize().unwrap();
+        let mut connection = open_media_library_connection(&db).unwrap();
+        let snapshot = json!({
+            "videos": [{
+                "id": "video-1",
+                "title": "Design Review",
+                "sourceKind": "youtube",
+                "originalUri": "https://youtu.be/example",
+                "libraryPath": "videos/video-1/video.mp4",
+                "importStatus": "ready",
+                "createdAtIso": "2026-05-21T00:00:00.000Z"
+            }]
+        });
+        let podcast = sample_podcast();
+        fixture.write_file(
+            "library/videos/video-1/podcast/podcast-video-1-2026-05-21/podcast.json",
+            &serde_json::to_string(&podcast).unwrap(),
+        );
+        fixture.write_file(
+            "library/videos/video-1/podcast/podcast-video-1-2026-05-21/audio/podcast.wav",
+            "audio",
+        );
+
+        save_media_library_snapshot_to_connection(&mut connection, &library, &snapshot).unwrap();
+        let reloaded = load_media_library_snapshot_from_connection(&connection, &library).unwrap();
+
+        assert_eq!(
+            reloaded["podcastsByVideoId"]["video-1"]["id"],
+            "podcast-video-1-2026-05-21"
+        );
+        assert_eq!(
+            reloaded["podcastHistoryByVideoId"]["video-1"][0]["script"]["title"],
+            "Design Review podcast"
+        );
+    }
+
+    #[test]
     fn rejects_artifacts_outside_video_directories() {
         assert_eq!(
             validate_library_relative_artifact_path("summaries/video-1.md").unwrap_err(),
@@ -1011,7 +1290,71 @@ mod tests {
         );
     }
 
+    fn sample_podcast() -> Value {
+        json!({
+            "schemaVersion": 1,
+            "id": "podcast-video-1-2026-05-21",
+            "sourceAssetId": "video-1",
+            "mode": "podcast-summary",
+            "sourceKind": "current-summary",
+            "lengthMode": "default",
+            "provider": "openai",
+            "createdAtIso": "2026-05-21T00:04:00.000Z",
+            "script": {
+                "title": "Design Review podcast",
+                "turns": [
+                    {
+                        "id": "turn-0001",
+                        "speakerId": "A",
+                        "speakerLabel": "Mark",
+                        "text": "Welcome."
+                    },
+                    {
+                        "id": "turn-0002",
+                        "speakerId": "B",
+                        "speakerLabel": "Sophia",
+                        "text": "Here are the notes."
+                    },
+                    {
+                        "id": "turn-0003",
+                        "speakerId": "A",
+                        "speakerLabel": "Mark",
+                        "text": "The library changed."
+                    },
+                    {
+                        "id": "turn-0004",
+                        "speakerId": "B",
+                        "speakerLabel": "Sophia",
+                        "text": "That is the recap."
+                    }
+                ],
+                "markdown": "# Design Review podcast\n"
+            },
+            "tts": {
+                "modelId": "Supertone/supertonic-3",
+                "languageCode": "en",
+                "speakers": [
+                    { "id": "A", "label": "Mark", "voiceStyleId": "M1" },
+                    { "id": "B", "label": "Sophia", "voiceStyleId": "F2" }
+                ]
+            },
+            "artifacts": {
+                "rootDirectory": "videos/video-1/podcast/podcast-video-1-2026-05-21",
+                "manifestPath": "videos/video-1/podcast/podcast-video-1-2026-05-21/podcast.json",
+                "scriptPath": "videos/video-1/podcast/podcast-video-1-2026-05-21/script.md",
+                "turnAudioDirectory": "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/turns",
+                "podcastAudioPath": "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/podcast.wav",
+                "turnAudioPaths": [
+                    "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/turns/0001-speaker-a.wav"
+                ]
+            },
+            "durationSeconds": 42.0,
+            "sizeBytes": 2048
+        })
+    }
+
     fn sample_snapshot() -> Value {
+        let podcast = sample_podcast();
         json!({
             "videos": [{
                 "id": "video-1",
@@ -1061,6 +1404,12 @@ mod tests {
                     "sessionId": "default",
                     "createdAtIso": "2026-05-21T00:02:00.000Z"
                 }]
+            },
+            "podcastsByVideoId": {
+                "video-1": podcast.clone()
+            },
+            "podcastHistoryByVideoId": {
+                "video-1": [podcast]
             }
         })
     }

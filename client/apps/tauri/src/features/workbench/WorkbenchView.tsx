@@ -1,3 +1,71 @@
+import type { ChatContextMode } from "@/domain/chat";
+import type {
+  ChatMessage,
+  ProviderKind,
+  SummaryDocument,
+  TranscriptJob,
+  TranscriptSegment,
+  VideoAsset,
+} from "@/domain/media-library";
+import type {
+  PodcastDocument,
+  PodcastGenerationJob,
+  PodcastLengthMode,
+  PodcastOutputMode,
+  PodcastSourceKind,
+  PodcastSpeakerConfig,
+} from "@/domain/podcast";
+import type {
+  SummaryLengthMode,
+  SummaryOutputLanguageOption,
+  VideoSummaryTemplateId,
+} from "@/domain/summary";
+import type {
+  TranscriptLanguageOption,
+  TranscriptVariant,
+} from "@/domain/transcript-actions";
+import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
+import type { VideoPlaybackState } from "@/hooks/useVideoPlayback";
+import type { TranslationKey } from "@/i18n";
+import type { AiWorkflowProviderConfig } from "@/services/aiProviderPreferencesService";
+import type { SupertonicChatTtsArtifact } from "@/services/supertonicService";
+import type {
+  PodcastTtsSettings,
+  TtsLanguageCode,
+} from "@/services/ttsSettingsService";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CopyActionButton } from "@/components/CopyAction";
+import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
+import { MarkdownSummaryEditor } from "@/components/markdown/MarkdownSummaryEditor";
+import { AudioPlayer } from "@/components/media/AudioPlayer";
+import { PdfViewer } from "@/components/media/PdfViewer";
+import { ProviderIcon } from "@/components/provider/ProviderIcon";
+import { VideoPlayer } from "@/components/video/VideoPlayer";
+import { mediaSourceTypeForAsset } from "@/domain/media-library";
+import {
+  defaultProviderModels,
+  providerLabels,
+  providerModelOptions,
+  providerOptions,
+} from "@/domain/provider";
+import {
+  summaryLengthModeLabels,
+  summaryOutputLanguageOptions,
+  videoSummaryTemplates,
+} from "@/domain/summary";
+import {
+  transcriptSourceKindLabel,
+  transcriptTranslationLanguages,
+} from "@/domain/transcript-actions";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useI18n } from "@/i18n";
+import {
+  loadPodcastTtsSettings,
+  savePodcastTtsSettings,
+  supertonicPresetVoiceStyleLabel,
+  supertonicPresetVoiceStyles,
+} from "@/services/ttsSettingsService";
 import {
   Bot,
   Check,
@@ -18,18 +86,11 @@ import {
   Volume2,
   X,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { CopyActionButton } from "@/components/CopyAction";
-import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
+
+import { cn } from "@acme/ui";
 import { badgeVariants } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -40,17 +101,12 @@ import {
   DialogTrigger,
 } from "@acme/ui/dialog";
 import { Input } from "@acme/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@acme/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@acme/ui/popover";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@acme/ui/resizable";
-import { Textarea } from "@acme/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -58,73 +114,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@acme/ui/select";
+import { Textarea } from "@acme/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@acme/ui/tooltip";
-import { MarkdownSummaryEditor } from "@/components/markdown/MarkdownSummaryEditor";
-import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
-import { AudioPlayer } from "@/components/media/AudioPlayer";
-import { PdfViewer } from "@/components/media/PdfViewer";
-import { ProviderIcon } from "@/components/provider/ProviderIcon";
-import { VideoPlayer } from "@/components/video/VideoPlayer";
-import type {
-  ChatMessage,
-  ProviderKind,
-  SummaryDocument,
-  TranscriptJob,
-  TranscriptSegment,
-  VideoAsset,
-} from "@/domain/media-library";
-import {
-  mediaSourceTypeForAsset,
-} from "@/domain/media-library";
-import type { ChatContextMode } from "@/domain/chat";
-import type { AiGenerationJob } from "@/hooks/useMediaLibrary";
-import type {
-  PodcastDocument,
-  PodcastGenerationJob,
-  PodcastLengthMode,
-  PodcastOutputMode,
-  PodcastSourceKind,
-  PodcastSpeakerConfig,
-} from "@/domain/podcast";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import type { VideoPlaybackState } from "@/hooks/useVideoPlayback";
-import type { SupertonicChatTtsArtifact } from "@/services/supertonicService";
-import {
-  defaultProviderModels,
-  providerLabels,
-  providerModelOptions,
-  providerOptions,
-} from "@/domain/provider";
-import {
-  transcriptSourceKindLabel,
-  transcriptTranslationLanguages,
-  type TranscriptLanguageOption,
-  type TranscriptVariant,
-} from "@/domain/transcript-actions";
-import {
-  summaryLengthModeLabels,
-  summaryOutputLanguageOptions,
-  videoSummaryTemplates,
-  type SummaryLengthMode,
-  type SummaryOutputLanguageOption,
-  type VideoSummaryTemplateId,
-} from "@/domain/summary";
-import type { AiWorkflowProviderConfig } from "@/services/aiProviderPreferencesService";
-import {
-  loadPodcastTtsSettings,
-  savePodcastTtsSettings,
-  supertonicPresetVoiceStyles,
-  supertonicPresetVoiceStyleLabel,
-  type PodcastTtsSettings,
-  type TtsLanguageCode,
-} from "@/services/ttsSettingsService";
-import { useI18n, type TranslationKey } from "@/i18n";
-import { cn } from "@acme/ui";
 
 type BriefMode = "summary" | "podcast";
 
@@ -176,7 +172,10 @@ type WorkbenchViewProps = {
     summaryId?: string;
     streamingMode: boolean;
   }): Promise<unknown>;
-  onReadChatMessage?(message: ChatMessage, renderedText: string): Promise<unknown>;
+  onReadChatMessage?(
+    message: ChatMessage,
+    renderedText: string,
+  ): Promise<unknown>;
   onGeneratePodcast?(request: {
     mode: PodcastOutputMode;
     sourceKind: PodcastSourceKind;
@@ -187,7 +186,9 @@ type WorkbenchViewProps = {
   }): Promise<unknown>;
   onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
   onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
-  onDownloadPodcastScript?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastScript?(
+    podcast: PodcastDocument,
+  ): Promise<unknown> | unknown;
   onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
   isVoiceCloneModeEnabled?: boolean;
   chatTtsAudioByMessageId?: Record<
@@ -417,8 +418,7 @@ export function WorkbenchView({
     summaryTabs.find((candidate) => candidate.id === activeSummaryId) ??
     summaryTabs[0] ??
     summary;
-  const summaryMarkdown =
-    summaryJob?.draftText ?? activeSummary?.markdown;
+  const summaryMarkdown = summaryJob?.draftText ?? activeSummary?.markdown;
   const sourceType = video ? mediaSourceTypeForAsset(video) : "video";
   const activeTranscriptSegmentId = useMemo(() => {
     if (
@@ -521,10 +521,8 @@ export function WorkbenchView({
 
   if (!video) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          {t("workbench.empty")}
-        </p>
+      <div className="border-border bg-card flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
+        <p className="text-muted-foreground text-sm">{t("workbench.empty")}</p>
         {onAddVideo ? (
           <Button type="button" variant="outline" onClick={onAddVideo}>
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -576,7 +574,9 @@ export function WorkbenchView({
     }
   }
 
-  async function runTranscriptTranslation(language = targetTranslationLanguage) {
+  async function runTranscriptTranslation(
+    language = targetTranslationLanguage,
+  ) {
     if (isTranslatingTranscript) return;
 
     setIsTranslatingTranscript(true);
@@ -647,12 +647,16 @@ export function WorkbenchView({
     const speakers: [PodcastSpeakerConfig, PodcastSpeakerConfig] = [
       {
         id: "A",
-        label: supertonicPresetVoiceStyleLabel(nextSettings.speakerAVoiceStyleId),
+        label: supertonicPresetVoiceStyleLabel(
+          nextSettings.speakerAVoiceStyleId,
+        ),
         voiceStyleId: nextSettings.speakerAVoiceStyleId,
       },
       {
         id: "B",
-        label: supertonicPresetVoiceStyleLabel(nextSettings.speakerBVoiceStyleId),
+        label: supertonicPresetVoiceStyleLabel(
+          nextSettings.speakerBVoiceStyleId,
+        ),
         voiceStyleId: nextSettings.speakerBVoiceStyleId,
       },
     ];
@@ -773,287 +777,307 @@ export function WorkbenchView({
           defaultSize="30%"
           minSize="240px"
         >
-      <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-          {isInlinePlayerSuppressed ? (
-            <div className="flex aspect-video items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
-              {t("workbench.playingInPictureInPicture")}
-            </div>
-          ) : sourceType === "video" ? (
-            <VideoPlayer
-              video={video}
-              activeVideoId={playbackState.activeVideoId}
-              isPlaying={playbackState.status === "playing"}
-              currentTimeSeconds={playbackState.currentTimeSeconds}
-              onPlay={onPlayVideo}
-              onPause={onPauseVideo}
-              onTimeUpdate={onVideoTimeUpdate}
-              onEnded={onVideoEnded}
-              onOpenPictureInPicture={onOpenPictureInPicture}
-            />
-          ) : sourceType === "audio" ? (
-            <AudioPlayer
-              media={video}
-              activeMediaId={playbackState.activeVideoId}
-              isPlaying={playbackState.status === "playing"}
-              currentTimeSeconds={playbackState.currentTimeSeconds}
-              onPlay={onPlayVideo}
-              onPause={onPauseVideo}
-              onTimeUpdate={onVideoTimeUpdate}
-              onEnded={onVideoEnded}
-              onOpenPictureInPicture={onOpenPictureInPicture}
-            />
-          ) : (
-            <PdfViewer media={video} />
-          )}
-          <div className="grid gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isExtractingTranscript || isTranscribing}
-              onClick={() => void runAction(onExtractTranscript)}
-            >
-              <Subtitles className="mr-2 h-4 w-4" aria-hidden="true" />
-              {isTranscribing
-                ? t("workbench.extractingTranscript")
-                : t("workbench.extractTranscript")}
-            </Button>
-          </div>
-          {transcriptJob ? (
-            <TranscriptProgressCard transcriptJob={transcriptJob} />
-          ) : null}
-          {transcript.length > 0 ? (
-            <TranscriptActionPanel
-              variants={transcriptVariants}
-              activeVariantId={activeTranscriptVariantId}
-              baseTranscriptLabel={
-                baseTranscriptSourceKind
-                  ? transcriptSourceKindLabel(baseTranscriptSourceKind)
-                  : t("workbench.transcript.variant.original")
-              }
-              targetLanguage={targetTranslationLanguage}
-              duplicateTranslation={duplicateTranslation}
-              isReviewing={isReviewingTranscript}
-              isTranslating={isTranslatingTranscript}
-              translateDialogOpen={isTranslateDialogOpen}
-              onVariantChange={(variantId) => onSelectTranscriptVariant?.(variantId)}
-              onTargetLanguageChange={setTargetTranslationLanguage}
-              onReview={() => void runTranscriptReview()}
-              onTranslate={() => setIsTranslateDialogOpen(true)}
-              onTranslateDialogOpenChange={setIsTranslateDialogOpen}
-              onConfirmTranslate={() => void runTranscriptTranslation()}
-              onOverlay={onOpenTranscriptOverlay}
-            />
-          ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {renderedTranscript.length === 0 ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
+          <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+              {isInlinePlayerSuppressed ? (
+                <div className="bg-muted text-muted-foreground flex aspect-video items-center justify-center rounded-md text-sm">
+                  {t("workbench.playingInPictureInPicture")}
+                </div>
+              ) : sourceType === "video" ? (
+                <VideoPlayer
+                  video={video}
+                  activeVideoId={playbackState.activeVideoId}
+                  isPlaying={playbackState.status === "playing"}
+                  currentTimeSeconds={playbackState.currentTimeSeconds}
+                  onPlay={onPlayVideo}
+                  onPause={onPauseVideo}
+                  onTimeUpdate={onVideoTimeUpdate}
+                  onEnded={onVideoEnded}
+                  onOpenPictureInPicture={onOpenPictureInPicture}
+                />
+              ) : sourceType === "audio" ? (
+                <AudioPlayer
+                  media={video}
+                  activeMediaId={playbackState.activeVideoId}
+                  isPlaying={playbackState.status === "playing"}
+                  currentTimeSeconds={playbackState.currentTimeSeconds}
+                  onPlay={onPlayVideo}
+                  onPause={onPauseVideo}
+                  onTimeUpdate={onVideoTimeUpdate}
+                  onEnded={onVideoEnded}
+                  onOpenPictureInPicture={onOpenPictureInPicture}
+                />
+              ) : (
+                <PdfViewer media={video} />
+              )}
+              <div className="grid gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isExtractingTranscript || isTranscribing}
+                  onClick={() => void runAction(onExtractTranscript)}
+                >
+                  <Subtitles className="mr-2 h-4 w-4" aria-hidden="true" />
                   {isTranscribing
-                    ? t("workbench.transcript.running")
-                    : t("workbench.transcript.empty")}
-                </p>
-                {!isTranscribing ? (
-                  <div
-                    aria-label={t("workbench.transcript.exampleLabel")}
-                    className="space-y-2 rounded-md bg-muted/50 p-3 text-sm"
-                  >
-                    <span className={badgeVariants({ variant: "outline" })}>
-                      {t("workbench.transcript.exampleBadge")}
-                    </span>
-                    <div className="flex gap-3">
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                        00:12
-                      </span>
-                      <span>{t("workbench.transcript.example.one")}</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                        00:47
-                      </span>
-                      <span>{t("workbench.transcript.example.two")}</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                        01:18
-                      </span>
-                      <span>{t("workbench.transcript.example.three")}</span>
-                    </div>
-                  </div>
-                ) : null}
+                    ? t("workbench.extractingTranscript")
+                    : t("workbench.extractTranscript")}
+                </Button>
               </div>
-            ) : (
-              <>
-                {isVoiceCloneModeEnabled ? (
-                  <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
-                    <span>
-                      {t("workbench.transcript.voiceCloneSelection", {
-                        count: voiceCloneTranscriptSegmentIds.length,
-                      })}
-                    </span>
-                    {voiceCloneTranscriptSegmentIds.length > 0 ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => setVoiceCloneTranscriptSegmentIds([])}
+              {transcriptJob ? (
+                <TranscriptProgressCard transcriptJob={transcriptJob} />
+              ) : null}
+              {transcript.length > 0 ? (
+                <TranscriptActionPanel
+                  variants={transcriptVariants}
+                  activeVariantId={activeTranscriptVariantId}
+                  baseTranscriptLabel={
+                    baseTranscriptSourceKind
+                      ? transcriptSourceKindLabel(baseTranscriptSourceKind)
+                      : t("workbench.transcript.variant.original")
+                  }
+                  targetLanguage={targetTranslationLanguage}
+                  duplicateTranslation={duplicateTranslation}
+                  isReviewing={isReviewingTranscript}
+                  isTranslating={isTranslatingTranscript}
+                  translateDialogOpen={isTranslateDialogOpen}
+                  onVariantChange={(variantId) =>
+                    onSelectTranscriptVariant?.(variantId)
+                  }
+                  onTargetLanguageChange={setTargetTranslationLanguage}
+                  onReview={() => void runTranscriptReview()}
+                  onTranslate={() => setIsTranslateDialogOpen(true)}
+                  onTranslateDialogOpenChange={setIsTranslateDialogOpen}
+                  onConfirmTranslate={() => void runTranscriptTranslation()}
+                  onOverlay={onOpenTranscriptOverlay}
+                />
+              ) : null}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {renderedTranscript.length === 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-muted-foreground text-sm">
+                      {isTranscribing
+                        ? t("workbench.transcript.running")
+                        : t("workbench.transcript.empty")}
+                    </p>
+                    {!isTranscribing ? (
+                      <div
+                        aria-label={t("workbench.transcript.exampleLabel")}
+                        className="bg-muted/50 space-y-2 rounded-md p-3 text-sm"
                       >
-                        {t("workbench.transcript.voiceCloneClear")}
-                      </Button>
+                        <span className={badgeVariants({ variant: "outline" })}>
+                          {t("workbench.transcript.exampleBadge")}
+                        </span>
+                        <div className="flex gap-3">
+                          <span className="text-muted-foreground shrink-0 font-mono text-xs">
+                            00:12
+                          </span>
+                          <span>{t("workbench.transcript.example.one")}</span>
+                        </div>
+                        <div className="flex gap-3">
+                          <span className="text-muted-foreground shrink-0 font-mono text-xs">
+                            00:47
+                          </span>
+                          <span>{t("workbench.transcript.example.two")}</span>
+                        </div>
+                        <div className="flex gap-3">
+                          <span className="text-muted-foreground shrink-0 font-mono text-xs">
+                            01:18
+                          </span>
+                          <span>{t("workbench.transcript.example.three")}</span>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
-                ) : null}
-                <ol ref={transcriptListRef} className="space-y-3">
-                {renderedTranscript.map((segment) => {
-                  const sourceSegment = activeTranslationVariant
-                    ? sourceTranscriptBySegmentId.get(segment.id)
-                    : undefined;
-                  const isActive = segment.id === activeTranscriptSegmentId;
-                  const isEditing = segment.id === editingTranscriptSegmentId;
-                  const isSelectedForVoiceClone =
-                    voiceCloneTranscriptSegmentIds.includes(segment.id);
-                  const showActiveEditButton =
-                    focusedTranscriptSegmentId === segment.id ||
-                    hoveredTranscriptSegmentId === segment.id;
-
-                  return (
-                    <li
-                      key={segment.id}
-                      ref={(element) => {
-                        transcriptItemRefs.current[segment.id] = element;
-                      }}
-                      aria-current={isActive ? "true" : undefined}
-                      className={cn(
-                        "group rounded-md px-2 py-1.5 text-sm transition-colors",
-                        isActive &&
-                          "bg-primary/10 text-foreground shadow-sm",
-                      )}
-                      onFocusCapture={() =>
-                        setFocusedTranscriptSegmentId(segment.id)
-                      }
-                      onPointerEnter={() =>
-                        setHoveredTranscriptSegmentId(segment.id)
-                      }
-                      onPointerLeave={() =>
-                        setHoveredTranscriptSegmentId((current) =>
-                          current === segment.id ? undefined : current,
-                        )
-                      }
-                      onBlurCapture={(event) => {
-                        const nextTarget = event.relatedTarget;
-                        if (
-                          nextTarget instanceof Node &&
-                          event.currentTarget.contains(nextTarget)
-                        ) {
-                          return;
-                        }
-
-                        setFocusedTranscriptSegmentId((current) =>
-                          current === segment.id ? undefined : current,
-                        );
-                      }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <button
-                          type="button"
-                          className={cn(
-                            "mt-1 rounded-sm font-mono text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring",
-                            isActive && "text-primary",
-                          )}
-                          onClick={() => seekToSegment(segment)}
-                          aria-label={t("workbench.transcript.jumpTo", {
-                            time: formatTime(segment.startSeconds),
+                ) : (
+                  <>
+                    {isVoiceCloneModeEnabled ? (
+                      <div className="border-border text-muted-foreground mb-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs">
+                        <span>
+                          {t("workbench.transcript.voiceCloneSelection", {
+                            count: voiceCloneTranscriptSegmentIds.length,
                           })}
-                        >
-                          {formatTime(segment.startSeconds)}
-                        </button>
-                        {isVoiceCloneModeEnabled ? (
-                          <label className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={isSelectedForVoiceClone}
-                              aria-label={t(
-                                "workbench.transcript.voiceCloneToggle",
-                                {
-                                  time: formatTime(segment.startSeconds),
-                                },
-                              )}
-                              onChange={() =>
-                                setVoiceCloneTranscriptSegmentIds((current) =>
-                                  nextVoiceCloneTranscriptSegmentSelection(
-                                    renderedTranscript,
-                                    current,
-                                    segment.id,
-                                  ),
-                                )
-                              }
-                            />
-                          </label>
+                        </span>
+                        {voiceCloneTranscriptSegmentIds.length > 0 ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() =>
+                              setVoiceCloneTranscriptSegmentIds([])
+                            }
+                          >
+                            {t("workbench.transcript.voiceCloneClear")}
+                          </Button>
                         ) : null}
-                        {isEditing ? (
-                          <TranscriptSegmentEditForm
-                            segment={segment}
-                            onCancel={cancelTranscriptEdit}
-                            onSave={(text) => saveTranscriptEdit(segment, text)}
-                          />
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="min-w-0 flex-1 rounded-sm bg-transparent p-0 text-left leading-relaxed text-inherit hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                              onClick={() => seekToSegment(segment)}
-                              aria-label={t(
-                                "workbench.transcript.jumpTextTo",
-                                {
-                                  time: formatTime(segment.startSeconds),
-                                },
-                              )}
-                            >
-                              {sourceSegment ? (
-                                <span className="grid gap-1.5">
-                                  <span className="text-muted-foreground">
-                                    {sourceSegment.text}
-                                  </span>
-                                  <span className="border-l-2 border-primary/40 pl-3 text-foreground">
-                                    {segment.text}
-                                  </span>
-                                </span>
-                              ) : (
-                                segment.text
-                              )}
-                            </button>
-                            {onUpdateTranscriptSegment && !isViewingTranscriptVariant ? (
-                              <span className="h-7 w-7 shrink-0">
-                                {showActiveEditButton ? (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    aria-label={t("workbench.transcript.edit", {
-                                      time: formatTime(segment.startSeconds),
-                                    })}
-                                    onClick={() => startTranscriptEdit(segment)}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                                  </Button>
-                                ) : null}
-                              </span>
-                            ) : null}
-                          </>
-                        )}
                       </div>
-                    </li>
-                  );
-                })}
-                </ol>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                    ) : null}
+                    <ol ref={transcriptListRef} className="space-y-3">
+                      {renderedTranscript.map((segment) => {
+                        const sourceSegment = activeTranslationVariant
+                          ? sourceTranscriptBySegmentId.get(segment.id)
+                          : undefined;
+                        const isActive =
+                          segment.id === activeTranscriptSegmentId;
+                        const isEditing =
+                          segment.id === editingTranscriptSegmentId;
+                        const isSelectedForVoiceClone =
+                          voiceCloneTranscriptSegmentIds.includes(segment.id);
+                        const showActiveEditButton =
+                          focusedTranscriptSegmentId === segment.id ||
+                          hoveredTranscriptSegmentId === segment.id;
+
+                        return (
+                          <li
+                            key={segment.id}
+                            ref={(element) => {
+                              transcriptItemRefs.current[segment.id] = element;
+                            }}
+                            aria-current={isActive ? "true" : undefined}
+                            className={cn(
+                              "group rounded-md px-2 py-1.5 text-sm transition-colors",
+                              isActive &&
+                                "bg-primary/10 text-foreground shadow-sm",
+                            )}
+                            onFocusCapture={() =>
+                              setFocusedTranscriptSegmentId(segment.id)
+                            }
+                            onPointerEnter={() =>
+                              setHoveredTranscriptSegmentId(segment.id)
+                            }
+                            onPointerLeave={() =>
+                              setHoveredTranscriptSegmentId((current) =>
+                                current === segment.id ? undefined : current,
+                              )
+                            }
+                            onBlurCapture={(event) => {
+                              const nextTarget = event.relatedTarget;
+                              if (
+                                nextTarget instanceof Node &&
+                                event.currentTarget.contains(nextTarget)
+                              ) {
+                                return;
+                              }
+
+                              setFocusedTranscriptSegmentId((current) =>
+                                current === segment.id ? undefined : current,
+                              );
+                            }}
+                          >
+                            <div className="flex items-start gap-2">
+                              <button
+                                type="button"
+                                className={cn(
+                                  "text-muted-foreground hover:text-foreground focus:ring-ring mt-1 rounded-sm font-mono text-xs focus:ring-2 focus:outline-none",
+                                  isActive && "text-primary",
+                                )}
+                                onClick={() => seekToSegment(segment)}
+                                aria-label={t("workbench.transcript.jumpTo", {
+                                  time: formatTime(segment.startSeconds),
+                                })}
+                              >
+                                {formatTime(segment.startSeconds)}
+                              </button>
+                              {isVoiceCloneModeEnabled ? (
+                                <label className="text-muted-foreground hover:text-foreground mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4"
+                                    checked={isSelectedForVoiceClone}
+                                    aria-label={t(
+                                      "workbench.transcript.voiceCloneToggle",
+                                      {
+                                        time: formatTime(segment.startSeconds),
+                                      },
+                                    )}
+                                    onChange={() =>
+                                      setVoiceCloneTranscriptSegmentIds(
+                                        (current) =>
+                                          nextVoiceCloneTranscriptSegmentSelection(
+                                            renderedTranscript,
+                                            current,
+                                            segment.id,
+                                          ),
+                                      )
+                                    }
+                                  />
+                                </label>
+                              ) : null}
+                              {isEditing ? (
+                                <TranscriptSegmentEditForm
+                                  segment={segment}
+                                  onCancel={cancelTranscriptEdit}
+                                  onSave={(text) =>
+                                    saveTranscriptEdit(segment, text)
+                                  }
+                                />
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="hover:text-foreground focus:ring-ring min-w-0 flex-1 rounded-sm bg-transparent p-0 text-left leading-relaxed text-inherit focus:ring-2 focus:outline-none"
+                                    onClick={() => seekToSegment(segment)}
+                                    aria-label={t(
+                                      "workbench.transcript.jumpTextTo",
+                                      {
+                                        time: formatTime(segment.startSeconds),
+                                      },
+                                    )}
+                                  >
+                                    {sourceSegment ? (
+                                      <span className="grid gap-1.5">
+                                        <span className="text-muted-foreground">
+                                          {sourceSegment.text}
+                                        </span>
+                                        <span className="border-primary/40 text-foreground border-l-2 pl-3">
+                                          {segment.text}
+                                        </span>
+                                      </span>
+                                    ) : (
+                                      segment.text
+                                    )}
+                                  </button>
+                                  {onUpdateTranscriptSegment &&
+                                  !isViewingTranscriptVariant ? (
+                                    <span className="h-7 w-7 shrink-0">
+                                      {showActiveEditButton ? (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          aria-label={t(
+                                            "workbench.transcript.edit",
+                                            {
+                                              time: formatTime(
+                                                segment.startSeconds,
+                                              ),
+                                            },
+                                          )}
+                                          onClick={() =>
+                                            startTranscriptEdit(segment)
+                                          }
+                                        >
+                                          <Pencil
+                                            className="h-3.5 w-3.5"
+                                            aria-hidden="true"
+                                          />
+                                        </Button>
+                                      ) : null}
+                                    </span>
+                                  ) : null}
+                                </>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </ResizablePanel>
 
         <ResizableHandle withHandle className="mx-2" />
@@ -1063,341 +1087,357 @@ export function WorkbenchView({
           defaultSize="40%"
           minSize="320px"
         >
-      <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-        <CardHeader className="space-y-3">
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t("workbench.brief.title")}</span>
-              </span>
-              <BriefModeControl
-                value={briefMode}
-                options={briefModeOptions}
-                onChange={setBriefMode}
-              />
-            </span>
-            <SummaryProviderDialog
-              provider={summaryProviderConfig.provider}
-              model={summaryProviderConfig.model}
-              streamingMode={summaryProviderConfig.streamingMode}
-              onProviderChange={(nextProvider) => {
-                updateSummaryProviderPreference({
-                  provider: nextProvider,
-                  model: defaultProviderModels[nextProvider],
-                  streamingMode: summaryProviderConfig.streamingMode,
-                });
-              }}
-              onModelChange={(model) =>
-                updateSummaryProviderPreference({
-                  provider: summaryProviderConfig.provider,
-                  model,
-                  streamingMode: summaryProviderConfig.streamingMode,
-                })
-              }
-              onStreamingModeChange={(streamingMode) =>
-                updateSummaryProviderPreference({
-                  provider: summaryProviderConfig.provider,
-                  model: summaryProviderConfig.model,
-                  streamingMode,
-                })
-              }
-            />
-          </CardTitle>
-          <div className="flex min-h-9 flex-wrap items-center gap-2">
-            {briefMode === "summary" && summaryMarkdown ? (
-              <SummaryGenerateDialog
-                open={isSummaryGenerateDialogOpen}
-                templateId={summaryTemplateId}
-                lengthMode={summaryLengthMode}
-                languageCode={summaryLanguage.code}
-                isGenerating={isSummarizing}
-                disabled={renderedTranscript.length === 0}
-                triggerVariant="outline"
-                onOpenChange={setIsSummaryGenerateDialogOpen}
-                onTemplateChange={setSummaryTemplateId}
-                onLengthChange={setSummaryLengthMode}
-                onLanguageChange={setSummaryLanguage}
-                onGenerate={generateSummary}
-              />
-            ) : null}
-            {briefMode === "podcast" && podcast ? (
-              <PodcastGenerateDialog
-                open={isPodcastGenerateDialogOpen}
-                podcastHistoryCount={podcastHistory.length}
-                settings={podcastSettings}
-                sourceKind={podcastSourceKind}
-                canGenerate={Boolean(onGeneratePodcast && video)}
-                hasSummary={Boolean(activeSummary)}
-                hasTranscript={transcript.length > 0}
-                isGenerating={isGeneratingPodcast}
-                triggerVariant="outline"
-                onOpenChange={setIsPodcastGenerateDialogOpen}
-                onSettingsChange={setPodcastSettings}
-                onSourceKindChange={setPodcastSourceKind}
-                onGenerate={submitPodcastGeneration}
-              />
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-          {briefMode === "summary" && transcript.length === 0 ? (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
-            >
-              <span>{t("workbench.summary.transcriptRequired")}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isExtractingTranscript || isTranscribing}
-                onClick={() => void runAction(onExtractTranscript)}
-              >
-                <Subtitles className="h-4 w-4" aria-hidden="true" />
-                {t("workbench.summary.transcribe")}
-              </Button>
-            </div>
-          ) : null}
-          {briefMode === "summary" ? (
-            <>
-              <SummaryTabStrip
-                summaries={summaryTabs}
-                activeSummaryId={activeSummary?.id}
-                onSelectSummaryTab={onSelectSummaryTab}
-              />
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {summaryJob ? (
-                  <AiGenerationStatus
-                    job={summaryJob}
-                    runningLabel={t("workbench.summary.generating")}
-                    failedLabel={t("workbench.summary.failed")}
+          <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            <CardHeader className="space-y-3">
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{t("workbench.brief.title")}</span>
+                  </span>
+                  <BriefModeControl
+                    value={briefMode}
+                    options={briefModeOptions}
+                    onChange={setBriefMode}
+                  />
+                </span>
+                <SummaryProviderDialog
+                  provider={summaryProviderConfig.provider}
+                  model={summaryProviderConfig.model}
+                  streamingMode={summaryProviderConfig.streamingMode}
+                  onProviderChange={(nextProvider) => {
+                    updateSummaryProviderPreference({
+                      provider: nextProvider,
+                      model: defaultProviderModels[nextProvider],
+                      streamingMode: summaryProviderConfig.streamingMode,
+                    });
+                  }}
+                  onModelChange={(model) =>
+                    updateSummaryProviderPreference({
+                      provider: summaryProviderConfig.provider,
+                      model,
+                      streamingMode: summaryProviderConfig.streamingMode,
+                    })
+                  }
+                  onStreamingModeChange={(streamingMode) =>
+                    updateSummaryProviderPreference({
+                      provider: summaryProviderConfig.provider,
+                      model: summaryProviderConfig.model,
+                      streamingMode,
+                    })
+                  }
+                />
+              </CardTitle>
+              <div className="flex min-h-9 flex-wrap items-center gap-2">
+                {briefMode === "summary" && summaryMarkdown ? (
+                  <SummaryGenerateDialog
+                    open={isSummaryGenerateDialogOpen}
+                    templateId={summaryTemplateId}
+                    lengthMode={summaryLengthMode}
+                    languageCode={summaryLanguage.code}
+                    isGenerating={isSummarizing}
+                    disabled={renderedTranscript.length === 0}
+                    triggerVariant="outline"
+                    onOpenChange={setIsSummaryGenerateDialogOpen}
+                    onTemplateChange={setSummaryTemplateId}
+                    onLengthChange={setSummaryLengthMode}
+                    onLanguageChange={setSummaryLanguage}
+                    onGenerate={generateSummary}
                   />
                 ) : null}
-                {summaryMarkdown ? (
-                  <SummaryMarkdownPanel
-                    summaryId={activeSummary?.id}
-                    markdown={summaryMarkdown}
-                    editable={Boolean(activeSummary && onUpdateSummaryMarkdown)}
-                    ariaLabel={t("workbench.summary.editor")}
-                    onCommitMarkdown={onUpdateSummaryMarkdown}
-                    saveLabel={t("workbench.summary.save")}
-                    saveDisabled={isSummarizing}
-                    onSaveMarkdown={
-                      activeSummary
-                        ? () => onSaveMarkdown(activeSummary.id)
-                        : undefined
-                    }
-                  />
-                ) : !summaryJob ? (
-                  <BriefEmptyState
-                    action={
-                      <SummaryGenerateDialog
-                        open={isSummaryGenerateDialogOpen}
-                        templateId={summaryTemplateId}
-                        lengthMode={summaryLengthMode}
-                        languageCode={summaryLanguage.code}
-                        isGenerating={isSummarizing}
-                        disabled={renderedTranscript.length === 0}
-                        onOpenChange={setIsSummaryGenerateDialogOpen}
-                        onTemplateChange={setSummaryTemplateId}
-                        onLengthChange={setSummaryLengthMode}
-                        onLanguageChange={setSummaryLanguage}
-                        onGenerate={generateSummary}
-                      />
-                    }
-                    description={t("workbench.summary.empty")}
+                {briefMode === "podcast" && podcast ? (
+                  <PodcastGenerateDialog
+                    open={isPodcastGenerateDialogOpen}
+                    podcastHistoryCount={podcastHistory.length}
+                    settings={podcastSettings}
+                    sourceKind={podcastSourceKind}
+                    canGenerate={Boolean(onGeneratePodcast && video)}
+                    hasSummary={Boolean(activeSummary)}
+                    hasTranscript={transcript.length > 0}
+                    isGenerating={isGeneratingPodcast}
+                    triggerVariant="outline"
+                    onOpenChange={setIsPodcastGenerateDialogOpen}
+                    onSettingsChange={setPodcastSettings}
+                    onSourceKindChange={setPodcastSourceKind}
+                    onGenerate={submitPodcastGeneration}
                   />
                 ) : null}
               </div>
-            </>
-          ) : (
-            <PodcastBriefPanel
-              podcast={podcast}
-              podcastHistory={podcastHistory}
-              podcastJob={podcastJob}
-              podcastAudioUrl={podcastAudioUrl}
-              sourceKind={podcastSourceKind}
-              hasSummary={Boolean(activeSummary)}
-              hasTranscript={transcript.length > 0}
-              generateAction={
-                <PodcastGenerateDialog
-                  open={isPodcastGenerateDialogOpen}
-                  podcastHistoryCount={podcastHistory.length}
-                  settings={podcastSettings}
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+              {briefMode === "summary" && transcript.length === 0 ? (
+                <div
+                  role="alert"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+                >
+                  <span>{t("workbench.summary.transcriptRequired")}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isExtractingTranscript || isTranscribing}
+                    onClick={() => void runAction(onExtractTranscript)}
+                  >
+                    <Subtitles className="h-4 w-4" aria-hidden="true" />
+                    {t("workbench.summary.transcribe")}
+                  </Button>
+                </div>
+              ) : null}
+              {briefMode === "summary" ? (
+                <>
+                  <SummaryTabStrip
+                    summaries={summaryTabs}
+                    activeSummaryId={activeSummary?.id}
+                    onSelectSummaryTab={onSelectSummaryTab}
+                  />
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    {summaryJob ? (
+                      <AiGenerationStatus
+                        job={summaryJob}
+                        runningLabel={t("workbench.summary.generating")}
+                        failedLabel={t("workbench.summary.failed")}
+                      />
+                    ) : null}
+                    {summaryMarkdown ? (
+                      <SummaryMarkdownPanel
+                        summaryId={activeSummary?.id}
+                        markdown={summaryMarkdown}
+                        editable={Boolean(
+                          activeSummary && onUpdateSummaryMarkdown,
+                        )}
+                        ariaLabel={t("workbench.summary.editor")}
+                        onCommitMarkdown={onUpdateSummaryMarkdown}
+                        saveLabel={t("workbench.summary.save")}
+                        saveDisabled={isSummarizing}
+                        onSaveMarkdown={
+                          activeSummary
+                            ? () => onSaveMarkdown(activeSummary.id)
+                            : undefined
+                        }
+                      />
+                    ) : !summaryJob ? (
+                      <BriefEmptyState
+                        action={
+                          <SummaryGenerateDialog
+                            open={isSummaryGenerateDialogOpen}
+                            templateId={summaryTemplateId}
+                            lengthMode={summaryLengthMode}
+                            languageCode={summaryLanguage.code}
+                            isGenerating={isSummarizing}
+                            disabled={renderedTranscript.length === 0}
+                            onOpenChange={setIsSummaryGenerateDialogOpen}
+                            onTemplateChange={setSummaryTemplateId}
+                            onLengthChange={setSummaryLengthMode}
+                            onLanguageChange={setSummaryLanguage}
+                            onGenerate={generateSummary}
+                          />
+                        }
+                        description={t("workbench.summary.empty")}
+                      />
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <PodcastBriefPanel
+                  podcast={podcast}
+                  podcastHistory={podcastHistory}
+                  podcastJob={podcastJob}
+                  podcastAudioUrl={podcastAudioUrl}
                   sourceKind={podcastSourceKind}
-                  canGenerate={Boolean(onGeneratePodcast && video)}
                   hasSummary={Boolean(activeSummary)}
                   hasTranscript={transcript.length > 0}
-                  isGenerating={isGeneratingPodcast}
-                  onOpenChange={setIsPodcastGenerateDialogOpen}
-                  onSettingsChange={setPodcastSettings}
-                  onSourceKindChange={setPodcastSourceKind}
-                  onGenerate={submitPodcastGeneration}
+                  generateAction={
+                    <PodcastGenerateDialog
+                      open={isPodcastGenerateDialogOpen}
+                      podcastHistoryCount={podcastHistory.length}
+                      settings={podcastSettings}
+                      sourceKind={podcastSourceKind}
+                      canGenerate={Boolean(onGeneratePodcast && video)}
+                      hasSummary={Boolean(activeSummary)}
+                      hasTranscript={transcript.length > 0}
+                      isGenerating={isGeneratingPodcast}
+                      onOpenChange={setIsPodcastGenerateDialogOpen}
+                      onSettingsChange={setPodcastSettings}
+                      onSourceKindChange={setPodcastSourceKind}
+                      onGenerate={submitPodcastGeneration}
+                    />
+                  }
+                  onAudioPlay={
+                    podcast
+                      ? () => onPauseVideo(podcast.sourceAssetId)
+                      : undefined
+                  }
+                  onPlayPodcast={onPlayPodcast}
+                  onDownloadPodcastAudio={onDownloadPodcastAudio}
+                  onDownloadPodcastScript={onDownloadPodcastScript}
+                  onDeletePodcast={onDeletePodcast}
                 />
-              }
-              onAudioPlay={
-                podcast ? () => onPauseVideo(podcast.sourceAssetId) : undefined
-              }
-              onPlayPodcast={onPlayPodcast}
-              onDownloadPodcastAudio={onDownloadPodcastAudio}
-              onDownloadPodcastScript={onDownloadPodcastScript}
-              onDeletePodcast={onDeletePodcast}
-            />
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
         </ResizablePanel>
 
         <ResizableHandle withHandle className="mx-2" />
 
         <ResizablePanel id="workbench-chat" defaultSize="30%" minSize="240px">
-      <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <MessageSquareText className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t("workbench.chat.title")}</span>
-                <span className="text-muted-foreground">{t("workbench.chat.with")}</span>
-              </span>
-              <ChatContextControl
-                value={contextMode}
-                options={chatContextOptions}
-                onChange={setContextMode}
-              />
-            </span>
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    disabled={isSendingChat}
-                    aria-label={t("workbench.chat.newChat")}
-                    onClick={() => {
-                      setPendingChatMessage(undefined);
-                      onResetChat?.();
-                    }}
-                  >
-                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {t("workbench.chat.newChat")}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="min-h-0 flex-1 overflow-y-auto py-2 text-sm">
-            {displayedChatMessages.length === 0 ? (
-              <p className="text-muted-foreground">
-                {t("workbench.chat.empty")}
-              </p>
-            ) : (
-              <ol className="space-y-4">
-                {displayedChatMessages.map((message, index) => {
-                  const ttsAudio = chatTtsAudioForMessage(
-                    chatTtsAudioByMessageId[message.id],
-                    message,
-                  );
-                  const isGeneratingTts =
-                    generatingChatTtsMessageId === message.id;
-
-                  return (
-                    <ChatBubble
-                      key={message.id}
-                      message={message}
-                      isLast={index === displayedChatMessages.length - 1}
-                      isReading={
-                        readingChatMessageId === message.id || isGeneratingTts
-                      }
-                      ttsAudio={ttsAudio}
-                      isPlayingTts={
-                        Boolean(ttsAudio) &&
-                        playingChatTtsMessageId === message.id
-                      }
-                      isStartingTts={startingChatTtsMessageId === message.id}
-                      isDownloadingTts={
-                        downloadingChatTtsMessageId === message.id
-                      }
-                      onRead={
-                        onReadChatMessage
-                          ? (renderedText) =>
-                              void readChatMessage(message, renderedText)
-                          : undefined
-                      }
-                      onPlayTtsAudio={
-                        onPlayChatTtsAudio
-                          ? (audio) => void playChatTtsAudio(message, audio)
-                          : undefined
-                      }
-                      onPauseTtsAudio={
-                        onPauseChatTtsAudio
-                          ? (audio) => void pauseChatTtsAudio(message, audio)
-                          : undefined
-                      }
-                      onDownloadTtsAudio={
-                        onDownloadChatTtsAudio
-                          ? (audio) => void downloadChatTtsAudio(message, audio)
-                          : undefined
-                      }
+          <Card className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <MessageSquareText
+                      className="h-4 w-4 shrink-0"
+                      aria-hidden="true"
                     />
-                  );
-                })}
-              </ol>
-            )}
-            {chatJob ? (
-              <AiGenerationStatus
-                job={chatJob}
-                runningLabel={t("workbench.chat.sending")}
-                failedLabel={t("workbench.chat.failed")}
-              />
-            ) : null}
-            {chatJob?.status === "running" && chatJob.streamingMode && chatJob.draftText ? (
-              <StreamingChatDraft draftText={chatJob.draftText} />
-            ) : null}
-          </div>
-          <div className="mt-auto grid gap-2">
-            <ChatProviderDialog
-              provider={chatProviderConfig.provider}
-              model={chatProviderConfig.model}
-              streamingMode={chatProviderConfig.streamingMode}
-              onProviderChange={(nextProvider) => {
-                updateChatProviderPreference({
-                  provider: nextProvider,
-                  model: defaultProviderModels[nextProvider],
-                  streamingMode: chatProviderConfig.streamingMode,
-                });
-              }}
-              onModelChange={(model) =>
-                updateChatProviderPreference({
-                  provider: chatProviderConfig.provider,
-                  model,
-                  streamingMode: chatProviderConfig.streamingMode,
-                })
-              }
-              onStreamingModeChange={(streamingMode) =>
-                updateChatProviderPreference({
-                  provider: chatProviderConfig.provider,
-                  model: chatProviderConfig.model,
-                  streamingMode,
-                })
-              }
-            />
-            <ChatQuestionForm
-              isSending={isSendingChat}
-              onSubmitQuestion={(submittedQuestion) =>
-                void submitChat(submittedQuestion)
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
+                    <span>{t("workbench.chat.title")}</span>
+                    <span className="text-muted-foreground">
+                      {t("workbench.chat.with")}
+                    </span>
+                  </span>
+                  <ChatContextControl
+                    value={contextMode}
+                    options={chatContextOptions}
+                    onChange={setContextMode}
+                  />
+                </span>
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={isSendingChat}
+                        aria-label={t("workbench.chat.newChat")}
+                        onClick={() => {
+                          setPendingChatMessage(undefined);
+                          onResetChat?.();
+                        }}
+                      >
+                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {t("workbench.chat.newChat")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+              <div className="min-h-0 flex-1 overflow-y-auto py-2 text-sm">
+                {displayedChatMessages.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    {t("workbench.chat.empty")}
+                  </p>
+                ) : (
+                  <ol className="space-y-4">
+                    {displayedChatMessages.map((message, index) => {
+                      const ttsAudio = chatTtsAudioForMessage(
+                        chatTtsAudioByMessageId[message.id],
+                        message,
+                      );
+                      const isGeneratingTts =
+                        generatingChatTtsMessageId === message.id;
+
+                      return (
+                        <ChatBubble
+                          key={message.id}
+                          message={message}
+                          isLast={index === displayedChatMessages.length - 1}
+                          isReading={
+                            readingChatMessageId === message.id ||
+                            isGeneratingTts
+                          }
+                          ttsAudio={ttsAudio}
+                          isPlayingTts={
+                            Boolean(ttsAudio) &&
+                            playingChatTtsMessageId === message.id
+                          }
+                          isStartingTts={
+                            startingChatTtsMessageId === message.id
+                          }
+                          isDownloadingTts={
+                            downloadingChatTtsMessageId === message.id
+                          }
+                          onRead={
+                            onReadChatMessage && message.role !== "user"
+                              ? (renderedText) =>
+                                  void readChatMessage(message, renderedText)
+                              : undefined
+                          }
+                          onPlayTtsAudio={
+                            onPlayChatTtsAudio
+                              ? (audio) => void playChatTtsAudio(message, audio)
+                              : undefined
+                          }
+                          onPauseTtsAudio={
+                            onPauseChatTtsAudio
+                              ? (audio) =>
+                                  void pauseChatTtsAudio(message, audio)
+                              : undefined
+                          }
+                          onDownloadTtsAudio={
+                            onDownloadChatTtsAudio
+                              ? (audio) =>
+                                  void downloadChatTtsAudio(message, audio)
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </ol>
+                )}
+                {chatJob ? (
+                  <AiGenerationStatus
+                    job={chatJob}
+                    runningLabel={t("workbench.chat.sending")}
+                    failedLabel={t("workbench.chat.failed")}
+                  />
+                ) : null}
+                {chatJob?.status === "running" &&
+                chatJob.streamingMode &&
+                chatJob.draftText ? (
+                  <StreamingChatDraft draftText={chatJob.draftText} />
+                ) : null}
+              </div>
+              <div className="mt-auto grid gap-2">
+                <ChatProviderDialog
+                  provider={chatProviderConfig.provider}
+                  model={chatProviderConfig.model}
+                  streamingMode={chatProviderConfig.streamingMode}
+                  onProviderChange={(nextProvider) => {
+                    updateChatProviderPreference({
+                      provider: nextProvider,
+                      model: defaultProviderModels[nextProvider],
+                      streamingMode: chatProviderConfig.streamingMode,
+                    });
+                  }}
+                  onModelChange={(model) =>
+                    updateChatProviderPreference({
+                      provider: chatProviderConfig.provider,
+                      model,
+                      streamingMode: chatProviderConfig.streamingMode,
+                    })
+                  }
+                  onStreamingModeChange={(streamingMode) =>
+                    updateChatProviderPreference({
+                      provider: chatProviderConfig.provider,
+                      model: chatProviderConfig.model,
+                      streamingMode,
+                    })
+                  }
+                />
+                <ChatQuestionForm
+                  isSending={isSendingChat}
+                  onSubmitQuestion={(submittedQuestion) =>
+                    void submitChat(submittedQuestion)
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
@@ -1433,7 +1473,7 @@ function TranscriptSegmentEditForm({
         aria-label={t("workbench.transcript.editLabel", {
           time: formatTime(segment.startSeconds),
         })}
-        className="min-h-20 resize-y bg-background text-sm"
+        className="bg-background min-h-20 resize-y text-sm"
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
@@ -1465,7 +1505,7 @@ function BriefEmptyState({
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-3 px-4 py-10 text-center">
       {action}
-      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
+      <p className="text-muted-foreground max-w-sm text-sm">{description}</p>
     </div>
   );
 }
@@ -1496,12 +1536,48 @@ function PodcastBriefPanel({
   onAudioPlay?(): void;
   onPlayPodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
   onDownloadPodcastAudio?(podcast: PodcastDocument): Promise<unknown> | unknown;
-  onDownloadPodcastScript?(podcast: PodcastDocument): Promise<unknown> | unknown;
+  onDownloadPodcastScript?(
+    podcast: PodcastDocument,
+  ): Promise<unknown> | unknown;
   onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
 }) {
   const { t } = useI18n();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [currentAudioTime, setCurrentAudioTime] = useState(0);
   const sourceAvailable =
     sourceKind === "current-summary" ? hasSummary : hasTranscript;
+  const turnTimingsById = useMemo(
+    () =>
+      new Map(
+        (podcast?.turnTimings ?? []).map((timing) => [timing.turnId, timing]),
+      ),
+    [podcast?.turnTimings],
+  );
+  const activeTurnId = useMemo(() => {
+    for (const timing of turnTimingsById.values()) {
+      if (
+        currentAudioTime >= timing.startSeconds &&
+        currentAudioTime < timing.endSeconds
+      ) {
+        return timing.turnId;
+      }
+    }
+
+    return undefined;
+  }, [currentAudioTime, turnTimingsById]);
+
+  useEffect(() => {
+    setCurrentAudioTime(0);
+  }, [podcast?.id, podcastAudioUrl]);
+
+  function seekToTurn(turnId: string) {
+    const timing = turnTimingsById.get(turnId);
+    const audio = audioRef.current;
+    if (!timing || !audio) return;
+
+    audio.currentTime = timing.startSeconds;
+    setCurrentAudioTime(timing.startSeconds);
+  }
 
   if (!podcast && !podcastJob) {
     return (
@@ -1526,13 +1602,15 @@ function PodcastBriefPanel({
             <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="font-medium">{t("workbench.podcast.title")}</span>
             {podcastHistory.length > 1 ? (
-              <span className="text-xs text-muted-foreground">
-                {t("workbench.podcast.history", { count: podcastHistory.length })}
+              <span className="text-muted-foreground text-xs">
+                {t("workbench.podcast.history", {
+                  count: podcastHistory.length,
+                })}
               </span>
             ) : null}
           </div>
           {podcastJob ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {podcastJob.status === "running"
                 ? t(podcastStageLabelKey(podcastJob.stage))
                 : t("workbench.podcast.failed")}
@@ -1587,28 +1665,59 @@ function PodcastBriefPanel({
         </div>
         {podcast && podcastAudioUrl ? (
           <audio
+            ref={audioRef}
             className="w-full"
             controls
             preload="metadata"
             src={podcastAudioUrl}
             onPlay={onAudioPlay}
+            onTimeUpdate={(event) =>
+              setCurrentAudioTime(event.currentTarget.currentTime)
+            }
+            onSeeked={(event) =>
+              setCurrentAudioTime(event.currentTarget.currentTime)
+            }
           />
         ) : null}
         {podcast ? (
           <ol className="grid gap-3">
-            {podcast.script.turns.map((turn) => (
-              <li
-                key={turn.id}
-                className="rounded-md border bg-muted/20 px-3 py-2 text-sm"
-              >
-                <p className="mb-1 font-medium">{turn.speakerLabel}</p>
-                <p className="leading-relaxed text-foreground/90">{turn.text}</p>
-              </li>
-            ))}
+            {podcast.script.turns.map((turn) => {
+              const timing = turnTimingsById.get(turn.id);
+              const isActive = activeTurnId === turn.id;
+
+              return (
+                <li key={turn.id}>
+                  <button
+                    type="button"
+                    disabled={!timing}
+                    aria-current={isActive ? "true" : undefined}
+                    className={cn(
+                      "bg-muted/20 w-full rounded-md border px-3 py-2 text-left text-sm transition",
+                      timing && "hover:bg-muted/60",
+                      isActive && "border-primary bg-primary/10",
+                      !timing && "cursor-default",
+                    )}
+                    onClick={() => seekToTurn(turn.id)}
+                  >
+                    <span className="mb-1 flex items-center justify-between gap-3 font-medium">
+                      <span>{turn.speakerLabel}</span>
+                      {timing ? (
+                        <span className="text-muted-foreground shrink-0 text-xs font-normal">
+                          {formatPodcastTimestamp(timing.startSeconds)}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-foreground/90 block leading-relaxed">
+                      {turn.text}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ol>
         ) : null}
         {podcastJob && !sourceAvailable ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {sourceKind === "current-summary"
               ? t("workbench.podcast.summaryRequired")
               : t("workbench.podcast.transcriptRequired")}
@@ -1652,7 +1761,11 @@ function SummaryGenerateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button type="button" variant={triggerVariant} disabled={submitDisabled}>
+        <Button
+          type="button"
+          variant={triggerVariant}
+          disabled={submitDisabled}
+        >
           {isGenerating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
@@ -1679,7 +1792,9 @@ function SummaryGenerateDialog({
           }}
         >
           <div className="grid gap-2 text-sm">
-            <span className="font-medium">{t("workbench.summary.template")}</span>
+            <span className="font-medium">
+              {t("workbench.summary.template")}
+            </span>
             <SummaryTemplateSelect
               value={templateId}
               triggerClassName="w-full"
@@ -1695,7 +1810,9 @@ function SummaryGenerateDialog({
             />
           </div>
           <div className="grid gap-2 text-sm">
-            <span className="font-medium">{t("workbench.summary.language")}</span>
+            <span className="font-medium">
+              {t("workbench.summary.language")}
+            </span>
             <SummaryLanguageSelect
               value={languageCode}
               triggerClassName="w-full"
@@ -1799,7 +1916,10 @@ function PodcastGenerateDialog({
                 },
               ]}
               onChange={(mode) =>
-                onSettingsChange({ ...settings, mode: mode as PodcastOutputMode })
+                onSettingsChange({
+                  ...settings,
+                  mode: mode as PodcastOutputMode,
+                })
               }
             />
             <PodcastSelect
@@ -1819,7 +1939,9 @@ function PodcastGenerateDialog({
                   label: t("workbench.podcast.source.translation"),
                 },
               ]}
-              onChange={(value) => onSourceKindChange(value as PodcastSourceKind)}
+              onChange={(value) =>
+                onSourceKindChange(value as PodcastSourceKind)
+              }
             />
             <PodcastSelect
               label={t("workbench.podcast.length")}
@@ -1889,19 +2011,19 @@ function PodcastGenerateDialog({
             />
           </div>
           {!sourceAvailable ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {sourceKind === "current-summary"
                 ? t("workbench.podcast.summaryRequired")
                 : t("workbench.podcast.transcriptRequired")}
             </p>
           ) : null}
           {sourceAvailable && !hasDistinctSpeakers ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {t("workbench.podcast.distinctVoicesRequired")}
             </p>
           ) : null}
           {podcastHistoryCount > 1 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {t("workbench.podcast.history", { count: podcastHistoryCount })}
             </p>
           ) : null}
@@ -1929,7 +2051,7 @@ function PodcastSelect({
   onChange(value: string): void;
 }) {
   return (
-    <label className="grid gap-1 text-xs text-muted-foreground">
+    <label className="text-muted-foreground grid gap-1 text-xs">
       <span>{label}</span>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-9">
@@ -1947,7 +2069,9 @@ function PodcastSelect({
   );
 }
 
-function podcastStageLabelKey(stage: PodcastGenerationJob["stage"]): TranslationKey {
+function podcastStageLabelKey(
+  stage: PodcastGenerationJob["stage"],
+): TranslationKey {
   switch (stage) {
     case "script":
       return "workbench.podcast.stage.script";
@@ -2139,7 +2263,7 @@ function ChatBubble({
     <li
       tabIndex={isLast ? undefined : 0}
       className={cn(
-        "flex flex-col rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "focus-visible:ring-ring flex flex-col rounded-md focus:outline-none focus-visible:ring-2",
         message.role === "user" ? "items-end" : "items-start",
       )}
       onFocusCapture={() => setIsActionRegionFocused(true)}
@@ -2200,7 +2324,10 @@ function ChatBubble({
                       }
                     >
                       {isStartingTts ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        <Loader2
+                          className="h-3.5 w-3.5 animate-spin"
+                          aria-hidden="true"
+                        />
                       ) : isPlayingTts ? (
                         <Pause className="h-3.5 w-3.5" aria-hidden="true" />
                       ) : (
@@ -2236,7 +2363,10 @@ function ChatBubble({
                       onClick={() => onRead(renderedText())}
                     >
                       {isReading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        <Loader2
+                          className="h-3.5 w-3.5 animate-spin"
+                          aria-hidden="true"
+                        />
                       ) : ttsAudio ? (
                         <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                       ) : (
@@ -2268,7 +2398,10 @@ function ChatBubble({
                       onClick={() => onDownloadTtsAudio(ttsAudio)}
                     >
                       {isDownloadingTts ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        <Loader2
+                          className="h-3.5 w-3.5 animate-spin"
+                          aria-hidden="true"
+                        />
                       ) : (
                         <Download className="h-3.5 w-3.5" aria-hidden="true" />
                       )}
@@ -2419,7 +2552,7 @@ function sanitizeChatTtsMessagePathSegment(value: string) {
 function StreamingChatDraft({ draftText }: { draftText: string }) {
   return (
     <div className="flex items-start">
-      <div className="max-w-[88%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
+      <div className="bg-muted text-foreground max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed">
         <MarkdownRenderer markdown={draftText} />
       </div>
     </div>
@@ -2454,7 +2587,7 @@ function ChatProviderDialog({
           aria-label={label}
         >
           <ProviderIcon provider={provider} size={16} decorative />
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+          <span className="text-muted-foreground min-w-0 truncate text-xs">
             {providerLabels[provider]} · {shortProviderModelName(model)}
           </span>
         </Button>
@@ -2462,7 +2595,9 @@ function ChatProviderDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{label}</DialogTitle>
-          <DialogDescription>{t("setup.provider.description")}</DialogDescription>
+          <DialogDescription>
+            {t("setup.provider.description")}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2 text-sm">
@@ -2503,7 +2638,7 @@ function ChatProviderDialog({
                   : t("workbench.chat.streamingOff")}
               </span>
             </button>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {t("workbench.chat.streamingDescription")}
             </p>
           </div>
@@ -2564,10 +2699,8 @@ function VideoTabStrip({
                   title: tabVideo.title,
                 })}
                 className={`rounded p-1 ${
-                  isActive
-                    ? "hover:bg-primary-foreground/20"
-                    : "hover:bg-muted"
-                } opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100`}
+                  isActive ? "hover:bg-primary-foreground/20" : "hover:bg-muted"
+                } opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100`}
                 onClick={() => onCloseVideoTab?.(tabVideo.id)}
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -2631,7 +2764,7 @@ function SummaryProviderDialog({
         >
           <ProviderIcon provider={provider} size={16} decorative />
           <span
-            className="min-w-0 truncate text-xs text-muted-foreground"
+            className="text-muted-foreground min-w-0 truncate text-xs"
             aria-hidden="true"
           >
             {providerLabels[provider]} · {shortModelName}
@@ -2641,7 +2774,9 @@ function SummaryProviderDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{label}</DialogTitle>
-          <DialogDescription>{t("setup.provider.description")}</DialogDescription>
+          <DialogDescription>
+            {t("setup.provider.description")}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2 text-sm">
@@ -2662,7 +2797,9 @@ function SummaryProviderDialog({
             />
           </div>
           <div className="grid gap-2 text-sm">
-            <span className="font-medium">{t("workbench.summary.streaming")}</span>
+            <span className="font-medium">
+              {t("workbench.summary.streaming")}
+            </span>
             <button
               type="button"
               role="switch"
@@ -2682,7 +2819,7 @@ function SummaryProviderDialog({
                   : t("workbench.summary.streamingOff")}
               </span>
             </button>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {t("workbench.summary.streamingDescription")}
             </p>
           </div>
@@ -2728,7 +2865,7 @@ function TranscriptActionPanel({
   const { t } = useI18n();
 
   return (
-    <div className="grid gap-2 rounded-md border border-border p-2">
+    <div className="border-border grid gap-2 rounded-md border p-2">
       <div className="flex items-center gap-2">
         <Select value={activeVariantId} onValueChange={onVariantChange}>
           <SelectTrigger
@@ -2738,9 +2875,7 @@ function TranscriptActionPanel({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="original">
-              {baseTranscriptLabel}
-            </SelectItem>
+            <SelectItem value="original">{baseTranscriptLabel}</SelectItem>
             {variants.map((variant) => (
               <SelectItem key={variant.id} value={variant.id}>
                 {variant.languageLabel ??
@@ -2811,7 +2946,9 @@ function TranscriptActionPanel({
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("workbench.transcript.translate.title")}</DialogTitle>
+            <DialogTitle>
+              {t("workbench.transcript.translate.title")}
+            </DialogTitle>
             <DialogDescription>
               {t("workbench.transcript.translate.description")}
             </DialogDescription>
@@ -2827,7 +2964,9 @@ function TranscriptActionPanel({
                 onTargetLanguageChange(language);
               }}
             >
-              <SelectTrigger aria-label={t("workbench.transcript.translate.language")}>
+              <SelectTrigger
+                aria-label={t("workbench.transcript.translate.language")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -2995,7 +3134,10 @@ function ChatContextControl({
   );
 }
 
-function normalizeVideoTabs(openVideos: VideoAsset[], activeVideo?: VideoAsset) {
+function normalizeVideoTabs(
+  openVideos: VideoAsset[],
+  activeVideo?: VideoAsset,
+) {
   if (!activeVideo) return openVideos;
 
   if (openVideos.some((video) => video.id === activeVideo.id)) {
@@ -3052,11 +3194,15 @@ export function nextVoiceCloneTranscriptSegmentSelection(
   selectedIds: string[],
   toggledId: string,
 ) {
-  const toggledIndex = transcript.findIndex((segment) => segment.id === toggledId);
+  const toggledIndex = transcript.findIndex(
+    (segment) => segment.id === toggledId,
+  );
   if (toggledIndex < 0) return selectedIds;
 
   const selectedIndexes = selectedIds
-    .map((segmentId) => transcript.findIndex((segment) => segment.id === segmentId))
+    .map((segmentId) =>
+      transcript.findIndex((segment) => segment.id === segmentId),
+    )
     .filter((index) => index >= 0)
     .sort((a, b) => a - b);
   const alreadySelected = selectedIndexes.includes(toggledIndex);
@@ -3076,7 +3222,11 @@ export function nextVoiceCloneTranscriptSegmentSelection(
   return nextIndexes.map((index) => transcript[index].id);
 }
 
-function TranscriptProgressCard({ transcriptJob }: { transcriptJob: TranscriptJob }) {
+function TranscriptProgressCard({
+  transcriptJob,
+}: {
+  transcriptJob: TranscriptJob;
+}) {
   const { t } = useI18n();
   const progressPercent = Math.round(
     Math.max(0, Math.min(transcriptJob.progressPercent, 100)),
@@ -3099,7 +3249,7 @@ function TranscriptProgressCard({ transcriptJob }: { transcriptJob: TranscriptJo
   return (
     <div
       role={transcriptJob.status === "failed" ? "alert" : "status"}
-      className="rounded-md border border-border bg-muted/40 p-3 text-sm"
+      className="border-border bg-muted/40 rounded-md border p-3 text-sm"
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="font-medium">
@@ -3107,12 +3257,12 @@ function TranscriptProgressCard({ transcriptJob }: { transcriptJob: TranscriptJo
             ? t("workbench.transcript.failed")
             : statusLabel}
         </span>
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="text-muted-foreground font-mono text-xs">
           {progressPercent}%
         </span>
       </div>
       <div
-        className="h-2 overflow-hidden rounded-full bg-background"
+        className="bg-background h-2 overflow-hidden rounded-full"
         aria-label={t("workbench.transcript.progress")}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -3120,12 +3270,14 @@ function TranscriptProgressCard({ transcriptJob }: { transcriptJob: TranscriptJo
         role="progressbar"
       >
         <div
-          className="h-full rounded-full bg-primary transition-[width]"
+          className="bg-primary h-full rounded-full transition-[width]"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
       {transcriptJob.errorMessage ? (
-        <p className="mt-2 text-xs text-destructive">{transcriptJob.errorMessage}</p>
+        <p className="text-destructive mt-2 text-xs">
+          {transcriptJob.errorMessage}
+        </p>
       ) : null}
     </div>
   );
@@ -3143,19 +3295,19 @@ function AiGenerationStatus({
   return (
     <div
       role={job.status === "failed" ? "alert" : "status"}
-      className="mb-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+      className="border-border bg-muted/40 mb-3 rounded-md border px-3 py-2 text-sm"
     >
       <div className="flex items-center justify-between gap-3">
         <span className="font-medium">
           {job.status === "failed" ? failedLabel : runningLabel}
         </span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {job.provider}
           {job.model ? ` · ${shortProviderModelName(job.model)}` : ""}
         </span>
       </div>
       {job.errorMessage ? (
-        <p className="mt-1 text-xs text-destructive">{job.errorMessage}</p>
+        <p className="text-destructive mt-1 text-xs">{job.errorMessage}</p>
       ) : null}
     </div>
   );
@@ -3230,7 +3382,9 @@ function SummaryTemplateSelect({
       ariaLabel={t("workbench.summary.template")}
       value={value}
       triggerClassName={triggerClassName}
-      onValueChange={(nextValue) => onChange(nextValue as VideoSummaryTemplateId)}
+      onValueChange={(nextValue) =>
+        onChange(nextValue as VideoSummaryTemplateId)
+      }
       options={videoSummaryTemplates.map((template) => ({
         value: template.id,
         label: template.label,
@@ -3256,12 +3410,12 @@ function SummaryLengthSelect({
       value={value}
       triggerClassName={triggerClassName}
       onValueChange={(nextValue) => onChange(nextValue as SummaryLengthMode)}
-      options={(Object.keys(summaryLengthModeLabels) as SummaryLengthMode[]).map(
-        (mode) => ({
-          value: mode,
-          label: summaryLengthModeLabels[mode],
-        }),
-      )}
+      options={(
+        Object.keys(summaryLengthModeLabels) as SummaryLengthMode[]
+      ).map((mode) => ({
+        value: mode,
+        label: summaryLengthModeLabels[mode],
+      }))}
     />
   );
 }
@@ -3314,7 +3468,10 @@ function WorkbenchSelect({
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger aria-label={ariaLabel} className={cn("h-10 w-52", triggerClassName)}>
+      <SelectTrigger
+        aria-label={ariaLabel}
+        className={cn("h-10 w-52", triggerClassName)}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {selectedOption?.icon ? (
             <span className="shrink-0">{selectedOption.icon}</span>
@@ -3368,6 +3525,10 @@ function formatTime(totalSeconds: number) {
   }
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function formatPodcastTimestamp(totalSeconds: number) {
+  return formatTime(Math.max(0, totalSeconds));
 }
 
 function formatTokenCount(value: number | undefined) {

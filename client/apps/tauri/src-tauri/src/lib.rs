@@ -34,6 +34,7 @@ struct TranscriptOverlayPayload {
     video_title: String,
     timestamp: String,
     text: String,
+    next_text: Option<String>,
 }
 
 #[tauri::command]
@@ -74,6 +75,27 @@ fn hide_transcript_overlay(app: tauri::AppHandle) -> Result<bool, String> {
     app.emit_to("main", TRANSCRIPT_OVERLAY_HIDDEN_EVENT, ())
         .map_err(|error| error.to_string())?;
     Ok(true)
+}
+
+#[cfg(target_os = "macos")]
+fn setup_transcript_overlay_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(window) = app.get_webview_window(TRANSCRIPT_OVERLAY_WINDOW_LABEL) else {
+        return Ok(());
+    };
+
+    let ns_window = window.ns_window()?;
+    unsafe {
+        let ns_window = ns_window as *mut objc2_app_kit::NSWindow;
+        let clear_color = objc2_app_kit::NSColor::clearColor();
+        (*ns_window).setBackgroundColor(Some(&clear_color));
+    }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn setup_transcript_overlay_window(_app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -151,6 +173,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             setup_tray(app)?;
+            setup_transcript_overlay_window(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

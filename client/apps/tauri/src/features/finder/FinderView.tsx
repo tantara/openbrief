@@ -53,6 +53,7 @@ import {
 import { Textarea } from "@acme/ui/textarea";
 import { VideoDownloadMenuButton } from "@/components/video/VideoDownloadMenu";
 import type { DownloadRecoveryActionKind } from "@/domain/download-error";
+import type { PodcastDocument } from "@/domain/podcast";
 import {
   filterVideoLibrary,
   type IngestJob,
@@ -79,6 +80,7 @@ type FinderViewProps = {
   ingestJobs?: IngestJob[];
   transcriptsByVideoId?: Record<string, TranscriptSegment[]>;
   summariesByVideoId?: Record<string, SummaryDocument>;
+  podcastsByVideoId?: Record<string, PodcastDocument>;
   selectedVideoId?: string;
   query?: VideoLibraryQuery;
   onQueryChange?(query: VideoLibraryQuery): void;
@@ -111,6 +113,7 @@ export function FinderView({
   ingestJobs = [],
   transcriptsByVideoId = {},
   summariesByVideoId = {},
+  podcastsByVideoId = {},
   query,
   onQueryChange,
   onImportLocalFile,
@@ -131,6 +134,7 @@ export function FinderView({
     sourceKind: "all",
     transcriptStatus: "all",
     summaryStatus: "all",
+    podcastStatus: "all",
     sortBy: "created_at",
     page: 1,
   });
@@ -142,9 +146,10 @@ export function FinderView({
         videos,
         transcriptsByVideoId,
         summariesByVideoId,
+        podcastsByVideoId,
         query: activeQuery,
       }),
-    [activeQuery, summariesByVideoId, transcriptsByVideoId, videos],
+    [activeQuery, podcastsByVideoId, summariesByVideoId, transcriptsByVideoId, videos],
   );
   const pageCount = Math.max(1, Math.ceil(visibleVideos.length / finderPageSize));
   const currentPage = clampPage(activeQuery.page, pageCount);
@@ -284,6 +289,30 @@ function VideoLibraryControls({
           }
         >
           {t("finder.filter.summary.without")}
+        </FilterChip>
+        <FilterChip
+          active={(query.podcastStatus ?? "all") === "with-podcast"}
+          onClick={() =>
+            patchQuery({
+              podcastStatus:
+                query.podcastStatus === "with-podcast" ? "all" : "with-podcast",
+            })
+          }
+        >
+          {t("finder.filter.podcast.with")}
+        </FilterChip>
+        <FilterChip
+          active={(query.podcastStatus ?? "all") === "without-podcast"}
+          onClick={() =>
+            patchQuery({
+              podcastStatus:
+                query.podcastStatus === "without-podcast"
+                  ? "all"
+                  : "without-podcast",
+            })
+          }
+        >
+          {t("finder.filter.podcast.without")}
         </FilterChip>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">

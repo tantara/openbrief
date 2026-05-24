@@ -24,6 +24,9 @@ describe("TranscriptOverlayWindow", () => {
 
     expect(overlay).toHaveClass("bg-black/80");
     expect(overlay).toHaveClass("rounded-xl");
+    expect(overlay).toHaveClass("border-0");
+    expect(overlay).toHaveClass("shadow-none");
+    expect(overlay).not.toHaveClass("border-border");
     expect(dragHandle).toBeTruthy();
     expect(screen.getByText("Transcript overlay is ready.")).toBeInTheDocument();
   });
@@ -47,12 +50,14 @@ describe("TranscriptOverlayWindow", () => {
         videoTitle: "Demo video",
         timestamp: "1:23",
         text: "Current transcript line",
+        nextText: "Upcoming transcript line",
       },
     });
 
     await waitFor(() => {
       expect(screen.getByText("Current transcript line")).toBeInTheDocument();
     });
+    expect(screen.getByText("Upcoming transcript line")).toHaveClass("text-white/45");
     expect(screen.getByText("Demo video")).toBeInTheDocument();
     expect(screen.getByText("1:23")).toBeInTheDocument();
   });
