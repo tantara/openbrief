@@ -328,6 +328,7 @@ jobs:
           if (($noModelOutput -join "`n") -notmatch "transcribe_audio_model_not_found") {
             throw "STT without model did not report transcribe_audio_model_not_found"
           }
+          $global:LASTEXITCODE = 0
 
           if ("${{ inputs.run_tiny_model }}" -eq "true") {
             $model = Join-Path $env:RUNNER_TEMP "ggml-tiny.bin"
