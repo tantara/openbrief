@@ -279,6 +279,7 @@ export function AppShell() {
     deletePodcast,
     sendChat,
     resetChatSession,
+    updateChatMessageVoiceMessage,
     reviewTranscript,
     translateTranscript,
     renameVideoTitle,
@@ -557,7 +558,12 @@ export function AppShell() {
   const selectedChatTtsLookupKey = selectedChatMessages
     .map(
       (message) =>
-        `${message.id}:${sanitizeChatMessageTtsPathSegment(message.id)}`,
+        [
+          message.id,
+          sanitizeChatMessageTtsPathSegment(message.id),
+          message.voiceMessage?.audioPath ?? "",
+          message.voiceMessage?.generationId ?? "",
+        ].join(":"),
     )
     .join("\n");
 
@@ -578,6 +584,10 @@ export function AppShell() {
 
     void Promise.all(
       messages.map(async (message) => {
+        if (message.voiceMessage) {
+          return [message.id, message.voiceMessage] as const;
+        }
+
         const ttsPathKey = sanitizeChatMessageTtsPathSegment(message.id);
         if ((ttsPathKeyCounts.get(ttsPathKey) ?? 0) > 1) {
           return [message.id, undefined] as const;
@@ -1525,14 +1535,17 @@ export function AppShell() {
         voiceStyleId,
         qwenPresetVoiceId,
       });
+      const voiceMessage = {
+        audioPath: result.audioPath,
+        generationId: result.generationId,
+        sizeBytes: result.sizeBytes,
+        createdAtIso: new Date().toISOString(),
+      };
       setChatTtsAudioByMessageId((current) => ({
         ...current,
-        [message.id]: {
-          audioPath: result.audioPath,
-          generationId: result.generationId,
-          sizeBytes: result.sizeBytes,
-        },
+        [message.id]: voiceMessage,
       }));
+      updateChatMessageVoiceMessage(video.id, message.id, voiceMessage);
       await playChatTtsAudioUrl(message.id, result.audioUrl);
     } catch (error) {
       setAppNotice(

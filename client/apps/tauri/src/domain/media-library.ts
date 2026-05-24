@@ -111,6 +111,13 @@ export type AiTokenUsage = {
   totalTokens?: number;
 };
 
+export type ChatVoiceMessageArtifact = {
+  audioPath: string;
+  generationId: string;
+  sizeBytes: number;
+  createdAtIso: string;
+};
+
 export type ChatMessage = {
   id: string;
   videoId: string;
@@ -121,6 +128,7 @@ export type ChatMessage = {
   provider?: ProviderKind;
   model?: string;
   tokenUsage?: AiTokenUsage;
+  voiceMessage?: ChatVoiceMessageArtifact;
   createdAtIso: string;
 };
 

@@ -1035,6 +1035,100 @@ describe("useMediaLibrary", () => {
     expect(result.current.state.chatMessagesByVideoId["video-1"]).toHaveLength(2);
   });
 
+  it("persists generated voice artifacts on the owning chat message", async () => {
+    const video: VideoAsset = {
+      id: "video-1",
+      title: "Design Review",
+      sourceKind: "youtube",
+      originalUri: "https://youtu.be/example",
+      libraryPath: "videos/video-1/video.mp4",
+      importStatus: "ready",
+      createdAtIso: "2026-05-21T00:00:00.000Z",
+    };
+    const assistantMessage: ChatMessage = {
+      id: "chat-assistant-video-1-message-1",
+      videoId: "video-1",
+      role: "assistant",
+      content: "The important part.",
+      contextMode: "summary",
+      sessionId: "default",
+      createdAtIso: "2026-05-21T00:01:00.000Z",
+    };
+    const savedSnapshots: MediaLibrarySnapshot[] = [];
+    const repository: MediaLibraryRepository = {
+      async loadSnapshot() {
+        return {
+          ...createEmptyMediaLibrarySnapshot(),
+          videos: [video],
+          chatMessagesByVideoId: {
+            "video-1": [assistantMessage],
+          },
+        };
+      },
+      async saveSnapshot(snapshot) {
+        savedSnapshots.push(snapshot);
+      },
+      async listVideos() {
+        return [video];
+      },
+      async getVideo() {
+        return video;
+      },
+      async listIngestJobs() {
+        return [];
+      },
+      async listTranscriptJobs() {
+        return [];
+      },
+      async listTranscript() {
+        return [];
+      },
+      async getSummary() {
+        return undefined;
+      },
+      async listChatMessages() {
+        return [assistantMessage];
+      },
+      async listPlaylists() {
+        return [];
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useMediaLibrary([], undefined, undefined, undefined, repository),
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedChatMessages).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.updateChatMessageVoiceMessage(
+        "video-1",
+        assistantMessage.id,
+        {
+          audioPath:
+            "videos/video-1/chat/tts/chat-assistant-video-1-message-1/voice-message-1/voice-message-1.wav",
+          generationId: "voice-message-1",
+          sizeBytes: 123,
+          createdAtIso: "2026-05-21T00:02:00.000Z",
+        },
+      );
+    });
+
+    expect(result.current.selectedChatMessages[0]?.voiceMessage).toMatchObject({
+      generationId: "voice-message-1",
+      sizeBytes: 123,
+    });
+    expect(
+      savedSnapshots.at(-1)?.chatMessagesByVideoId["video-1"]?.[0]
+        ?.voiceMessage,
+    ).toMatchObject({
+      audioPath:
+        "videos/video-1/chat/tts/chat-assistant-video-1-message-1/voice-message-1/voice-message-1.wav",
+    });
+  });
+
   it("persists generated summaries and chat messages through the repository", async () => {
     const video: VideoAsset = {
       id: "video-1",

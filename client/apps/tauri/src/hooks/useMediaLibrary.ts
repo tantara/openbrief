@@ -11,6 +11,7 @@ import type {
 import type { MarkdownSavePayload } from "@/domain/markdown-save";
 import type {
   ChatMessage,
+  ChatVoiceMessageArtifact,
   IngestJob,
   ProviderKind,
   SummaryDocument,
@@ -769,6 +770,28 @@ export function useMediaLibrary(
     return nextSessionId;
   }
 
+  function updateChatMessageVoiceMessage(
+    videoId: string,
+    messageId: string,
+    voiceMessage: ChatVoiceMessageArtifact,
+  ) {
+    updateLibrarySnapshot((current) => {
+      const messages = current.chatMessagesByVideoId[videoId] ?? [];
+
+      return {
+        ...current,
+        chatMessagesByVideoId: {
+          ...current.chatMessagesByVideoId,
+          [videoId]: messages.map((message) =>
+            message.id === messageId
+              ? { ...message, voiceMessage }
+              : message,
+          ),
+        },
+      };
+    }, true);
+  }
+
   async function reviewTranscript(
     videoId: string,
     provider: ProviderKind = "openai",
@@ -1199,6 +1222,7 @@ export function useMediaLibrary(
     generatePodcast,
     deletePodcast,
     resetChatSession,
+    updateChatMessageVoiceMessage,
     reviewTranscript,
     translateTranscript,
     createMarkdownSave,
