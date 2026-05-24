@@ -62,11 +62,11 @@ describe("transcript domain", () => {
 
     expect(audio).toMatchObject({
       command: "extract_audio",
-      outputPath: "videos/video-1/audio/audio.wav",
+      outputPath: "videos/video-1/audio/Design-Review-audio.wav",
     });
     expect(stt).toMatchObject({
       command: "transcribe_audio",
-      audioPath: "videos/video-1/audio/audio.wav",
+      audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       modelPath: "models/tiny.bin",
       language: "ko",
       outputPath: "videos/video-1/transcript/transcript.json",

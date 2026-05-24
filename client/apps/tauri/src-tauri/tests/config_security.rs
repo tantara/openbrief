@@ -96,6 +96,7 @@ fn default_capability_grants_only_minimal_platform_plugin_permissions() {
         .collect::<Vec<_>>();
 
     for required in [
+        "core:window:allow-start-dragging",
         "dialog:allow-open",
         "dialog:allow-save",
         "os:default",

@@ -87,7 +87,7 @@ describe("transcript service", () => {
     const helper = new ScriptedHelperClient([
       {
         command: "extract_audio",
-        audioPath: "videos/video-1/audio/audio.wav",
+        audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       },
       {
         command: "transcribe_audio",
@@ -116,7 +116,7 @@ describe("transcript service", () => {
       },
       {
         command: "extract_audio",
-        audioPath: "videos/video-1/audio/audio.wav",
+        audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       },
       {
         command: "transcribe_audio",
@@ -166,7 +166,7 @@ describe("transcript service", () => {
     const helper = new ScriptedHelperClient([
       {
         command: "extract_audio",
-        audioPath: "videos/video-1/audio/audio.wav",
+        audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       },
       {
         command: "transcribe_audio",
@@ -186,7 +186,7 @@ describe("transcript service", () => {
     const helper = new ScriptedHelperClient([
       {
         command: "extract_audio",
-        audioPath: "videos/audio-1/audio/audio.wav",
+        audioPath: "videos/audio-1/audio/Audio-interview-audio.wav",
       },
       {
         command: "transcribe_audio",
@@ -203,7 +203,7 @@ describe("transcript service", () => {
     expect(helper.receivedCommands[0]).toMatchObject({
       command: "extract_audio",
       videoPath: "audio/local-interview/interview.mp3",
-      outputPath: "videos/audio-1/audio/audio.wav",
+      outputPath: "videos/audio-1/audio/Audio-interview-audio.wav",
     });
     expect(result.ok && result.job.preferredSource).toBe("local-stt");
     expect(result.ok && result.segments[0]).toMatchObject({
@@ -220,7 +220,7 @@ describe("transcript service", () => {
       },
       {
         command: "extract_audio",
-        audioPath: "videos/video-1/audio/audio.wav",
+        audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       },
       {
         command: "transcribe_audio",
@@ -259,7 +259,7 @@ describe("transcript service", () => {
       },
       {
         command: "extract_audio",
-        audioPath: "videos/video-1/audio/audio.wav",
+        audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       },
       { throwValue: "transcribe_audio requires a transcription engine" },
     ]);
@@ -282,7 +282,7 @@ describe("transcript service", () => {
       },
       {
         command: "extract_audio",
-        audioPath: "videos/video-1/audio/audio.wav",
+        audioPath: "videos/video-1/audio/Design-Review-audio.wav",
       },
       {
         command: "transcribe_audio",

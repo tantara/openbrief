@@ -10,7 +10,6 @@ import {
   Pencil,
   Plus,
   RotateCcw,
-  SlidersHorizontal,
   Sparkles,
   Subtitles,
   X,
@@ -229,9 +228,12 @@ export function WorkbenchView({
   const [editingTranscriptSegmentId, setEditingTranscriptSegmentId] =
     useState<string>();
   const [transcriptDraft, setTranscriptDraft] = useState("");
-  const [isTranscriptListFocused, setIsTranscriptListFocused] = useState(false);
-  const transcriptListRef = useRef<HTMLDivElement | null>(null);
+  const [focusedTranscriptSegmentId, setFocusedTranscriptSegmentId] =
+    useState<string>();
+  const [hoveredTranscriptSegmentId, setHoveredTranscriptSegmentId] =
+    useState<string>();
   const transcriptItemRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const transcriptListRef = useRef<HTMLOListElement | null>(null);
   const isTranscribing = transcriptJob?.status === "running";
   const isSummarizing = summaryJob?.status === "running";
   const isSendingChat = chatJob?.status === "running";
@@ -260,8 +262,16 @@ export function WorkbenchView({
     (variant) => variant.id === activeTranscriptVariantId,
   );
   const renderedTranscript = activeTranscriptVariant?.segments ?? transcript;
+  const sourceTranscriptBySegmentId = useMemo(
+    () => new Map(transcript.map((segment) => [segment.id, segment])),
+    [transcript],
+  );
   const baseTranscriptSourceKind = transcript[0]?.sourceKind;
-  const isViewingTranslatedTranscript = Boolean(activeTranscriptVariant);
+  const activeTranslationVariant =
+    activeTranscriptVariant?.kind === "translation"
+      ? activeTranscriptVariant
+      : undefined;
+  const isViewingTranscriptVariant = Boolean(activeTranscriptVariant);
   const duplicateTranslation = transcriptVariants.find(
     (variant) =>
       variant.kind === "translation" &&
@@ -304,6 +314,31 @@ export function WorkbenchView({
       block: "nearest",
     });
   }, [activeTranscriptSegmentId]);
+
+  useEffect(() => {
+    if (!focusedTranscriptSegmentId) return;
+
+    function clearFocusedTranscriptSegment(event: PointerEvent) {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        transcriptListRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setFocusedTranscriptSegmentId(undefined);
+      setHoveredTranscriptSegmentId(undefined);
+    }
+
+    window.addEventListener("pointerdown", clearFocusedTranscriptSegment, true);
+    return () =>
+      window.removeEventListener(
+        "pointerdown",
+        clearFocusedTranscriptSegment,
+        true,
+      );
+  }, [focusedTranscriptSegmentId]);
 
   useEffect(() => {
     if (
@@ -401,13 +436,13 @@ export function WorkbenchView({
     if (isTranslatingTranscript) return;
 
     setIsTranslatingTranscript(true);
+    setIsTranslateDialogOpen(false);
     try {
       await onTranslateTranscript(
         summaryProviderConfig.provider,
         summaryProviderConfig.model,
         language,
       );
-      setIsTranslateDialogOpen(false);
     } finally {
       setIsTranslatingTranscript(false);
     }
@@ -444,9 +479,15 @@ export function WorkbenchView({
     setTranscriptDraft(segment.text);
   }
 
+  function hideTranscriptEditAction() {
+    setFocusedTranscriptSegmentId(undefined);
+    setHoveredTranscriptSegmentId(undefined);
+  }
+
   function cancelTranscriptEdit() {
     setEditingTranscriptSegmentId(undefined);
     setTranscriptDraft("");
+    hideTranscriptEditAction();
   }
 
   function saveTranscriptEdit(segment: TranscriptSegment) {
@@ -539,22 +580,7 @@ export function WorkbenchView({
               onOverlay={onOpenTranscriptOverlay}
             />
           ) : null}
-          <div
-            ref={transcriptListRef}
-            className="min-h-0 flex-1 overflow-y-auto"
-            onFocus={() => setIsTranscriptListFocused(true)}
-            onBlur={(event) => {
-              const nextTarget = event.relatedTarget;
-              if (
-                nextTarget instanceof Node &&
-                transcriptListRef.current?.contains(nextTarget)
-              ) {
-                return;
-              }
-
-              setIsTranscriptListFocused(false);
-            }}
-          >
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {renderedTranscript.length === 0 ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
@@ -592,11 +618,16 @@ export function WorkbenchView({
                 ) : null}
               </div>
             ) : (
-              <ol className="space-y-3">
+              <ol ref={transcriptListRef} className="space-y-3">
                 {renderedTranscript.map((segment) => {
+                  const sourceSegment = activeTranslationVariant
+                    ? sourceTranscriptBySegmentId.get(segment.id)
+                    : undefined;
                   const isActive = segment.id === activeTranscriptSegmentId;
                   const isEditing = segment.id === editingTranscriptSegmentId;
-                  const showActiveEditButton = isActive && isTranscriptListFocused;
+                  const showActiveEditButton =
+                    focusedTranscriptSegmentId === segment.id ||
+                    hoveredTranscriptSegmentId === segment.id;
 
                   return (
                     <li
@@ -610,6 +641,30 @@ export function WorkbenchView({
                         isActive &&
                           "bg-primary/10 text-foreground shadow-sm",
                       )}
+                      onFocusCapture={() =>
+                        setFocusedTranscriptSegmentId(segment.id)
+                      }
+                      onPointerEnter={() =>
+                        setHoveredTranscriptSegmentId(segment.id)
+                      }
+                      onPointerLeave={() =>
+                        setHoveredTranscriptSegmentId((current) =>
+                          current === segment.id ? undefined : current,
+                        )
+                      }
+                      onBlurCapture={(event) => {
+                        const nextTarget = event.relatedTarget;
+                        if (
+                          nextTarget instanceof Node &&
+                          event.currentTarget.contains(nextTarget)
+                        ) {
+                          return;
+                        }
+
+                        setFocusedTranscriptSegmentId((current) =>
+                          current === segment.id ? undefined : current,
+                        );
+                      }}
                     >
                       <div className="flex items-start gap-2">
                         <button
@@ -671,25 +726,47 @@ export function WorkbenchView({
                           </form>
                         ) : (
                           <>
-                            <span className="min-w-0 flex-1 leading-relaxed">
-                              {segment.text}
-                            </span>
-                            {onUpdateTranscriptSegment && !isViewingTranslatedTranscript ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                  "h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
-                                  showActiveEditButton && "opacity-100",
-                                )}
-                                aria-label={t("workbench.transcript.edit", {
+                            <button
+                              type="button"
+                              className="min-w-0 flex-1 rounded-sm bg-transparent p-0 text-left leading-relaxed text-inherit hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              onClick={() => seekToSegment(segment)}
+                              aria-label={t(
+                                "workbench.transcript.jumpTextTo",
+                                {
                                   time: formatTime(segment.startSeconds),
-                                })}
-                                onClick={() => startTranscriptEdit(segment)}
-                              >
-                                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                              </Button>
+                                },
+                              )}
+                            >
+                              {sourceSegment ? (
+                                <span className="grid gap-1.5">
+                                  <span className="text-muted-foreground">
+                                    {sourceSegment.text}
+                                  </span>
+                                  <span className="border-l-2 border-primary/40 pl-3 text-foreground">
+                                    {segment.text}
+                                  </span>
+                                </span>
+                              ) : (
+                                segment.text
+                              )}
+                            </button>
+                            {onUpdateTranscriptSegment && !isViewingTranscriptVariant ? (
+                              <span className="h-7 w-7 shrink-0">
+                                {showActiveEditButton ? (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    aria-label={t("workbench.transcript.edit", {
+                                      time: formatTime(segment.startSeconds),
+                                    })}
+                                    onClick={() => startTranscriptEdit(segment)}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </Button>
+                                ) : null}
+                              </span>
                             ) : null}
                           </>
                         )}
@@ -790,9 +867,19 @@ export function WorkbenchView({
           {transcript.length === 0 ? (
             <div
               role="alert"
-              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
             >
-              {t("workbench.summary.transcriptRequired")}
+              <span>{t("workbench.summary.transcriptRequired")}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isExtractingTranscript || isTranscribing}
+                onClick={() => void runAction(onExtractTranscript)}
+              >
+                <Subtitles className="h-4 w-4" aria-hidden="true" />
+                {t("workbench.summary.transcribe")}
+              </Button>
             </div>
           ) : null}
           <SummaryTabStrip
@@ -957,17 +1044,32 @@ function ChatBubble({
   isLast: boolean;
 }) {
   const { t } = useI18n();
+  const [isActionRegionFocused, setIsActionRegionFocused] = useState(false);
+  const [isActionRegionHovered, setIsActionRegionHovered] = useState(false);
   const hasUsage = Boolean(message.tokenUsage);
-  const actionVisibility = isLast
-    ? "opacity-100"
-    : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100";
+  const showActions = isLast || isActionRegionFocused || isActionRegionHovered;
 
   return (
     <li
+      tabIndex={isLast ? undefined : 0}
       className={cn(
-        "group flex flex-col",
+        "flex flex-col rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         message.role === "user" ? "items-end" : "items-start",
       )}
+      onFocusCapture={() => setIsActionRegionFocused(true)}
+      onBlurCapture={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (
+          nextTarget instanceof Node &&
+          event.currentTarget.contains(nextTarget)
+        ) {
+          return;
+        }
+
+        setIsActionRegionFocused(false);
+      }}
+      onPointerEnter={() => setIsActionRegionHovered(true)}
+      onPointerLeave={() => setIsActionRegionHovered(false)}
     >
       <p
         className={cn(
@@ -979,64 +1081,63 @@ function ChatBubble({
       >
         {message.content}
       </p>
-      <div
-        className={cn(
-          "mt-1 flex items-center gap-1 transition-opacity",
-          actionVisibility,
-        )}
-      >
-        <CopyActionButton
-          value={message.content}
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          ariaLabel={t("workbench.chat.copyMessage")}
-        />
-        {hasUsage ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                aria-label={t("workbench.chat.tokenUsage")}
-              >
-                <Info className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3 text-sm" align="end">
-              <div className="mb-2 font-medium">
-                {t("workbench.chat.tokenUsage")}
-              </div>
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs">
-                <dt className="text-muted-foreground">
-                  {t("workbench.chat.tokens.input")}
-                </dt>
-                <dd className="font-mono">
-                  {formatTokenCount(message.tokenUsage?.inputTokens)}
-                </dd>
-                <dt className="text-muted-foreground">
-                  {t("workbench.chat.tokens.cached")}
-                </dt>
-                <dd className="font-mono">
-                  {formatTokenCount(message.tokenUsage?.cachedInputTokens)}
-                </dd>
-                <dt className="text-muted-foreground">
-                  {t("workbench.chat.tokens.output")}
-                </dt>
-                <dd className="font-mono">
-                  {formatTokenCount(message.tokenUsage?.outputTokens)}
-                </dd>
-                <dt className="text-muted-foreground">
-                  {t("workbench.chat.tokens.total")}
-                </dt>
-                <dd className="font-mono">
-                  {formatTokenCount(message.tokenUsage?.totalTokens)}
-                </dd>
-              </dl>
-            </PopoverContent>
-          </Popover>
+      <div className="mt-1 flex h-7 items-center gap-1">
+        {showActions ? (
+          <>
+            <CopyActionButton
+              value={message.content}
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              ariaLabel={t("workbench.chat.copyMessage")}
+            />
+            {hasUsage ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label={t("workbench.chat.tokenUsage")}
+                  >
+                    <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 text-sm" align="end">
+                  <div className="mb-2 font-medium">
+                    {t("workbench.chat.tokenUsage")}
+                  </div>
+                  <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs">
+                    <dt className="text-muted-foreground">
+                      {t("workbench.chat.tokens.input")}
+                    </dt>
+                    <dd className="font-mono">
+                      {formatTokenCount(message.tokenUsage?.inputTokens)}
+                    </dd>
+                    <dt className="text-muted-foreground">
+                      {t("workbench.chat.tokens.cached")}
+                    </dt>
+                    <dd className="font-mono">
+                      {formatTokenCount(message.tokenUsage?.cachedInputTokens)}
+                    </dd>
+                    <dt className="text-muted-foreground">
+                      {t("workbench.chat.tokens.output")}
+                    </dt>
+                    <dd className="font-mono">
+                      {formatTokenCount(message.tokenUsage?.outputTokens)}
+                    </dd>
+                    <dt className="text-muted-foreground">
+                      {t("workbench.chat.tokens.total")}
+                    </dt>
+                    <dd className="font-mono">
+                      {formatTokenCount(message.tokenUsage?.totalTokens)}
+                    </dd>
+                  </dl>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+          </>
         ) : null}
       </div>
     </li>
@@ -1245,18 +1346,24 @@ function SummaryProviderDialog({
 }) {
   const { t } = useI18n();
   const label = `${t("workbench.summary.provider")} / ${t("workbench.summary.model")}`;
+  const shortModelName = shortProviderModelName(model);
 
   return (
     <Dialog>
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          aria-label={label}
+          variant="outline"
+          className="h-8 max-w-[12rem] shrink-0 justify-start gap-2 px-2.5 text-left"
+          aria-label={`${label}: ${providerLabels[provider]} ${shortModelName}`}
         >
-          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          <ProviderIcon provider={provider} size={16} decorative />
+          <span
+            className="min-w-0 truncate text-xs text-muted-foreground"
+            aria-hidden="true"
+          >
+            {providerLabels[provider]} · {shortModelName}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
@@ -1392,7 +1499,9 @@ function TranscriptActionPanel({
           onClick={onTranslate}
         >
           <Languages className="mr-1.5 h-4 w-4" aria-hidden="true" />
-          {t("workbench.transcript.translate")}
+          {isTranslating
+            ? t("workbench.transcript.translate.running")
+            : t("workbench.transcript.translate")}
         </Button>
         <Button
           type="button"

@@ -117,6 +117,7 @@ import type { TranscriptLanguageOption } from "@/domain/transcript-actions";
 import {
   createTranscriptOverlayPayload,
   showTranscriptOverlay,
+  transcriptOverlayHiddenEvent,
 } from "@/services/transcriptOverlayService";
 import { canUseTauriRuntime } from "@/services/tauriHelperClient";
 import type { DownloadRecoveryActionKind } from "@/domain/download-error";
@@ -354,6 +355,30 @@ export function AppShell() {
     };
   }, [pauseActiveVideo, playActiveOrSelectedVideo, selectedVideo?.id]);
 
+  useEffect(() => {
+    if (!canUseTauriRuntime()) return;
+
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    void listen(transcriptOverlayHiddenEvent, () => {
+      setTranscriptOverlayVideoId(undefined);
+      lastOverlaySegmentKeyRef.current = undefined;
+    }).then((callback) => {
+      if (disposed) {
+        callback();
+        return;
+      }
+
+      unlisten = callback;
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
   const effectiveSettings = useMemo(() => {
     if (!settings) return settings;
 
@@ -466,7 +491,7 @@ export function AppShell() {
           side="bottom"
           align="end"
           onDownloadArtifact={(kind) => {
-            void downloadVideoArtifact(selectedVideo, kind);
+            void downloadVideoArtifact(selectedVideo, kind, undefined, selectedTranscript);
           }}
         />
       </div>
@@ -1112,7 +1137,15 @@ export function AppShell() {
     video: VideoAsset,
     kind: VideoArtifactDownloadKind,
     summaryOverride?: SummaryDocument,
+    transcriptOverride?: TranscriptSegment[],
   ) {
+    const transcriptForExport =
+      kind === "transcription"
+        ? transcriptOverride ??
+          (video.id === selectedVideo?.id
+            ? selectedTranscript
+            : state.transcriptsByVideoId[video.id])
+        : undefined;
     const summaryForExport =
       kind === "summary"
         ? summaryOverride ??
@@ -1125,6 +1158,7 @@ export function AppShell() {
       const result = await artifactExportService.exportVideoArtifact({
         video,
         kind,
+        transcript: transcriptForExport,
         summary: summaryForExport,
       });
 
@@ -1401,8 +1435,8 @@ export function AppShell() {
               onDownloadRecoveryAction={handleDownloadRecoveryAction}
               onRenameVideoTitle={renameVideoTitle}
               onDeleteVideo={deleteVideo}
-              onDownloadArtifact={(video, kind) => {
-                void downloadVideoArtifact(video, kind);
+              onDownloadArtifact={(video, kind, transcript) => {
+                void downloadVideoArtifact(video, kind, undefined, transcript);
               }}
               onOpenTutorial={() => showView("tutorial")}
               onAddVideo={openAddVideoDialog}

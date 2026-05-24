@@ -28,9 +28,28 @@ const video: VideoAsset = {
 const videoWithThumbnail: VideoAsset = {
   ...video,
   id: "video-thumb",
-  thumbnailPath: "videos/video-thumb/thumbnail/poster.jpg",
+  thumbnailPath: "videos/video-thumb/thumbnail/video-thumb-thumbnail.jpg",
   authorName: "Sample Creator",
   authorUrl: "https://www.youtube.com/@samplecreator",
+};
+const audio: VideoAsset = {
+  ...video,
+  id: "audio-1",
+  title: "Interview audio",
+  sourceType: "audio",
+  originalUri: "file:///tmp/interview.mp3",
+  libraryPath: "audio/audio-1/interview.mp3",
+  durationSeconds: 185,
+};
+const pdf: VideoAsset = {
+  ...video,
+  id: "pdf-1",
+  title: "Research paper",
+  sourceType: "pdf",
+  originalUri: "file:///tmp/research.pdf",
+  libraryPath: "documents/pdf-1/research.pdf",
+  durationSeconds: undefined,
+  pageCount: 12,
 };
 
 const defaultProps = {
@@ -122,15 +141,13 @@ describe("FinderView", () => {
     expect(screen.getByText("2:05")).toBeInTheDocument();
     expect(screen.getByText("5.0 MB")).toBeInTheDocument();
     expect(screen.getByText("Video · ready")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sample creator/i })).toHaveAttribute(
-      "href",
-      "https://www.youtube.com/@samplecreator",
-    );
+    expect(screen.getByRole("button", { name: /sample creator/i }))
+      .toBeInTheDocument();
     expect(screen.getByText("No transcript")).toBeInTheDocument();
     expect(screen.getByText("No summary")).toBeInTheDocument();
     expect(screen.getByTitle("Architecture walkthrough")).toHaveAttribute(
       "src",
-      "videos/video-thumb/thumbnail/poster.jpg",
+      "videos/video-thumb/thumbnail/video-thumb-thumbnail.jpg",
     );
 
     fireEvent.click(
@@ -140,6 +157,48 @@ describe("FinderView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /play architecture walkthrough/i }));
     expect(onPlayVideo).toHaveBeenCalledWith("video-thumb");
+  });
+
+  it("uses the shared thumbnail area to play audio cards", () => {
+    const onOpenVideo = vi.fn();
+    const onPlayVideo = vi.fn();
+    vi.mocked(generateVideoThumbnail).mockClear();
+
+    render(
+      <FinderView
+        videos={[audio]}
+        {...defaultProps}
+        onOpenVideo={onOpenVideo}
+        onPlayVideo={onPlayVideo}
+      />,
+    );
+
+    expect(screen.getByText("Audio · ready")).toBeInTheDocument();
+    expect(screen.getByText("3:05")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /open interview audio/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /play interview audio/i }));
+    expect(onPlayVideo).toHaveBeenCalledWith("audio-1");
+    expect(generateVideoThumbnail).not.toHaveBeenCalled();
+  });
+
+  it("hides video-only artifact downloads for audio cards", async () => {
+    render(<FinderView videos={[audio]} {...defaultProps} />);
+
+    const menu = await openDropdownMenu(/download artifacts for interview audio/i);
+
+    expect(menu.getByText("Audio")).toBeInTheDocument();
+    expect(menu.queryByText("Video")).not.toBeInTheDocument();
+    expect(menu.queryByText("Thumbnail")).not.toBeInTheDocument();
+  });
+
+  it("shows PDF page count as the library card content length", () => {
+    render(<FinderView videos={[pdf]} {...defaultProps} />);
+
+    expect(screen.getByText("PDF · ready")).toBeInTheDocument();
+    expect(screen.getByText("12 pages")).toBeInTheDocument();
   });
 
   it("shows default download artifact choices from the video card", async () => {
@@ -277,6 +336,23 @@ describe("FinderView", () => {
     open.mockRestore();
   });
 
+  it("opens the stored author URL from the card author action", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+    render(<FinderView videos={[videoWithThumbnail]} {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /sample creator/i }));
+
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        "https://www.youtube.com/@samplecreator",
+        "_blank",
+        "noopener,noreferrer",
+      ),
+    );
+    open.mockRestore();
+  });
+
   it("hides provider link actions for desktop imports", async () => {
     render(<FinderView videos={[video]} {...defaultProps} />);
 
@@ -309,19 +385,40 @@ describe("FinderView", () => {
     expect(onDeleteVideo).toHaveBeenCalledWith("video-1");
   });
 
+  it("uses media-specific delete confirmation titles for imported audio and PDFs", async () => {
+    render(<FinderView videos={[audio, pdf]} {...defaultProps} />);
+
+    await openDropdownMenu(/audio actions for interview audio/i);
+    fireEvent.click(screen.getByRole("menuitem", { name: /^delete$/i }));
+
+    expect(screen.getByRole("dialog", { name: /delete audio/i }))
+      .toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    await openDropdownMenu(/pdf actions for research paper/i);
+    fireEvent.click(screen.getByRole("menuitem", { name: /^delete$/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /delete pdf/i });
+    expect(
+      within(dialog).getByText(/saved summary and chat history/i),
+    ).toBeInTheDocument();
+  });
+
   it("adds transcription and summary to download choices when they exist", async () => {
+    const onDownloadArtifact = vi.fn();
+    const transcript = [
+      {
+        id: "s1",
+        startSeconds: 0,
+        text: "Transcript",
+        sourceKind: "local-stt" as const,
+      },
+    ];
     render(
       <FinderView
         videos={[video]}
         transcriptsByVideoId={{
-          "video-1": [
-            {
-              id: "s1",
-              startSeconds: 0,
-              text: "Transcript",
-              sourceKind: "local-stt",
-            },
-          ],
+          "video-1": transcript,
         }}
         summariesByVideoId={{
           "video-1": {
@@ -335,6 +432,7 @@ describe("FinderView", () => {
           },
         }}
         {...defaultProps}
+        onDownloadArtifact={onDownloadArtifact}
       />,
     );
 
@@ -346,6 +444,14 @@ describe("FinderView", () => {
     expect(menu.getByText("Audio")).toBeInTheDocument();
     expect(menu.getByText("Transcription")).toBeInTheDocument();
     expect(menu.getByText("Summary")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^transcription/i }));
+
+    expect(onDownloadArtifact).toHaveBeenCalledWith(
+      video,
+      "transcription",
+      transcript,
+    );
   });
 
   it("generates a browser thumbnail when no stored thumbnail exists", async () => {

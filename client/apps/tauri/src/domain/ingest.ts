@@ -21,10 +21,12 @@ export const supportedPdfFileExtensions = ["pdf"] as const;
 
 export type LocalFileImportRequest = {
   sourcePath: string;
+  assetId?: string;
   sourceType?: MediaSourceType;
   fileName?: string;
   fileSizeBytes?: number;
   durationSeconds?: number;
+  pageCount?: number;
   thumbnailPath?: string;
   libraryPath?: string;
   nowIso?: string;
@@ -82,7 +84,7 @@ export function createLocalFileImportPlan(
 ): AppManagedCopyPlan {
   const fileName = request.fileName ?? fileNameFromPath(request.sourcePath);
   const sourceType = request.sourceType ?? mediaSourceTypeFromFileName(fileName);
-  const assetId = createAssetId("local", titleFromFileName(fileName));
+  const assetId = request.assetId ?? createUuid();
 
   return {
     sourcePath: request.sourcePath,
@@ -104,6 +106,7 @@ export function createLocalFileIngestResult(
   const plan = createLocalFileImportPlan(request);
   const jobId = `ingest-${plan.assetId}`;
   const nowIso = request.nowIso ?? new Date().toISOString();
+  const originalFileName = request.fileName ?? fileNameFromPath(request.sourcePath);
 
   return {
     ok: true,
@@ -116,13 +119,15 @@ export function createLocalFileIngestResult(
     },
     video: {
       id: plan.assetId,
-      title: titleFromFileName(request.fileName ?? fileNameFromPath(request.sourcePath)),
+      title: titleFromFileName(originalFileName),
       sourceType: plan.sourceType,
       sourceKind: "local-file",
       originalUri: request.sourcePath,
+      originalFileName,
       libraryPath: request.libraryPath ?? plan.targetRelativePath,
       thumbnailPath: request.thumbnailPath,
       durationSeconds: request.durationSeconds,
+      pageCount: request.pageCount,
       fileSizeBytes: request.fileSizeBytes,
       importStatus: "ready",
       createdAtIso: nowIso,
@@ -162,9 +167,9 @@ function libraryDirectoryForMediaSourceType(
 ): LibraryDirectory {
   switch (sourceType) {
     case "audio":
-      return "audio";
+      return "audios";
     case "pdf":
-      return "documents";
+      return "pdfs";
     case "video":
       return "videos";
   }
@@ -271,6 +276,7 @@ export function createYoutubeVideoAsset({
     title,
     sourceKind: provider ?? providerForUrl(url),
     originalUri: url,
+    originalFileName: fileNameFromPath(videoPath),
     libraryPath: videoPath,
     thumbnailPath,
     durationSeconds,
@@ -283,8 +289,30 @@ export function createYoutubeVideoAsset({
   };
 }
 
-function createAssetId(prefix: "local" | VideoProviderKind, value: string) {
+function createAssetId(prefix: VideoProviderKind, value: string) {
   return `${prefix}-${sanitizePathSegment(value).slice(0, 64)}`;
+}
+
+function createUuid() {
+  const randomUuid = globalThis.crypto?.randomUUID?.();
+  if (randomUuid) return randomUuid;
+
+  const bytes = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+  return formatUuidHex(hex);
+}
+
+function formatUuidHex(hex: string) {
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32),
+  ].join("-");
 }
 
 function providerForUrl(url: string): VideoProviderKind {

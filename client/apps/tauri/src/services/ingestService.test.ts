@@ -12,6 +12,10 @@ vi.mock("@/services/runtimeLogger", () => ({
 }));
 
 describe("mock ingest service", () => {
+  const videoAssetId = "00000000-0000-4000-8000-000000000001";
+  const audioAssetId = "00000000-0000-4000-8000-000000000002";
+  const pdfAssetId = "00000000-0000-4000-8000-000000000003";
+
   beforeEach(() => {
     vi.mocked(logRuntimeInfo).mockClear();
   });
@@ -26,7 +30,12 @@ describe("mock ingest service", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.video.libraryPath).toMatch(/^videos\/local-/);
+      expect(result.video.libraryPath).toMatch(
+        /^videos\/[0-9a-f-]{36}\/local-sample\.mp4$/,
+      );
+      expect(result.video.thumbnailPath).toMatch(
+        /^videos\/[0-9a-f-]{36}\/thumbnail\/local-sample-thumbnail\.jpg$/,
+      );
       expect(result.events).toEqual([
         expect.objectContaining({ type: "local_copy_planned" }),
       ]);
@@ -115,7 +124,9 @@ describe("mock ingest service", () => {
         expect(args).toEqual({ sourcePath: "/tmp/local sample.mp4" });
 
         return {
-          libraryRelativePath: "videos/local-local-sample/local-sample.mp4",
+          assetId: videoAssetId,
+          originalFileName: "local sample.mp4",
+          libraryRelativePath: `videos/${videoAssetId}/local-sample.mp4`,
           fileSizeBytes: 4096,
           sourceType: "video",
         } as never;
@@ -130,27 +141,33 @@ describe("mock ingest service", () => {
     if (result.ok) {
       expect(result.video.fileSizeBytes).toBe(4096);
       expect(result.video.durationSeconds).toBe(120);
+      expect(result.video.originalFileName).toBe("local sample.mp4");
       expect(result.video.libraryPath).toBe(
-        "videos/local-local-sample/local-sample.mp4",
+        `videos/${videoAssetId}/local-sample.mp4`,
+      );
+      expect(result.video.thumbnailPath).toBe(
+        `videos/${videoAssetId}/thumbnail/local-sample-thumbnail.jpg`,
       );
       expect(logRuntimeInfo).toHaveBeenCalledWith(
         "after importing local video",
         expect.objectContaining({
-          outputPath: "videos/local-local-sample/local-sample.mp4",
-          playbackPath: "videos/local-local-sample/local-sample.mp4",
+          outputPath: `videos/${videoAssetId}/local-sample.mp4`,
+          playbackPath: `videos/${videoAssetId}/local-sample.mp4`,
           status: "ready",
         }),
       );
     }
   });
 
-  it("copies audio and PDF files without video probing in Tauri mode", async () => {
+  it("copies audio files and stores probed duration in Tauri mode", async () => {
     const helperClient = new FakeHelperClient();
     const service = createTauriIngestService(
       helperClient,
       async () =>
         ({
-          libraryRelativePath: "audio/local-local-sample/local-sample.mp3",
+          assetId: audioAssetId,
+          originalFileName: "local sample.mp3",
+          libraryRelativePath: `audios/${audioAssetId}/local-sample.mp3`,
           fileSizeBytes: 2048,
           sourceType: "audio",
         }) as never,
@@ -165,12 +182,54 @@ describe("mock ingest service", () => {
       expect(result.video).toMatchObject({
         sourceType: "audio",
         sourceKind: "local-file",
-        libraryPath: "audio/local-local-sample/local-sample.mp3",
+        originalFileName: "local sample.mp3",
+        libraryPath: `audios/${audioAssetId}/local-sample.mp3`,
         fileSizeBytes: 2048,
+      });
+      expect(result.video.durationSeconds).toBe(120);
+      expect(result.video.thumbnailPath).toBeUndefined();
+    }
+
+    expect(
+      helperClient.eventsForJob(`probe-audios/${audioAssetId}/local-sample.mp3`),
+    ).toHaveLength(3);
+  });
+
+  it("copies PDF files with page count metadata in Tauri mode", async () => {
+    const helperClient = new FakeHelperClient();
+    const service = createTauriIngestService(
+      helperClient,
+      async () =>
+        ({
+          assetId: pdfAssetId,
+          originalFileName: "demo paper.pdf",
+          libraryRelativePath: `pdfs/${pdfAssetId}/demo-paper.pdf`,
+          fileSizeBytes: 4096,
+          sourceType: "pdf",
+          pageCount: 7,
+        }) as never,
+    );
+
+    const result = await service.importLocalFile({
+      sourcePath: "/tmp/demo paper.pdf",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.video).toMatchObject({
+        sourceType: "pdf",
+        sourceKind: "local-file",
+        originalFileName: "demo paper.pdf",
+        libraryPath: `pdfs/${pdfAssetId}/demo-paper.pdf`,
+        fileSizeBytes: 4096,
+        pageCount: 7,
       });
       expect(result.video.durationSeconds).toBeUndefined();
       expect(result.video.thumbnailPath).toBeUndefined();
     }
+
+    expect(helperClient.eventsForJob(`probe-pdfs/${pdfAssetId}/demo-paper.pdf`))
+      .toHaveLength(0);
   });
 
   it("downloads YouTube URLs and probes the resulting media in Tauri mode", async () => {
@@ -186,9 +245,13 @@ describe("mock ingest service", () => {
       expect(result.video).toMatchObject({
         title: "Fake YouTube Video",
         sourceKind: "youtube",
+        originalFileName: "fake-video.mp4",
         libraryPath: expect.stringMatching(/^videos\/youtube-/),
         durationSeconds: 120,
         fileSizeBytes: 1048576,
+        thumbnailPath: expect.stringMatching(
+          /^videos\/youtube-.*\/thumbnail\/Fake-YouTube-Video-thumbnail\.jpg$/,
+        ),
         authorName: "Fake Creator",
         authorUrl: "https://www.youtube.com/@fakecreator",
       });

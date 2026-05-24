@@ -109,7 +109,7 @@ function createFakeResult(command: Exclude<HelperCommand, { command: "cancel_job
         videoPath: `${command.outputDir}/fake-video.mp4`,
         title: "Fake YouTube Video",
         captionsAvailable: true,
-        thumbnailPath: `${command.outputDir}/thumbnail/poster.jpg`,
+        thumbnailPath: `${command.outputDir}/thumbnail/Fake-YouTube-Video-thumbnail.jpg`,
         authorName: "Fake Creator",
         authorUrl: "https://www.youtube.com/@fakecreator",
       } satisfies HelperCommandResult;

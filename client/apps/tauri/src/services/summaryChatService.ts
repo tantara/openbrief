@@ -14,6 +14,7 @@ import {
   createTranscriptVariant,
   findFirstMissingTranscriptSegmentIndex,
   parseTranscriptSegmentTsv,
+  parseTimestampAlignedTranscriptSegmentTsv,
   type TranscriptLanguageOption,
   type TranscriptVariant,
 } from "@/domain/transcript-actions";
@@ -134,6 +135,7 @@ export function createSummaryChatService(
         lengthMode: request.lengthMode,
         outputLanguage: request.outputLanguage,
         sourceSegmentCount: request.transcript.length,
+        sourceFileName: request.video.originalFileName ?? request.video.title,
         nowIso: request.nowIso,
       });
     },
@@ -276,7 +278,12 @@ async function completeTranscriptTransformWithResume({
     });
 
     const providerText = result.ok ? result.text : latestSnapshot;
-    mergeTranscriptTransformText(textById, remainingSegments, providerText);
+    mergeTranscriptTransformText({
+      textById,
+      expectedSegments: remainingSegments,
+      providerText,
+      requireTimestampAlignment: operation === "transcript_translate",
+    });
     nextIndex = findFirstMissingTranscriptSegmentIndex(segments, textById);
 
     if (!result.ok) {
@@ -296,13 +303,23 @@ async function completeTranscriptTransformWithResume({
   return textById;
 }
 
-function mergeTranscriptTransformText(
-  textById: Map<string, string>,
-  expectedSegments: TranscriptSegment[],
-  providerText: string,
-) {
+function mergeTranscriptTransformText({
+  textById,
+  expectedSegments,
+  providerText,
+  requireTimestampAlignment,
+}: {
+  textById: Map<string, string>;
+  expectedSegments: TranscriptSegment[];
+  providerText: string;
+  requireTimestampAlignment: boolean;
+}) {
   const expectedIds = new Set(expectedSegments.map((segment) => segment.id));
-  for (const [id, text] of parseTranscriptSegmentTsv(providerText)) {
+  const parsedTextById = requireTimestampAlignment
+    ? parseTimestampAlignedTranscriptSegmentTsv(providerText, expectedSegments)
+    : parseTranscriptSegmentTsv(providerText);
+
+  for (const [id, text] of parsedTextById) {
     if (expectedIds.has(id) && text.trim()) {
       textById.set(id, text);
     }

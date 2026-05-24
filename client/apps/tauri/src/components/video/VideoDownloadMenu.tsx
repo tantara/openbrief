@@ -6,7 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu";
-import type { VideoAsset } from "@/domain/media-library";
+import {
+  mediaSourceTypeForAsset,
+  type MediaSourceType,
+  type VideoAsset,
+} from "@/domain/media-library";
 import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
 import { useI18n } from "@/i18n";
 import { cn } from "@acme/ui";
@@ -41,6 +45,7 @@ export function VideoDownloadMenuButton({
 }: VideoDownloadMenuButtonProps) {
   const { t } = useI18n();
   const items = createVideoDownloadItems({
+    sourceType: mediaSourceTypeForAsset(video),
     hasTranscript,
     hasSummary,
     t,
@@ -84,34 +89,52 @@ export function VideoDownloadMenuButton({
 }
 
 function createVideoDownloadItems({
+  sourceType,
   hasTranscript,
   hasSummary,
   t,
 }: {
+  sourceType: MediaSourceType;
   hasTranscript: boolean;
   hasSummary: boolean;
   t(key: string, values?: Record<string, string | number>): string;
 }): VideoDownloadItem[] {
+  const sourceItems: VideoDownloadItem[] =
+    sourceType === "video"
+      ? [
+          {
+            id: "video",
+            downloadKind: "video" as const,
+            label: t("finder.download.video"),
+          },
+          {
+            id: "thumbnail",
+            downloadKind: "thumbnail" as const,
+            label: t("finder.download.thumbnail"),
+          },
+          {
+            id: "audio",
+            downloadKind: "audio" as const,
+            label: t("finder.download.audio"),
+          },
+        ]
+      : sourceType === "audio"
+        ? [
+            {
+              id: "audio",
+              downloadKind: "audio" as const,
+              label: t("finder.download.audio"),
+            },
+          ]
+        : [];
+
   return [
-    {
-      id: "video",
-      downloadKind: "video" as const,
-      label: t("finder.download.video"),
-    },
-    {
-      id: "thumbnail",
-      downloadKind: "thumbnail" as const,
-      label: t("finder.download.thumbnail"),
-    },
-    {
-      id: "audio",
-      downloadKind: "audio" as const,
-      label: t("finder.download.audio"),
-    },
+    ...sourceItems,
     ...(hasTranscript
       ? [
           {
             id: "transcription",
+            downloadKind: "transcription" as const,
             label: t("finder.download.transcription"),
           },
         ]

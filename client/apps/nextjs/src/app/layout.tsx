@@ -81,7 +81,7 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
           geistMono.variable,
         )}
       >
-        <ThemeProvider>
+        <ThemeProvider defaultTheme="light">
           <TRPCReactProvider>{props.children}</TRPCReactProvider>
           <div className="fixed right-4 bottom-4 z-50 hidden items-center gap-2 sm:flex">
             <ColorThemeToggle />

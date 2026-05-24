@@ -61,9 +61,12 @@ describe("WorkbenchView", () => {
     );
 
     expect(screen.getAllByText("Audio sample")).not.toHaveLength(0);
-    expect(screen.getByText("Audio")).toBeInTheDocument();
     expect(screen.getByLabelText("Audio sample", { selector: "audio" }))
       .toHaveAttribute("src", "audio/local-audio-sample/audio-sample.mp3");
+    expect(screen.queryByRole("button", { name: /^audio$/i }))
+      .not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /play audio sample/i }));
+    expect(onPlayVideo).toHaveBeenCalledWith("audio-1");
     expect(screen.queryByLabelText("Workbench sample")).not.toBeInTheDocument();
 
     const audio = screen.getByLabelText("Audio sample", { selector: "audio" });
@@ -172,6 +175,85 @@ describe("WorkbenchView", () => {
     );
   });
 
+  it("shows original and translated transcript text together", () => {
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          transcriptVariants: [translationFixture],
+          activeTranscriptVariantId: "translation-ko",
+        })}
+      />,
+    );
+
+    const translatedText = screen.getByText("번역된 자막");
+    const transcriptRow = translatedText.closest("li");
+
+    expect(transcriptRow).toContainElement(screen.getByText("Transcript detail"));
+    expect(translatedText).toBeInTheDocument();
+  });
+
+  it("shows review and translation progress on transcript action buttons", async () => {
+    let resolveReview: (() => void) | undefined;
+    let resolveTranslation: (() => void) | undefined;
+    const onReviewTranscript = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveReview = resolve;
+        }),
+    );
+    const onTranslateTranscript = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveTranslation = resolve;
+        }),
+    );
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          onReviewTranscript,
+          onTranslateTranscript,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^review$/i }));
+    expect(
+      screen.getByRole("button", { name: /^reviewing\.\.\.$/i }),
+    ).toBeDisabled();
+    resolveReview?.();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^review$/i }))
+        .toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^translate$/i }));
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "Translate transcript",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^translate$/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: /^translating\.\.\.$/i }),
+    ).toBeDisabled();
+    expect(onTranslateTranscript).toHaveBeenCalledWith(
+      "openai",
+      "gpt-5.4-mini",
+      expect.objectContaining({ code: "ko" }),
+    );
+
+    resolveTranslation?.();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^translate$/i }))
+        .toBeInTheDocument(),
+    );
+  });
+
   it("labels transcript source choices instead of showing a generic original transcript", async () => {
     render(
       <WorkbenchView
@@ -254,6 +336,7 @@ describe("WorkbenchView", () => {
       />,
     );
 
+    fireEvent.focus(screen.getByRole("button", { name: /jump to 0:12/i }));
     fireEvent.click(screen.getByRole("button", { name: /edit transcript at 0:12/i }));
     fireEvent.change(screen.getByLabelText(/transcript text at 0:12/i), {
       target: { value: "Corrected transcript detail" },
@@ -264,6 +347,9 @@ describe("WorkbenchView", () => {
       "s1",
       "Corrected transcript detail",
     );
+    expect(
+      screen.queryByRole("button", { name: /edit transcript at 0:12/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("reveals transcript edit actions with row hover and focus styles", () => {
@@ -285,13 +371,117 @@ describe("WorkbenchView", () => {
       />,
     );
 
+    const jumpButton = screen.getByRole("button", { name: /jump to 0:12/i });
+    const transcriptRow = jumpButton.closest("li");
+
+    expect(
+      screen.queryByRole("button", { name: /edit transcript at 0:12/i }),
+    ).not.toBeInTheDocument();
+
+    expect(transcriptRow).not.toBeNull();
+    fireEvent.pointerEnter(transcriptRow as HTMLElement);
+    expect(
+      screen.getByRole("button", { name: /edit transcript at 0:12/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.pointerLeave(transcriptRow as HTMLElement);
+    expect(
+      screen.queryByRole("button", { name: /edit transcript at 0:12/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.focus(jumpButton);
+    expect(
+      screen.getByRole("button", { name: /edit transcript at 0:12/i }),
+    ).toBeInTheDocument();
+
+    play.mockRestore();
+  });
+
+  it("hides the transcript edit action when focus moves to another row", () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockImplementation(() => Promise.resolve());
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: [
+            {
+              id: "s1",
+              startSeconds: 12,
+              endSeconds: 24,
+              text: "Active transcript detail",
+              sourceKind: "youtube-captions",
+            },
+            {
+              id: "s2",
+              startSeconds: 30,
+              endSeconds: 42,
+              text: "Next transcript detail",
+              sourceKind: "youtube-captions",
+            },
+          ],
+          playbackState: {
+            ...createInitialVideoPlaybackState(),
+            activeVideoId: "video-1",
+            status: "playing",
+            currentTimeSeconds: 13,
+          },
+        })}
+      />,
+    );
+
+    const activeJumpButton = screen.getByRole("button", { name: /jump to 0:12/i });
+    const nextJumpButton = screen.getByRole("button", { name: /jump to 0:30/i });
+
+    fireEvent.focus(activeJumpButton);
+    const activeEditButton = screen.getByRole("button", {
+      name: /edit transcript at 0:12/i,
+    });
+    expect(activeEditButton).toBeInTheDocument();
+
+    fireEvent.blur(activeJumpButton, { relatedTarget: nextJumpButton });
+    fireEvent.focus(nextJumpButton);
+
+    expect(
+      screen.queryByRole("button", { name: /edit transcript at 0:12/i }),
+    ).not.toBeInTheDocument();
+
+    play.mockRestore();
+  });
+
+  it("hides the focused transcript edit action when clicking outside the transcript list", () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockImplementation(() => Promise.resolve());
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          playbackState: {
+            ...createInitialVideoPlaybackState(),
+            activeVideoId: "video-1",
+            status: "playing",
+            currentTimeSeconds: 13,
+          },
+        })}
+      />,
+    );
+
+    const jumpButton = screen.getByRole("button", { name: /jump to 0:12/i });
+
+    fireEvent.focus(jumpButton);
     const editButton = screen.getByRole("button", {
       name: /edit transcript at 0:12/i,
     });
+    expect(editButton).toBeInTheDocument();
 
-    expect(editButton).not.toHaveClass("opacity-100");
-    expect(editButton).toHaveClass("group-hover:opacity-100");
-    expect(editButton).toHaveClass("group-focus-within:opacity-100");
+    fireEvent.pointerDown(document.body);
+
+    expect(
+      screen.queryByRole("button", { name: /edit transcript at 0:12/i }),
+    ).not.toBeInTheDocument();
 
     play.mockRestore();
   });
@@ -441,6 +631,27 @@ describe("WorkbenchView", () => {
     );
   });
 
+  it("starts transcription from the summary-required warning", async () => {
+    const onExtractTranscript = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: [],
+          onExtractTranscript,
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText(/transcription is required for summary/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^transcribe$/i }));
+
+    await waitFor(() => expect(onExtractTranscript).toHaveBeenCalled());
+  });
+
   it("uses separate synced provider preferences for summary and chat", async () => {
     const onGenerateSummary = vi.fn().mockResolvedValue(undefined);
     const onSendChat = vi.fn().mockResolvedValue(undefined);
@@ -525,6 +736,26 @@ describe("WorkbenchView", () => {
         transcriptFixture,
       ),
     );
+  });
+
+  it("shows the shortened model name in the summary provider trigger", () => {
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          summaryProvider: "openrouter",
+          summaryProviderModel: "openrouter:deepseek/deepseek-v4-flash",
+        })}
+      />,
+    );
+
+    const providerButton = screen.getByRole("button", {
+      name: /summary provider \/ provider model/i,
+    });
+
+    expect(providerButton).toHaveTextContent("OpenRouter");
+    expect(providerButton).toHaveTextContent("deepseek-v4-flash");
+    expect(providerButton).not.toHaveTextContent("openrouter:deepseek");
   });
 
   it("summarizes the active translated transcript in the target language", async () => {
@@ -713,6 +944,28 @@ describe("WorkbenchView", () => {
     expect(onPlayVideo).toHaveBeenCalledWith("video-1");
   });
 
+  it("seeks playback from transcript text", () => {
+    const onVideoTimeUpdate = vi.fn();
+    const onPlayVideo = vi.fn();
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          onVideoTimeUpdate,
+          onPlayVideo,
+        })}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /play transcript from 0:12/i }),
+    );
+
+    expect(onVideoTimeUpdate).toHaveBeenCalledWith("video-1", 12);
+    expect(onPlayVideo).toHaveBeenCalledWith("video-1");
+  });
+
   it("highlights the transcript segment that matches active playback time", () => {
     render(
       <WorkbenchView
@@ -840,6 +1093,49 @@ describe("WorkbenchView", () => {
       .toHaveClass("h-8");
     fireEvent.click(screen.getByRole("button", { name: "New chat" }));
     expect(onResetChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("reveals older chat bubble actions only on hover or focus", () => {
+    const olderMessage = {
+      ...chatFixture[0],
+      id: "chat-old",
+      content: "Older answer",
+    };
+    const latestMessage = {
+      ...chatFixture[0],
+      id: "chat-latest",
+      content: "Latest answer",
+      tokenUsage: undefined,
+    };
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          chatMessages: [olderMessage, latestMessage],
+        })}
+      />,
+    );
+
+    const olderBubble = screen.getByText("Older answer").closest("li");
+    expect(olderBubble).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: "Copy message" }))
+      .toHaveLength(1);
+
+    fireEvent.pointerEnter(olderBubble as HTMLElement);
+    expect(screen.getAllByRole("button", { name: "Copy message" }))
+      .toHaveLength(2);
+
+    fireEvent.pointerLeave(olderBubble as HTMLElement);
+    expect(screen.getAllByRole("button", { name: "Copy message" }))
+      .toHaveLength(1);
+
+    fireEvent.focus(olderBubble as HTMLElement);
+    expect(screen.getAllByRole("button", { name: "Copy message" }))
+      .toHaveLength(2);
+
+    fireEvent.blur(olderBubble as HTMLElement, { relatedTarget: document.body });
+    expect(screen.getAllByRole("button", { name: "Copy message" }))
+      .toHaveLength(1);
   });
 
   it("shows chat bubble copy actions, token usage, and provider controls", async () => {

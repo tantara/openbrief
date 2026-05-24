@@ -7,6 +7,7 @@ import {
 
 export const transcriptOverlayWindowLabel = "transcript-overlay";
 export const transcriptOverlayEvent = "openbrief://transcript-overlay";
+export const transcriptOverlayHiddenEvent = "openbrief://transcript-overlay-hidden";
 
 export type TranscriptOverlayPayload = {
   videoTitle: string;

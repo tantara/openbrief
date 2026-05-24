@@ -308,6 +308,7 @@ export function createSummaryDocument({
   lengthMode,
   outputLanguage,
   sourceSegmentCount,
+  sourceFileName,
   nowIso = new Date().toISOString(),
 }: {
   videoId: string;
@@ -317,6 +318,7 @@ export function createSummaryDocument({
   lengthMode?: SummaryLengthMode;
   outputLanguage?: string;
   sourceSegmentCount: number;
+  sourceFileName?: string;
   nowIso?: string;
 }): SummaryDocument {
   const id = `summary-${videoId}-${sanitizeSummaryTimestamp(nowIso)}`;
@@ -330,7 +332,7 @@ export function createSummaryDocument({
     lengthMode,
     outputLanguage,
     sourceSegmentCount,
-    artifactPath: createSummaryArtifactPath(videoId, id),
+    artifactPath: createSummaryArtifactPath(videoId, id, sourceFileName),
     createdAtIso: nowIso,
   };
 }

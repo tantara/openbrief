@@ -108,6 +108,7 @@ describe("summary domain", () => {
       templateId: "youtube-blog",
       lengthMode: "default",
       sourceSegmentCount: 2,
+      sourceFileName: "Design Review.mp4",
       nowIso: "2026-05-21T00:00:00.000Z",
     });
 
@@ -118,7 +119,7 @@ describe("summary domain", () => {
       lengthMode: "default",
       sourceSegmentCount: 2,
       artifactPath:
-        "videos/video-1/summary/summary-video-1-2026-05-21T00-00-00-000Z.md",
+        "videos/video-1/summary/Design-Review-summary-2026-05-21T00-00-00-000Z.md",
     });
   });
 });

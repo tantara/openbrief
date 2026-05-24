@@ -14,6 +14,7 @@ import {
   createVideoArtifactDirectory,
   createVideoArtifactBundle,
   createVideoBundleManifest,
+  createVideoAudioArtifactPath,
   createVideoPosterArtifactPath,
   createVideoTranscriptArtifactDirectory,
   createVideoTranscriptJsonArtifactPath,
@@ -27,8 +28,8 @@ describe("media library contracts", () => {
   it("keeps the planned app-managed library directories stable", () => {
     expect(libraryDirectories).toEqual([
       "videos",
-      "audio",
-      "documents",
+      "audios",
+      "pdfs",
       "playlists",
       "thumbnails",
       "transcripts",
@@ -61,7 +62,13 @@ describe("media library contracts", () => {
     expect(createVideoArtifactDirectory("video-1")).toBe("videos/video-1");
     expect(bundle.manifestPath).toBe("videos/video-1/openbrief-video.json");
     expect(createVideoPosterArtifactPath("video-1")).toBe(
-      "videos/video-1/thumbnail/poster.jpg",
+      "videos/video-1/thumbnail/video-1-thumbnail.jpg",
+    );
+    expect(createVideoPosterArtifactPath("video-1", "Design Review.mp4")).toBe(
+      "videos/video-1/thumbnail/Design-Review-thumbnail.jpg",
+    );
+    expect(createVideoAudioArtifactPath("video-1", "Design Review.mp4")).toBe(
+      "videos/video-1/audio/Design-Review-audio.wav",
     );
     expect(createVideoTranscriptArtifactDirectory("video-1")).toBe(
       "videos/video-1/transcript",
@@ -71,6 +78,15 @@ describe("media library contracts", () => {
     );
     expect(createSummaryArtifactPath("video-1", "summary main")).toBe(
       "videos/video-1/summary/summary-main.md",
+    );
+    expect(
+      createSummaryArtifactPath(
+        "video-1",
+        "summary-video-1-2026-05-21T00-00-00-000Z",
+        "Design Review.mp4",
+      ),
+    ).toBe(
+      "videos/video-1/summary/Design-Review-summary-2026-05-21T00-00-00-000Z.md",
     );
     expect(createChatSessionArtifactPath("video-1", "session 1")).toBe(
       "videos/video-1/chat/session-1.jsonl",
@@ -84,7 +100,7 @@ describe("media library contracts", () => {
       sourceKind: "youtube" as const,
       originalUri: "https://youtu.be/example",
       libraryPath: "videos/video-1/source.mp4",
-      thumbnailPath: "videos/video-1/thumbnail/poster.jpg",
+      thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
       importStatus: "ready" as const,
       createdAtIso: "2026-05-21T00:00:00.000Z",
     };
@@ -100,7 +116,7 @@ describe("media library contracts", () => {
       videoId: "video-1",
       video,
       artifacts: {
-        thumbnailPath: "videos/video-1/thumbnail/poster.jpg",
+        thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
         transcriptVariantPaths: [],
         summaryPaths: ["videos/video-1/summary/summary-1.md"],
         chatSessionPaths: ["videos/video-1/chat/default.jsonl"],

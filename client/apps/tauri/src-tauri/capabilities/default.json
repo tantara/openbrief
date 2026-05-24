@@ -5,6 +5,7 @@
   "windows": ["main", "transcript-overlay"],
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
     "cli:default",
     "dialog:allow-open",
     "dialog:allow-save",

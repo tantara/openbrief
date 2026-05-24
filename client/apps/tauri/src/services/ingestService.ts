@@ -36,9 +36,12 @@ export type IngestRunOptions = {
 };
 
 type LocalFileImportResult = {
+  assetId: string;
+  originalFileName: string;
   libraryRelativePath: string;
   fileSizeBytes: number;
   sourceType?: MediaSourceType;
+  pageCount?: number;
 };
 
 type ProbeMediaResult = Extract<HelperCommandResult, { command: "probe_media" }>;
@@ -66,7 +69,42 @@ export function createTauriIngestService(
           sourceType: copied.sourceType ?? request.sourceType ?? "video",
         });
         const sourceType = copied.sourceType ?? request.sourceType ?? "video";
-        const localPlan = createLocalFileImportPlan({ ...request, sourceType });
+        const importRequest = {
+          ...request,
+          assetId: copied.assetId,
+          sourceType,
+          fileName: copied.originalFileName,
+        };
+        const localPlan = createLocalFileImportPlan(importRequest);
+
+        if (sourceType === "audio") {
+          const probeResult = await helperClient.run({
+            protocolVersion: helperProtocolVersion,
+            command: "probe_media",
+            jobId: `probe-${copied.libraryRelativePath}`,
+            inputPath: copied.libraryRelativePath,
+          });
+
+          if (probeResult.command !== "probe_media") {
+            throw new Error("invalid_probe_result");
+          }
+
+          logRuntimeInfo("after importing local file", {
+            sourcePath: request.sourcePath,
+            outputPath: copied.libraryRelativePath,
+            sourceType,
+            status: "ready",
+            elapsedMs: Math.round(performance.now() - startedAt),
+          });
+
+          return createLocalFileIngestResult({
+            ...importRequest,
+            sourceType,
+            fileSizeBytes: copied.fileSizeBytes || probeResult.fileSizeBytes,
+            durationSeconds: probeResult.durationSeconds,
+            libraryPath: copied.libraryRelativePath,
+          });
+        }
 
         if (sourceType !== "video") {
           logRuntimeInfo("after importing local file", {
@@ -78,9 +116,10 @@ export function createTauriIngestService(
           });
 
           return createLocalFileIngestResult({
-            ...request,
+            ...importRequest,
             sourceType,
             fileSizeBytes: copied.fileSizeBytes,
+            pageCount: copied.pageCount,
             libraryPath: copied.libraryRelativePath,
           });
         }
@@ -105,7 +144,10 @@ export function createTauriIngestService(
         const thumbnailPath = await generateThumbnail(helperClient, {
           jobId: `thumbnail-${localPlan.assetId}`,
           videoPath: playbackPath,
-          outputPath: createVideoPosterArtifactPath(localPlan.assetId),
+          outputPath: createVideoPosterArtifactPath(
+            localPlan.assetId,
+            importRequest.fileName ?? request.sourcePath,
+          ),
           tempDir: localPlan.tempRelativePath,
         });
         logRuntimeInfo("after importing local video", {
@@ -118,7 +160,7 @@ export function createTauriIngestService(
         });
 
         return createLocalFileIngestResult({
-          ...request,
+          ...importRequest,
           sourceType,
           fileSizeBytes: copied.fileSizeBytes || probeResult.fileSizeBytes,
           durationSeconds: probeResult.durationSeconds,
@@ -210,6 +252,7 @@ export function createTauriIngestService(
           videoPath: playbackPath,
           outputPath: createVideoPosterArtifactPath(
             commandOrFailure.jobId.replace(/^ingest-/, ""),
+            result.title,
           ),
           tempDir: commandOrFailure.tempDir,
         });
@@ -302,12 +345,16 @@ export function createMockIngestService(
   return {
     async importLocalFile(request) {
       const localPlan = createLocalFileImportPlan(request);
+      const importRequest = { ...request, assetId: localPlan.assetId };
 
       return createLocalFileIngestResult({
-        ...request,
+        ...importRequest,
         thumbnailPath:
           request.thumbnailPath ??
-          createVideoPosterArtifactPath(localPlan.assetId),
+          createVideoPosterArtifactPath(
+            localPlan.assetId,
+            request.fileName ?? request.sourcePath,
+          ),
       });
     },
 
@@ -354,6 +401,7 @@ export function createMockIngestService(
           fileSizeBytes: 1048576,
           thumbnailPath: createVideoPosterArtifactPath(
             commandOrFailure.jobId.replace(/^ingest-/, ""),
+            result.title,
           ),
           authorName: result.authorName,
           authorUrl: result.authorUrl,

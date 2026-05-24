@@ -7,6 +7,9 @@ import {
 } from "@/domain/ingest";
 
 describe("ingest domain", () => {
+  const uuidPattern =
+    "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
   it("plans local imports as app-managed library copies", () => {
     const plan = createLocalFileImportPlan({
       sourcePath: "/Users/example/Movies/demo clip.mp4",
@@ -14,9 +17,26 @@ describe("ingest domain", () => {
 
     expect(plan.strategy).toBe("copy-into-library");
     expect(plan.sourceType).toBe("video");
-    expect(plan.targetRelativePath).toMatch(/^videos\/local-/);
+    expect(plan.assetId).toMatch(new RegExp(`^${uuidPattern}$`));
+    expect(plan.targetRelativePath).toMatch(
+      new RegExp(`^videos/${uuidPattern}/demo-clip\\.mp4$`),
+    );
     expect(plan.targetRelativePath).toContain("demo-clip.mp4");
-    expect(plan.tempRelativePath).toMatch(/^job-temp\/local-/);
+    expect(plan.tempRelativePath).toBe(`job-temp/${plan.assetId}`);
+  });
+
+  it("creates distinct local import paths for repeated file names", () => {
+    const first = createLocalFileImportPlan({
+      sourcePath: "/Users/example/Movies/demo clip.mp4",
+      nowIso: "2026-05-21T00:00:00.000Z",
+    });
+    const second = createLocalFileImportPlan({
+      sourcePath: "/Users/example/Movies/demo clip.mp4",
+      nowIso: "2026-05-21T00:00:01.000Z",
+    });
+
+    expect(first.assetId).not.toBe(second.assetId);
+    expect(first.targetRelativePath).not.toBe(second.targetRelativePath);
   });
 
   it("classifies local video, audio, and PDF files for shared metadata", () => {
@@ -35,7 +55,9 @@ describe("ingest domain", () => {
       }),
     ).toMatchObject({
       sourceType: "audio",
-      targetRelativePath: "audio/local-demo-audio/demo-audio.mp3",
+      targetRelativePath: expect.stringMatching(
+        new RegExp(`^audios/${uuidPattern}/demo-audio\\.mp3$`),
+      ),
     });
     expect(
       createLocalFileImportPlan({
@@ -43,7 +65,9 @@ describe("ingest domain", () => {
       }),
     ).toMatchObject({
       sourceType: "pdf",
-      targetRelativePath: "documents/local-demo-paper/demo-paper.pdf",
+      targetRelativePath: expect.stringMatching(
+        new RegExp(`^pdfs/${uuidPattern}/demo-paper\\.pdf$`),
+      ),
     });
   });
 
@@ -59,7 +83,8 @@ describe("ingest domain", () => {
     expect(result.video).toMatchObject({
       sourceKind: "local-file",
       sourceType: "video",
-      libraryPath: expect.stringMatching(/^videos\/local-/),
+      originalFileName: "source.mp4",
+      libraryPath: expect.stringMatching(new RegExp(`^videos/${uuidPattern}/source\\.mp4$`)),
       fileSizeBytes: 10,
       durationSeconds: 5,
       importStatus: "ready",

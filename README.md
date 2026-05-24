@@ -157,7 +157,8 @@ Use `pnpm --filter <workspace> <script>` or `pnpm -F <workspace> <script>` for a
 
 ## Roadmap
 
-- Support more source types, including audio files, PDFs, HTML pages, and other document formats.
+- Improve audio file support for transcription, summaries, playback, and exports.
+- Support more document and web source types, including PDFs, HTML pages, and other document formats.
 - Support additional ASR models, including Parakeet and Qwen3-ASR.
 - Support local LLMs, including Gemma 4.
 - Add voice cloning so summaries can be read aloud in a selected voice.

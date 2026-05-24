@@ -206,7 +206,7 @@ describe("useMediaLibrary", () => {
           sourceKind: "youtube",
           originalUri: "https://youtu.be/example",
           libraryPath: "videos/youtube-video/video.mp4",
-          thumbnailPath: "videos/youtube-video/thumbnail/poster.jpg",
+          thumbnailPath: "videos/youtube-video/thumbnail/youtube-video-thumbnail.jpg",
           importStatus: "ready",
           createdAtIso: "2026-05-21T00:00:00.000Z",
         },
@@ -218,7 +218,7 @@ describe("useMediaLibrary", () => {
     await waitFor(() => {
       expect(result.current.state.videos[0]).toMatchObject({
         title: "Queued Video",
-        thumbnailPath: "videos/youtube-video/thumbnail/poster.jpg",
+        thumbnailPath: "videos/youtube-video/thumbnail/youtube-video-thumbnail.jpg",
       });
     });
     expect(ingestService.importYoutubeUrl).toHaveBeenCalledTimes(1);

@@ -21,6 +21,7 @@ use tauri::{
 
 const TRANSCRIPT_OVERLAY_WINDOW_LABEL: &str = "transcript-overlay";
 const TRANSCRIPT_OVERLAY_EVENT: &str = "openbrief://transcript-overlay";
+const TRANSCRIPT_OVERLAY_HIDDEN_EVENT: &str = "openbrief://transcript-overlay-hidden";
 const VIDEO_PLAYBACK_MENU_EVENT: &str = "openbrief://video-playback-command";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -40,10 +41,16 @@ fn show_transcript_overlay(
         return Ok(false);
     };
 
-    window.show().map_err(|error| error.to_string())?;
-    window
-        .set_always_on_top(true)
-        .map_err(|error| error.to_string())?;
+    if !window.is_visible().map_err(|error| error.to_string())? {
+        window
+            .set_focusable(false)
+            .map_err(|error| error.to_string())?;
+        window.show().map_err(|error| error.to_string())?;
+        window
+            .set_always_on_top(true)
+            .map_err(|error| error.to_string())?;
+    }
+
     app.emit_to(
         TRANSCRIPT_OVERLAY_WINDOW_LABEL,
         TRANSCRIPT_OVERLAY_EVENT,
@@ -60,6 +67,8 @@ fn hide_transcript_overlay(app: tauri::AppHandle) -> Result<bool, String> {
     };
 
     window.hide().map_err(|error| error.to_string())?;
+    app.emit_to("main", TRANSCRIPT_OVERLAY_HIDDEN_EVENT, ())
+        .map_err(|error| error.to_string())?;
     Ok(true)
 }
 
@@ -167,6 +176,7 @@ pub fn run() {
             trusted_paths::trusted_local_file_import_plan,
             trusted_paths::validate_library_relative_path_command,
             trusted_paths::write_markdown_summary,
+            trusted_paths::write_text_artifact,
             trusted_paths::export_library_artifact,
             hide_transcript_overlay,
         ])

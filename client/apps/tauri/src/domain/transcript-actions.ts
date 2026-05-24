@@ -4,7 +4,7 @@ import type {
   TranscriptSourceKind,
   VideoAsset,
 } from "@/domain/media-library";
-import { sanitizePathSegment } from "@/domain/media-library";
+import { createMediaAssetFilePrefix, sanitizePathSegment } from "@/domain/media-library";
 import { formatTimestamp } from "@/domain/summary";
 
 export type TranscriptTransformKind = "review" | "translation" | "source";
@@ -45,9 +45,12 @@ export const DEFAULT_TRANSCRIPT_REVIEW_SYSTEM_PROMPT = [
 export const DEFAULT_TRANSCRIPT_TRANSLATION_SYSTEM_PROMPT = [
   "You translate timestamped transcript segments.",
   "Return only translated transcript text in the requested TSV format.",
-  "Do not summarize, explain, merge timestamps, add new lines, or add commentary.",
+  "Every output line must echo the input segment id and start timestamp exactly.",
+  "Do not translate, reformat, infer, renumber, remove, merge, or shift timestamps.",
+  "Keep each translation inside its original segment boundary even when the target language changes word order.",
+  "Do not summarize, explain, merge segments, add new lines, or add commentary.",
   "Preserve names, numbers, technical terms, and source intent.",
-  "Keep output compact: one line per input segment, using the same segment id.",
+  "Keep output compact: one line per input segment, using the same segment id and timestamp.",
 ].join("\n");
 
 export const transcriptTranslationLanguages: TranscriptLanguageOption[] = [
@@ -113,7 +116,8 @@ export function createTranscriptTranslationPrompt({
       `TARGET_LANGUAGE: ${language.label} (${language.code})`,
       "",
       "Output format:",
-      "segment_id<TAB>translated_text",
+      "segment_id<TAB>start_timestamp<TAB>translated_text",
+      "The start_timestamp column must match the matching input segment exactly.",
       "",
       "TRANSCRIPT_SEGMENTS:",
       ...segments.map((segment) =>
@@ -146,7 +150,11 @@ export function parseTranscriptSegmentTsv(providerText: string) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    const [id, ...textParts] = trimmed.split("\t");
+    const [id, ...columns] = trimmed.split("\t");
+    const textParts =
+      columns.length > 1 && isTranscriptTimestamp(columns[0]?.trim())
+        ? columns.slice(1)
+        : columns;
     const text = textParts.join("\t").trim();
     if (id && text) {
       textById.set(id.trim(), text);
@@ -154,6 +162,49 @@ export function parseTranscriptSegmentTsv(providerText: string) {
   }
 
   return textById;
+}
+
+export function parseTimestampAlignedTranscriptSegmentTsv(
+  providerText: string,
+  expectedSegments: TranscriptSegment[],
+) {
+  const expectedTimestampById = new Map(
+    expectedSegments.map((segment) => [
+      segment.id,
+      formatTimestamp(segment.startSeconds),
+    ]),
+  );
+  const textById = new Map<string, string>();
+
+  for (const line of providerText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const [rawId, rawTimestamp, ...textParts] = trimmed.split("\t");
+    const id = rawId?.trim();
+    const timestamp = rawTimestamp?.trim();
+    const expectedTimestamp = id ? expectedTimestampById.get(id) : undefined;
+
+    if (
+      !id ||
+      !expectedTimestamp ||
+      timestamp !== expectedTimestamp ||
+      textParts.length === 0
+    ) {
+      continue;
+    }
+
+    const text = textParts.join("\t").trim();
+    if (text) {
+      textById.set(id, text);
+    }
+  }
+
+  return textById;
+}
+
+function isTranscriptTimestamp(value: string | undefined) {
+  return /^\d+:\d{2}(?::\d{2})?$/.test(value ?? "");
 }
 
 export function applyTranscriptTextMapBySegmentId(
@@ -243,8 +294,10 @@ export function transcriptSourceKindLabel(sourceKind: TranscriptSourceKind) {
 }
 
 export function createTranscriptArtifactPath(video: VideoAsset, suffix = "original") {
+  const prefix = createMediaAssetFilePrefix(video);
+
   return `videos/${sanitizePathSegment(video.id)}/transcript/${sanitizePathSegment(
-    video.title,
+    prefix,
   )}_${sanitizePathSegment(suffix)}.txt`;
 }
 

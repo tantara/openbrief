@@ -1,6 +1,7 @@
-import { Music, PictureInPicture2 } from "lucide-react";
+import { Pause, PictureInPicture2, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { VideoAsset } from "@/domain/media-library";
+import { MediaPreviewFrame } from "@/components/media/MediaThumbnailFrame";
 import { useI18n } from "@/i18n";
 import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
 import { canUseTauriRuntime } from "@/services/tauriHelperClient";
@@ -108,8 +109,10 @@ export function AudioPlayer({
     }
   }, [isActive, isPlaying, media.id, onPause, src]);
 
+  const isActivePlaying = isActive && isPlaying;
+
   return (
-    <div className="relative flex aspect-video flex-col items-center justify-center gap-4 rounded-md bg-muted p-5 text-center">
+    <MediaPreviewFrame media={media} className="rounded-md text-center">
       {onOpenPictureInPicture ? (
         <TooltipProvider delayDuration={150}>
           <div className="absolute right-2 top-2">
@@ -131,41 +134,54 @@ export function AudioPlayer({
           </div>
         </TooltipProvider>
       ) : null}
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-background text-foreground shadow-sm">
-        <Music className="h-7 w-7" aria-hidden="true" />
-      </div>
-      <div className="min-w-0">
-        <p className="line-clamp-2 text-sm font-medium">{media.title}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("audio.player.title")}
-        </p>
-      </div>
       {src ? (
-        <audio
-          ref={audioRef}
-          src={src}
-          controls
-          preload="metadata"
-          className="w-full"
-          aria-label={media.title}
-          onPlay={() => onPlay(media.id)}
-          onPause={() => onPause(media.id)}
-          onTimeUpdate={(event) =>
-            onTimeUpdate(media.id, event.currentTarget.currentTime)
-          }
-          onEnded={() => onEnded(media.id)}
-          onError={() => {
-            setSrc(undefined);
-            setFailed(true);
-          }}
-        />
+        <>
+          <audio
+            ref={audioRef}
+            src={src}
+            preload="metadata"
+            className="sr-only"
+            aria-label={media.title}
+            onPlay={() => onPlay(media.id)}
+            onPause={() => onPause(media.id)}
+            onTimeUpdate={(event) =>
+              onTimeUpdate(media.id, event.currentTarget.currentTime)
+            }
+            onEnded={() => onEnded(media.id)}
+            onError={() => {
+              setSrc(undefined);
+              setFailed(true);
+            }}
+          />
+          <button
+            type="button"
+            className="absolute rounded-full bg-background/85 p-3 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label={
+              isActivePlaying
+                ? t("audio.player.pause", { title: media.title })
+                : t("audio.player.play", { title: media.title })
+            }
+            onClick={() => {
+              if (isActivePlaying) {
+                onPause(media.id);
+                return;
+              }
+
+              onPlay(media.id);
+            }}
+          >
+            {isActivePlaying ? (
+              <Pause className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Play className="h-5 w-5" aria-hidden="true" />
+            )}
+          </button>
+        </>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {failed
-            ? t("audio.player.fileUnavailable")
-            : t("audio.player.loading")}
+        <p className="absolute rounded-md bg-background/85 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+          {failed ? t("audio.player.fileUnavailable") : t("audio.player.loading")}
         </p>
       )}
-    </div>
+    </MediaPreviewFrame>
   );
 }

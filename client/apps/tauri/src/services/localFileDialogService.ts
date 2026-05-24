@@ -1,4 +1,9 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
+import {
+  supportedAudioFileExtensions,
+  supportedPdfFileExtensions,
+  supportedVideoFileExtensions,
+} from "@/domain/ingest";
 
 export type SaveFileDialogRequest = {
   title?: string;
@@ -19,13 +24,17 @@ export function createLocalFileDialogService(): LocalFileDialogService {
   return {
     async selectVideoFile() {
       const selected = await open({
-        title: "Select video from computer",
+        title: "Select from computer",
         multiple: false,
         directory: false,
         filters: [
           {
-            name: "Video",
-            extensions: ["mp4", "m4v", "mov", "webm", "mkv"],
+            name: "Media",
+            extensions: [
+              ...supportedVideoFileExtensions,
+              ...supportedAudioFileExtensions,
+              ...supportedPdfFileExtensions,
+            ],
           },
         ],
       });

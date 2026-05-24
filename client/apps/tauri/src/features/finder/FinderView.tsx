@@ -2,24 +2,22 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  FileAudio,
   FileText,
   HardDrive,
-  ImageIcon,
   Link,
   MoreVertical,
-  Play,
   Plus,
   RotateCcw,
   Subtitles,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@acme/ui/badge";
 import {
   CopyActionButton,
   CopyDropdownMenuItem,
 } from "@/components/CopyAction";
+import { MediaThumbnailFrame } from "@/components/media/MediaThumbnailFrame";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
 import {
@@ -65,10 +63,7 @@ import {
   type VideoLibraryQuery,
   type VideoLibrarySortKey,
 } from "@/domain/media-library";
-import {
-  isVideoAsset,
-  mediaSourceTypeForAsset,
-} from "@/domain/media-library";
+import { mediaSourceTypeForAsset } from "@/domain/media-library";
 import type { LocalFileDialogService } from "@/services/localFileDialogService";
 import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
 import {
@@ -76,9 +71,6 @@ import {
   openExternalWebUrl,
   providerLabelForWebUrl,
 } from "@/services/externalUrlService";
-import { canUseTauriRuntime } from "@/services/tauriHelperClient";
-import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
-import { generateVideoThumbnail } from "@/services/browserThumbnail";
 import { useI18n, type TranslationKey } from "@/i18n";
 import { AddVideoForm } from "@/features/finder/AddVideoForm";
 
@@ -100,7 +92,11 @@ type FinderViewProps = {
   ): void;
   onRenameVideoTitle?(videoId: string, title: string): void;
   onDeleteVideo?(videoId: string): void;
-  onDownloadArtifact?(video: VideoAsset, kind: VideoArtifactDownloadKind): void;
+  onDownloadArtifact?(
+    video: VideoAsset,
+    kind: VideoArtifactDownloadKind,
+    transcript?: TranscriptSegment[],
+  ): void;
   onOpenTutorial?(): void;
   onAddVideo?(): void;
   onOpenVideo(videoId: string): void;
@@ -802,10 +798,12 @@ function VideoGrid({
 
         return (
           <Card key={video.id}>
-            <ThumbnailFrame
-              video={video}
-              onOpenVideo={onOpenVideo}
-              onPlayVideo={onPlayVideo}
+            <MediaThumbnailFrame
+              media={video}
+              openLabel={t("finder.openThumbnail", { title: video.title })}
+              playLabel={t("finder.play", { title: video.title })}
+              onOpenMedia={onOpenVideo}
+              onPlayMedia={onPlayVideo}
             />
             <CardContent className="space-y-3 pt-4">
               <div>
@@ -843,7 +841,7 @@ function VideoGrid({
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   <dt className="sr-only">{t("finder.meta.length")}</dt>
-                  <dd>{formatDuration(video.durationSeconds)}</dd>
+                  <dd>{formatContentLength(video, t)}</dd>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <HardDrive className="h-3.5 w-3.5" aria-hidden="true" />
@@ -865,7 +863,18 @@ function VideoGrid({
                   hasSummary={hasSummary}
                   side="top"
                   align="end"
-                  onDownloadArtifact={(kind) => onDownloadArtifact?.(video, kind)}
+                  onDownloadArtifact={(kind) => {
+                    if (kind === "transcription") {
+                      onDownloadArtifact?.(
+                        video,
+                        kind,
+                        transcriptsByVideoId?.[video.id],
+                      );
+                      return;
+                    }
+
+                    onDownloadArtifact?.(video, kind);
+                  }}
                 />
               </div>
             </CardContent>
@@ -900,19 +909,22 @@ function VideoAuthorLink({ video }: { video: VideoAsset }) {
 
   if (!authorName) return null;
 
-  if (video.authorUrl) {
+  const authorUrl = video.authorUrl;
+
+  if (authorUrl) {
     return (
-      <a
-        href={video.authorUrl}
-        target="_blank"
-        rel="noreferrer"
+      <button
+        type="button"
         className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-xs text-muted-foreground hover:text-foreground"
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          void openExternalWebUrl(authorUrl);
+        }}
       >
         <Link className="h-3 w-3 shrink-0" aria-hidden="true" />
         <span className="sr-only">{t("finder.meta.author")}</span>
         <span className="truncate">{authorName}</span>
-      </a>
+      </button>
     );
   }
 
@@ -938,6 +950,7 @@ function VideoTitleActions({
   const [dialogMode, setDialogMode] = useState<"edit" | "delete" | undefined>();
   const canOpenOriginalUrl = isOpenableWebUrl(video.originalUri);
   const providerLabel = providerLabelForWebUrl(video.originalUri);
+  const actionKindLabel = t(mediaKindLabelKey(video));
 
   return (
     <>
@@ -948,7 +961,10 @@ function VideoTitleActions({
             variant="ghost"
             size="icon"
             className="-mr-2 -mt-2 h-8 w-8 shrink-0"
-            aria-label={t("finder.actions.open", { title: video.title })}
+            aria-label={t("finder.actions.open", {
+              kind: actionKindLabel,
+              title: video.title,
+            })}
           >
             <MoreVertical className="h-4 w-4" aria-hidden="true" />
           </Button>
@@ -1072,11 +1088,14 @@ function DeleteVideoDialog({
   onDelete(): void;
 }) {
   const { t } = useI18n();
+  const sourceType = mediaSourceTypeForAsset(video);
 
   return (
     <FinderDialog
-      title={t("finder.delete.title")}
-      description={t("finder.delete.description", { title: video.title })}
+      title={t(deleteTitleKey(sourceType))}
+      description={t(deleteDescriptionKey(sourceType), {
+        title: video.title,
+      })}
       onClose={onClose}
       footer={
         <>
@@ -1090,6 +1109,43 @@ function DeleteVideoDialog({
       }
     />
   );
+}
+
+function mediaKindLabelKey(video: VideoAsset): TranslationKey {
+  const sourceType = mediaSourceTypeForAsset(video);
+
+  switch (sourceType) {
+    case "audio":
+      return "finder.media.audio";
+    case "pdf":
+      return "finder.media.pdf";
+    case "video":
+      return "finder.media.video";
+  }
+}
+
+function deleteTitleKey(sourceType: ReturnType<typeof mediaSourceTypeForAsset>): TranslationKey {
+  switch (sourceType) {
+    case "audio":
+      return "finder.delete.title.audio";
+    case "pdf":
+      return "finder.delete.title.pdf";
+    case "video":
+      return "finder.delete.title.video";
+  }
+}
+
+function deleteDescriptionKey(
+  sourceType: ReturnType<typeof mediaSourceTypeForAsset>,
+): TranslationKey {
+  switch (sourceType) {
+    case "audio":
+      return "finder.delete.description.audio";
+    case "pdf":
+      return "finder.delete.description.pdf";
+    case "video":
+      return "finder.delete.description.video";
+  }
 }
 
 function FinderDialog({
@@ -1121,148 +1177,23 @@ function FinderDialog({
   );
 }
 
-function ThumbnailFrame({
-  video,
-  onOpenVideo,
-  onPlayVideo,
-}: {
-  video: VideoAsset;
-  onOpenVideo(videoId: string): void;
-  onPlayVideo?: (videoId: string) => void;
-}) {
-  const { t } = useI18n();
-  const sourceType = mediaSourceTypeForAsset(video);
-
-  return (
-    <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-t-md bg-muted">
-      <button
-        type="button"
-        className="absolute inset-0 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
-        aria-label={t("finder.openThumbnail", { title: video.title })}
-        onClick={() => onOpenVideo(video.id)}
-      >
-        {isVideoAsset(video) ? (
-          <ResolvedThumbnailImage video={video} />
-        ) : (
-          <MediaTypePlaceholder sourceType={sourceType} />
-        )}
-      </button>
-      {isVideoAsset(video) ? (
-        <button
-          type="button"
-          className="absolute bottom-2 right-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-          aria-label={t("finder.play", { title: video.title })}
-          onClick={() => onPlayVideo?.(video.id)}
-        >
-          <Play className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function MediaTypePlaceholder({ sourceType }: { sourceType: MediaSourceType }) {
-  const Icon = sourceType === "audio" ? FileAudio : FileText;
-
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
-      <Icon className="h-10 w-10" aria-hidden="true" />
-    </div>
-  );
-}
-
-function ResolvedThumbnailImage({ video }: { video: VideoAsset }) {
-  const [src, setSrc] = useState<string | undefined>(() => {
-    if (!video.thumbnailPath || canUseTauriRuntime()) return undefined;
-    return video.thumbnailPath;
-  });
-  const [failedProvidedThumbnail, setFailedProvidedThumbnail] = useState(false);
-  const [failedGeneratedThumbnail, setFailedGeneratedThumbnail] = useState(false);
-
-  useEffect(() => {
-    setFailedProvidedThumbnail(false);
-    setFailedGeneratedThumbnail(false);
-  }, [video.id, video.libraryPath, video.thumbnailPath]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function resolveThumbnail() {
-      setSrc(undefined);
-
-      if (video.thumbnailPath && !failedProvidedThumbnail) {
-        if (!canUseTauriRuntime()) {
-          setSrc(video.thumbnailPath);
-          return;
-        }
-
-        try {
-          const resolvedSrc = await resolveLibraryAssetUrl(video.thumbnailPath);
-
-          if (!cancelled) {
-            setSrc(resolvedSrc);
-          }
-          return;
-        } catch {
-          if (!cancelled) {
-            setSrc(undefined);
-          }
-        }
-      }
-
-      if (failedGeneratedThumbnail) return;
-
-      try {
-        const generatedSrc = await generateVideoThumbnail(video.libraryPath, {
-          isDestroyed: () => cancelled,
-        });
-        if (!cancelled) {
-          setSrc(generatedSrc);
-        }
-      } catch {
-        if (!cancelled) {
-          setSrc(undefined);
-        }
-      }
-    }
-
-    void resolveThumbnail();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    failedGeneratedThumbnail,
-    failedProvidedThumbnail,
-    video.libraryPath,
-    video.thumbnailPath,
-  ]);
-
-  if (!src) {
-    return <ImageIcon className="h-7 w-7 text-muted-foreground" aria-hidden="true" />;
+function formatContentLength(
+  video: VideoAsset,
+  t: (key: TranslationKey, values?: Record<string, string | number>) => string,
+) {
+  if (mediaSourceTypeForAsset(video) === "pdf") {
+    return video.pageCount && video.pageCount > 0
+      ? t(video.pageCount === 1 ? "finder.meta.page" : "finder.meta.pages", {
+          count: video.pageCount,
+        })
+      : "—";
   }
 
-  return (
-    <img
-      src={src}
-      alt=""
-      className="h-full w-full object-cover"
-      title={video.title}
-      onError={() => {
-        if (video.thumbnailPath && !failedProvidedThumbnail) {
-          setFailedProvidedThumbnail(true);
-          return;
-        }
-
-        setFailedGeneratedThumbnail(true);
-        setSrc(undefined);
-      }}
-    />
-  );
+  return formatDuration(video.durationSeconds);
 }
 
-function formatDuration(durationSeconds = 0) {
-  if (durationSeconds <= 0) return "0:00";
+function formatDuration(durationSeconds?: number) {
+  if (!durationSeconds || durationSeconds <= 0) return "—";
   const minutes = Math.floor(durationSeconds / 60);
   const seconds = Math.floor(durationSeconds % 60);
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;

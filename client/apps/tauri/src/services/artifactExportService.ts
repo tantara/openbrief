@@ -5,9 +5,18 @@ import {
   createLocalFileDialogService,
   type LocalFileDialogService,
 } from "@/services/localFileDialogService";
-import type { SummaryDocument, VideoAsset } from "@/domain/media-library";
+import {
+  createTranscriptArtifactPath,
+  formatTranscriptText,
+} from "@/domain/transcript-actions";
+import type {
+  SummaryDocument,
+  TranscriptSegment,
+  VideoAsset,
+} from "@/domain/media-library";
 import {
   createLibraryAssetDirectory,
+  createMediaAssetFilePrefix,
   createVideoAudioArtifactPath,
   createVideoPosterArtifactPath,
   mediaSourceTypeForAsset,
@@ -22,6 +31,7 @@ export type VideoArtifactDownloadKind =
   | "video"
   | "thumbnail"
   | "audio"
+  | "transcription"
   | "summary";
 
 export type ArtifactExportResult = {
@@ -39,6 +49,7 @@ type MarkdownSaveResult = {
 export type ArtifactExportService = {
   exportVideoArtifact(request: {
     video: VideoAsset;
+    transcript?: TranscriptSegment[];
     summary?: SummaryDocument;
     kind: VideoArtifactDownloadKind;
   }): Promise<ArtifactExportResult | undefined>;
@@ -54,7 +65,10 @@ export function createArtifactExportService({
   fileDialogService?: LocalFileDialogService;
 } = {}): ArtifactExportService {
   return {
-    async exportVideoArtifact({ video, summary, kind }) {
+    async exportVideoArtifact({ video, transcript, summary, kind }) {
+      if (kind === "transcription" && (!transcript || transcript.length === 0)) {
+        throw new Error("transcription_export_unavailable");
+      }
       if (kind === "summary" && !summary?.artifactPath) {
         throw new Error("summary_export_unavailable");
       }
@@ -73,16 +87,22 @@ export function createArtifactExportService({
       const { outputDirectory, fileName } = splitExportTargetPath(targetPath);
       const sourceRelativePath = await sourceRelativePathForArtifact(
         video,
+        transcript,
         summary,
         kind,
         helperClient,
         invokeCommand,
       );
 
-      if (kind === "summary" && summary) {
-        await invokeCommand<MarkdownSaveResult>("write_markdown_summary", {
+      if (kind === "transcription" && transcript) {
+        await invokeCommand<MarkdownSaveResult>("write_text_artifact", {
           relativePath: sourceRelativePath,
-          markdown: summary.markdown,
+          text: formatTranscriptText(transcript),
+        });
+      } else if (kind === "summary" && summary) {
+        await invokeCommand<MarkdownSaveResult>("write_text_artifact", {
+          relativePath: sourceRelativePath,
+          text: summary.markdown,
         });
       }
 
@@ -136,6 +156,7 @@ function caughtErrorMessage(error: unknown, fallback: string) {
 
 async function sourceRelativePathForArtifact(
   video: VideoAsset,
+  transcript: TranscriptSegment[] | undefined,
   summary: SummaryDocument | undefined,
   kind: VideoArtifactDownloadKind,
   helperClient: HelperClient,
@@ -150,7 +171,10 @@ async function sourceRelativePathForArtifact(
       return video.thumbnailPath;
     }
 
-    const outputPath = createVideoPosterArtifactPath(video.id);
+    const outputPath = createVideoPosterArtifactPath(
+      video.id,
+      video.originalFileName ?? video.title,
+    );
     const result = await helperClient.run({
       protocolVersion: helperProtocolVersion,
       command: "extract_thumbnail",
@@ -165,6 +189,14 @@ async function sourceRelativePathForArtifact(
     }
 
     return result.thumbnailPath;
+  }
+
+  if (kind === "transcription") {
+    if (!transcript || transcript.length === 0) {
+      throw new Error("transcription_export_unavailable");
+    }
+
+    return createTranscriptArtifactPath(video, "transcription");
   }
 
   if (kind === "summary") {
@@ -184,7 +216,10 @@ async function sourceRelativePathForArtifact(
     throw new Error("audio_export_unavailable");
   }
 
-  const outputPath = createVideoAudioArtifactPath(video.id);
+  const outputPath = createVideoAudioArtifactPath(
+    video.id,
+    video.originalFileName ?? video.title,
+  );
   if (await libraryArtifactExists(outputPath, invokeCommand)) {
     return outputPath;
   }
@@ -223,7 +258,11 @@ function defaultExportFileName(
   summary: SummaryDocument | undefined,
 ) {
   if (kind === "audio") {
-    return `${video.title}.wav`;
+    if (mediaSourceTypeForAsset(video) === "audio") {
+      return video.originalFileName ?? fileNameFromPath(video.libraryPath);
+    }
+
+    return `${createMediaAssetFilePrefix(video)}-audio.wav`;
   }
 
   if (kind === "summary") {
@@ -232,8 +271,19 @@ function defaultExportFileName(
       : `${video.title}.md`;
   }
 
+  if (kind === "transcription") {
+    return `${createMediaAssetFilePrefix(video)}-transcription.txt`;
+  }
+
   if (kind === "thumbnail") {
-    return video.thumbnailPath ? fileNameFromPath(video.thumbnailPath) : "poster.jpg";
+    return video.thumbnailPath
+      ? fileNameFromPath(video.thumbnailPath)
+      : fileNameFromPath(
+          createVideoPosterArtifactPath(
+            video.id,
+            video.originalFileName ?? video.title,
+          ),
+        );
   }
 
   return fileNameFromPath(video.libraryPath);
@@ -252,6 +302,8 @@ function artifactKindLabel(kind: VideoArtifactDownloadKind) {
       return "thumbnail";
     case "audio":
       return "audio";
+    case "transcription":
+      return "transcription";
     case "summary":
       return "summary";
   }
@@ -281,6 +333,13 @@ function artifactFileFilter(
     return {
       name: "Audio",
       extensions: extension ? [extension] : ["wav"],
+    };
+  }
+
+  if (kind === "transcription") {
+    return {
+      name: "Text",
+      extensions: extension ? [extension] : ["txt"],
     };
   }
 

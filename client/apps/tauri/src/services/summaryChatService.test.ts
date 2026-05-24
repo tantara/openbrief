@@ -228,7 +228,7 @@ describe("summary chat service", () => {
           text:
             request.operation === "transcript_review"
               ? "s1\tCorrected intro"
-              : "s1\t번역된 인트로",
+              : "s1\t0:00\t번역된 인트로",
           requestPlan: createProviderRequestPlan(request),
         };
       }),
@@ -301,7 +301,7 @@ describe("summary chat service", () => {
       complete: vi.fn(async (request) => {
         providerCalls.push(request);
         if (providerCalls.length === 1) {
-          request.onTextSnapshot?.("s1\t번역된 도입\ns2\t번역된 중간");
+          request.onTextSnapshot?.("s1\t0:00\t번역된 도입\ns2\t0:10\t번역된 중간");
           return {
             ok: false as const,
             message: "provider_request_failed",
@@ -312,7 +312,7 @@ describe("summary chat service", () => {
 
         return {
           ok: true as const,
-          text: "s3\t번역된 끝",
+          text: "s3\t0:20\t번역된 끝",
           requestPlan: createProviderRequestPlan(request),
         };
       }),
@@ -337,12 +337,16 @@ describe("summary chat service", () => {
   });
 
   it("translates transcript text into a saved language variant", async () => {
+    const providerCalls: ProviderCompletionRequest[] = [];
     const providerService: ProviderService = {
-      complete: vi.fn(async (request) => ({
-        ok: true as const,
-        text: "s1\t번역된 인트로",
-        requestPlan: createProviderRequestPlan(request),
-      })),
+      complete: vi.fn(async (request) => {
+        providerCalls.push(request);
+        return {
+          ok: true as const,
+          text: "s1\t0:00\t번역된 인트로",
+          requestPlan: createProviderRequestPlan(request),
+        };
+      }),
     };
     const service = createSummaryChatService(providerService);
 
@@ -361,6 +365,35 @@ describe("summary chat service", () => {
       languageLabel: "Korean",
       artifactPath: "videos/video-1/transcript/Design-Review_ko.txt",
     });
+    expect(providerCalls[0].systemPrompt).toContain(
+      "Every output line must echo the input segment id and start timestamp exactly.",
+    );
+    expect(providerCalls[0].userPrompt).toContain(
+      "segment_id<TAB>start_timestamp<TAB>translated_text",
+    );
     expect(variant.segments[0].text).toBe("번역된 인트로");
+  });
+
+  it("rejects transcript translation lines with shifted timestamps", async () => {
+    const providerService: ProviderService = {
+      complete: vi.fn(async (request) => ({
+        ok: true as const,
+        text:
+          request.userPrompt.includes("s1\t0:00")
+            ? "s1\t0:01\t잘못 정렬된 도입\ns2\t0:10\t번역된 중간\ns3\t0:20\t번역된 끝"
+            : "s1\t0:00\t번역된 도입\ns2\t0:10\t번역된 중간\ns3\t0:20\t번역된 끝",
+        requestPlan: createProviderRequestPlan(request),
+      })),
+    };
+    const service = createSummaryChatService(providerService);
+
+    await expect(
+      service.translateTranscript({
+        video,
+        transcript: multiSegmentTranscript,
+        provider: "openai",
+        language: { code: "ko", label: "Korean" },
+      }),
+    ).rejects.toThrow("transcript_transform_incomplete:s1");
   });
 });

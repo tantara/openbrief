@@ -44,7 +44,7 @@ describe("artifactExportService", () => {
 
       return {
         targetPath: "/exports/Workbench-sample.wav",
-        sourceRelativePath: "videos/video-1/audio/audio.wav",
+        sourceRelativePath: "videos/video-1/audio/Workbench-sample-audio.wav",
         bytesWritten: 10,
       };
     }) as unknown as TauriInvoke;
@@ -63,7 +63,7 @@ describe("artifactExportService", () => {
 
     expect(helperClient.eventsForJob("export-audio-video-1").length).toBeGreaterThan(0);
     expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
-      sourceRelativePath: "videos/video-1/audio/audio.wav",
+      sourceRelativePath: "videos/video-1/audio/Workbench-sample-audio.wav",
       outputDirectory: "/exports",
       fileName: "Custom audio.wav",
     });
@@ -72,12 +72,12 @@ describe("artifactExportService", () => {
   it("reuses an existing extracted audio artifact for audio exports", async () => {
     const invokeCommand = vi.fn(async (command: string) => {
       if (command === "resolve_library_file_path") {
-        return "/library/videos/video-1/audio/audio.wav";
+        return "/library/videos/video-1/audio/Workbench-sample-audio.wav";
       }
 
       return {
         targetPath: "/exports/Custom audio.wav",
-        sourceRelativePath: "videos/video-1/audio/audio.wav",
+        sourceRelativePath: "videos/video-1/audio/Workbench-sample-audio.wav",
         bytesWritten: 10,
       };
     }) as unknown as TauriInvoke;
@@ -96,7 +96,7 @@ describe("artifactExportService", () => {
 
     expect(helperClient.eventsForJob("export-audio-video-1")).toHaveLength(0);
     expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
-      sourceRelativePath: "videos/video-1/audio/audio.wav",
+      sourceRelativePath: "videos/video-1/audio/Workbench-sample-audio.wav",
       outputDirectory: "/exports",
       fileName: "Custom audio.wav",
     });
@@ -139,7 +139,7 @@ describe("artifactExportService", () => {
   it("generates a missing thumbnail before exporting it", async () => {
     const invokeCommand = vi.fn().mockResolvedValue({
       targetPath: "/exports/poster.jpg",
-      sourceRelativePath: "videos/video-1/thumbnail/poster.jpg",
+      sourceRelativePath: "videos/video-1/thumbnail/Workbench-sample-thumbnail.jpg",
       bytesWritten: 10,
     });
     const helperClient = new FakeHelperClient();
@@ -161,7 +161,7 @@ describe("artifactExportService", () => {
     expect(helperClient.eventsForJob("export-thumbnail-video-1").length)
       .toBeGreaterThan(0);
     expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
-      sourceRelativePath: "videos/video-1/thumbnail/poster.jpg",
+      sourceRelativePath: "videos/video-1/thumbnail/Workbench-sample-thumbnail.jpg",
       outputDirectory: "/exports",
       fileName: "custom-poster.jpg",
     });
@@ -197,15 +197,77 @@ describe("artifactExportService", () => {
       },
     });
 
-    expect(invokeCommand).toHaveBeenNthCalledWith(1, "write_markdown_summary", {
+    expect(invokeCommand).toHaveBeenNthCalledWith(1, "write_text_artifact", {
       relativePath: "videos/video-1/summary/summary-video-1.md",
-      markdown: "# Summary",
+      text: "# Summary",
     });
     expect(invokeCommand).toHaveBeenNthCalledWith(2, "export_library_artifact", {
       sourceRelativePath: "videos/video-1/summary/summary-video-1.md",
       outputDirectory: "/exports",
       fileName: "custom-summary.md",
     });
+  });
+
+  it("writes current transcript text before exporting transcription", async () => {
+    const invokeCommand = vi.fn().mockResolvedValue({
+      targetPath: "/exports/transcript.txt",
+      sourceRelativePath: "videos/video-1/transcript/Workbench-sample_transcription.txt",
+      bytesWritten: 10,
+    });
+    const service = createArtifactExportService({
+      invokeCommand,
+      helperClient: new FakeHelperClient(),
+      fileDialogService: {
+        selectVideoFile: vi.fn(),
+        selectImageFile: vi.fn(),
+        selectSavePath: vi.fn().mockResolvedValue("/exports/transcript.txt"),
+      },
+    });
+
+    await service.exportVideoArtifact({
+      video,
+      kind: "transcription",
+      transcript: [
+        {
+          id: "segment-1",
+          startSeconds: 0,
+          text: "Opening segment",
+          sourceKind: "local-stt",
+        },
+        {
+          id: "segment-2",
+          startSeconds: 65,
+          text: "Second segment",
+          sourceKind: "local-stt",
+        },
+      ],
+    });
+
+    expect(invokeCommand).toHaveBeenNthCalledWith(1, "write_text_artifact", {
+      relativePath: "videos/video-1/transcript/Workbench-sample_transcription.txt",
+      text: "0:00\tOpening segment\n1:05\tSecond segment",
+    });
+    expect(invokeCommand).toHaveBeenNthCalledWith(2, "export_library_artifact", {
+      sourceRelativePath: "videos/video-1/transcript/Workbench-sample_transcription.txt",
+      outputDirectory: "/exports",
+      fileName: "transcript.txt",
+    });
+  });
+
+  it("rejects transcription export when no transcript is available", async () => {
+    const service = createArtifactExportService({
+      invokeCommand: vi.fn(),
+      helperClient: new FakeHelperClient(),
+      fileDialogService: {
+        selectVideoFile: vi.fn(),
+        selectImageFile: vi.fn(),
+        selectSavePath: vi.fn().mockResolvedValue("/exports"),
+      },
+    });
+
+    await expect(
+      service.exportVideoArtifact({ video, kind: "transcription" }),
+    ).rejects.toThrow("transcription_export_unavailable");
   });
 
   it("rejects summary export when no saved markdown artifact exists", async () => {
@@ -274,7 +336,7 @@ const video: VideoAsset = {
   sourceKind: "youtube",
   originalUri: "https://youtu.be/example",
   libraryPath: "videos/video-1/source.mp4",
-  thumbnailPath: "videos/video-1/thumbnail/poster.jpg",
+  thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
   importStatus: "ready",
   createdAtIso: "2026-05-21T00:00:00.000Z",
 };

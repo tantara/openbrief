@@ -192,7 +192,10 @@ export function useMediaLibrary(
     : [];
 
   async function importLocalFile(request: LocalFileImportRequest) {
-    const result = await ingestService.importLocalFile(request);
+    const result = await ingestService.importLocalFile({
+      ...request,
+      nowIso: request.nowIso ?? new Date().toISOString(),
+    });
     applyIngestResult(result);
     return result;
   }

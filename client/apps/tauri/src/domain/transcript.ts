@@ -95,7 +95,10 @@ export function createAudioExtractionCommand(
     command: "extract_audio",
     jobId: createTranscriptJobId(request.video.id, "audio"),
     videoPath: request.video.libraryPath,
-    outputPath: createVideoAudioArtifactPath(request.video.id),
+    outputPath: createVideoAudioArtifactPath(
+      request.video.id,
+      request.video.originalFileName ?? request.video.title,
+    ),
     tempDir: createLibraryAssetDirectory("job-temp", request.video.id),
   };
 }

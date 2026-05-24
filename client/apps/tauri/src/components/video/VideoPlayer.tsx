@@ -7,10 +7,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { VideoAsset } from "@/domain/media-library";
+import { useResolvedVideoThumbnailSrc } from "@/components/media/MediaThumbnailFrame";
 import { cn } from "@acme/ui";
 import { canUseTauriRuntime } from "@/services/tauriHelperClient";
 import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
-import { generateVideoThumbnail } from "@/services/browserThumbnail";
 import { useI18n, type TranslationKey } from "@/i18n";
 import {
   Tooltip,
@@ -56,9 +56,7 @@ export function VideoPlayer({
   const [src, setSrc] = useState<string | undefined>(() =>
     canUseTauriRuntime() ? undefined : video.libraryPath,
   );
-  const [posterSrc, setPosterSrc] = useState<string | undefined>(() =>
-    canUseTauriRuntime() ? undefined : video.thumbnailPath,
-  );
+  const { src: posterSrc } = useResolvedVideoThumbnailSrc(video);
   const [loadErrorKey, setLoadErrorKey] = useState<TranslationKey | undefined>();
   const [isAppFullscreen, setIsAppFullscreen] = useState(false);
   const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
@@ -103,46 +101,6 @@ export function VideoPlayer({
   useEffect(() => {
     setHasStartedPlayback(false);
   }, [video.id, src]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function resolvePoster() {
-      if (video.thumbnailPath) {
-        try {
-          const resolvedPoster = await resolveLibraryAssetUrl(video.thumbnailPath);
-
-          if (!cancelled) {
-            setPosterSrc(resolvedPoster);
-          }
-          return;
-        } catch {
-          if (!cancelled) {
-            setPosterSrc(undefined);
-          }
-        }
-      }
-
-      try {
-        const generatedPoster = await generateVideoThumbnail(video.libraryPath, {
-          isDestroyed: () => cancelled,
-        });
-
-        if (!cancelled) {
-          setPosterSrc(generatedPoster);
-        }
-      } catch {
-        if (!cancelled) setPosterSrc(undefined);
-      }
-    }
-
-    setPosterSrc(canUseTauriRuntime() ? undefined : video.thumbnailPath);
-    void resolvePoster();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [video.thumbnailPath]);
 
   useEffect(() => {
     const element = videoRef.current;

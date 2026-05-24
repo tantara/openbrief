@@ -32,8 +32,8 @@ export type ArtifactKind =
 
 export type LibraryDirectory =
   | "videos"
-  | "audio"
-  | "documents"
+  | "audios"
+  | "pdfs"
   | "playlists"
   | "thumbnails"
   | "transcripts"
@@ -42,8 +42,8 @@ export type LibraryDirectory =
 
 export const libraryDirectories: LibraryDirectory[] = [
   "videos",
-  "audio",
-  "documents",
+  "audios",
+  "pdfs",
   "playlists",
   "thumbnails",
   "transcripts",
@@ -57,6 +57,7 @@ export type MediaAssetMetadata = {
   sourceType?: MediaSourceType;
   sourceKind: VideoSourceKind;
   originalUri: string;
+  originalFileName?: string;
   libraryPath: string;
   fileSizeBytes?: number;
   language?: string;
@@ -69,6 +70,7 @@ export type MediaAssetMetadata = {
 export type VideoAsset = MediaAssetMetadata & {
   thumbnailPath?: string;
   durationSeconds?: number;
+  pageCount?: number;
   channelName?: string;
   authorName?: string;
   authorUrl?: string;
@@ -217,7 +219,7 @@ export class VideoArtifactBundle {
   }
 
   get posterPath() {
-    return `${this.thumbnailDirectory}/poster.jpg`;
+    return `${this.thumbnailDirectory}/${sanitizePathSegment(this.videoId)}-thumbnail.jpg`;
   }
 
   get audioDirectory() {
@@ -225,7 +227,7 @@ export class VideoArtifactBundle {
   }
 
   get audioWavPath() {
-    return `${this.audioDirectory}/audio.wav`;
+    return `${this.audioDirectory}/${sanitizePathSegment(this.videoId)}-audio.wav`;
   }
 
   get transcriptDirectory() {
@@ -648,12 +650,24 @@ export function createVideoBundleManifest({
   };
 }
 
-export function createVideoPosterArtifactPath(videoId: string) {
-  return createVideoArtifactBundle(videoId).posterPath;
+export function createVideoPosterArtifactPath(
+  videoId: string,
+  sourceFileName?: string,
+) {
+  const bundle = createVideoArtifactBundle(videoId);
+  const prefix = createArtifactFilePrefix(sourceFileName ?? videoId);
+
+  return `${bundle.thumbnailDirectory}/${prefix}-thumbnail.jpg`;
 }
 
-export function createVideoAudioArtifactPath(videoId: string) {
-  return createVideoArtifactBundle(videoId).audioWavPath;
+export function createVideoAudioArtifactPath(
+  videoId: string,
+  sourceFileName?: string,
+) {
+  const bundle = createVideoArtifactBundle(videoId);
+  const prefix = createArtifactFilePrefix(sourceFileName ?? videoId);
+
+  return `${bundle.audioDirectory}/${prefix}-audio.wav`;
 }
 
 export function createVideoTranscriptArtifactDirectory(videoId: string) {
@@ -664,8 +678,24 @@ export function createVideoTranscriptJsonArtifactPath(videoId: string) {
   return createVideoArtifactBundle(videoId).transcriptJsonPath;
 }
 
-export function createSummaryArtifactPath(videoId: string, summaryId: string) {
-  return createVideoArtifactBundle(videoId).summaryPath(summaryId);
+export function createSummaryArtifactPath(
+  videoId: string,
+  summaryId: string,
+  sourceFileName?: string,
+) {
+  const bundle = createVideoArtifactBundle(videoId);
+
+  if (!sourceFileName) {
+    return bundle.summaryPath(summaryId);
+  }
+
+  const prefix = createArtifactFilePrefix(sourceFileName);
+  const suffix =
+    summaryId.startsWith(`summary-${videoId}-`)
+      ? summaryId.slice(`summary-${videoId}-`.length)
+      : (summaryId.replace(/^summary-/, "") || summaryId);
+
+  return `${bundle.summaryDirectory}/${prefix}-summary-${sanitizePathSegment(suffix)}.md`;
 }
 
 export function createChatSessionArtifactPath(videoId: string, sessionId = "default") {
@@ -682,6 +712,19 @@ export function sanitizePathSegment(value: string) {
     .replace(/^[.-]+|[.-]+$/g, "");
 
   return sanitized || "untitled";
+}
+
+export function createMediaAssetFilePrefix(
+  video: Pick<VideoAsset, "id" | "title" | "originalFileName">,
+) {
+  return createArtifactFilePrefix(video.originalFileName ?? video.title ?? video.id);
+}
+
+function createArtifactFilePrefix(value: string) {
+  const fileName = value.split(/[\\/]/).filter(Boolean).at(-1) ?? value;
+  const stem = fileName.replace(/\.[a-zA-Z0-9]+$/, "");
+
+  return sanitizePathSegment(stem);
 }
 
 function normalizeSearchText(value: string) {

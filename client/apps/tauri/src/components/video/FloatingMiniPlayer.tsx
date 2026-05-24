@@ -147,7 +147,7 @@ export function FloatingMiniPlayer({
     <aside
       ref={playerRef}
       className={cn(
-        "fixed left-0 top-0 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-md border border-border bg-card shadow-2xl",
+        "fixed left-0 top-0 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-card shadow-2xl",
         isDragging ? "cursor-grabbing ring-2 ring-ring" : "cursor-default",
       )}
       style={{

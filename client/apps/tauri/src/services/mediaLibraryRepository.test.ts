@@ -86,7 +86,7 @@ function createSnapshot(): MediaLibrarySnapshot {
         sourceKind: "youtube",
         originalUri: "https://youtu.be/example",
         libraryPath: "videos/video-1/video.mp4",
-        thumbnailPath: "videos/video-1/thumbnail/poster.jpg",
+        thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
         durationSeconds: 120,
         fileSizeBytes: 1024,
         importStatus: "ready",

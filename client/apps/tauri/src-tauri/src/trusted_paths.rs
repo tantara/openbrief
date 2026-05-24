@@ -1,8 +1,13 @@
 use serde::Serialize;
+use sha1::{Digest, Sha1};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, Runtime};
+
+static LOCAL_IMPORT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +15,8 @@ pub struct TrustedLocalFileImportPlan {
     source_path: String,
     canonical_source_path: String,
     source_type: &'static str,
+    asset_id: String,
+    original_file_name: String,
     library_root: String,
     library_relative_path: String,
     temp_relative_path: String,
@@ -43,9 +50,13 @@ pub struct ArtifactExportResult {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalFileImportResult {
+    asset_id: String,
+    original_file_name: String,
     library_relative_path: String,
     file_size_bytes: u64,
     source_type: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    page_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -101,11 +112,19 @@ fn copy_local_file_into_library_root(
     let target_path = Path::new(&plan.library_root).join(&plan.library_relative_path);
     let copied_bytes = fs::copy(&plan.canonical_source_path, &target_path)
         .map_err(|error| format!("local_file_copy_failed:{error}"))?;
+    let page_count = if plan.source_type == "pdf" {
+        pdf_page_count(&target_path)
+    } else {
+        None
+    };
 
     Ok(LocalFileImportResult {
+        asset_id: plan.asset_id,
+        original_file_name: plan.original_file_name,
         library_relative_path: plan.library_relative_path,
         file_size_bytes: copied_bytes,
         source_type: plan.source_type,
+        page_count,
     })
 }
 
@@ -143,15 +162,20 @@ fn trusted_local_file_import_plan_in_library(
     source_path: String,
     library_root: PathBuf,
 ) -> Result<TrustedLocalFileImportPlan, String> {
+    trusted_local_file_import_plan_in_library_with_asset_id(source_path, library_root, None)
+}
+
+fn trusted_local_file_import_plan_in_library_with_asset_id(
+    source_path: String,
+    library_root: PathBuf,
+    requested_asset_id: Option<String>,
+) -> Result<TrustedLocalFileImportPlan, String> {
     let source = validate_existing_file(&source_path)?;
     let library_root = validate_existing_directory_path(&library_root)?;
     let file_name = file_name_from_path(&source)?;
     let source_type = media_source_type_from_file_name(&file_name)?;
     let library_directory = library_directory_for_media_source_type(source_type);
-    let asset_id = format!(
-        "local-{}",
-        sanitize_path_segment(&title_from_file_name(&file_name))
-    );
+    let asset_id = requested_asset_id.unwrap_or_else(create_uuid);
     let library_relative_path = format!(
         "{library_directory}/{asset_id}/{}",
         sanitize_path_segment(&file_name)
@@ -175,6 +199,8 @@ fn trusted_local_file_import_plan_in_library(
         source_path,
         canonical_source_path: path_to_string(source),
         source_type,
+        asset_id,
+        original_file_name: file_name,
         library_root: path_to_string(library_root),
         library_relative_path,
         temp_relative_path,
@@ -213,9 +239,18 @@ pub fn write_markdown_summary<R: Runtime>(
     relative_path: String,
     markdown: String,
 ) -> Result<MarkdownSaveResult, String> {
+    write_text_artifact(app, relative_path, markdown)
+}
+
+#[tauri::command]
+pub fn write_text_artifact<R: Runtime>(
+    app: AppHandle<R>,
+    relative_path: String,
+    text: String,
+) -> Result<MarkdownSaveResult, String> {
     let library_root = openbrief_library_root_for_app(&app)?;
 
-    write_markdown_summary_in_library(library_root, relative_path, markdown)
+    write_text_artifact_in_library(library_root, relative_path, text)
 }
 
 #[tauri::command]
@@ -263,7 +298,7 @@ fn export_library_artifact_from_root(
     let export_file_name = file_name
         .filter(|name| !name.trim().is_empty())
         .unwrap_or_else(|| source_file_name.to_string_lossy().to_string());
-    let target_path = output_directory.join(sanitize_path_segment(&export_file_name));
+    let target_path = output_directory.join(sanitize_export_file_name(&export_file_name));
 
     if path_is_symlink(&target_path)? {
         return Err("artifact_target_must_not_be_symlink".to_string());
@@ -307,10 +342,10 @@ fn export_library_artifact_from_root(
     })
 }
 
-fn write_markdown_summary_in_library(
+fn write_text_artifact_in_library(
     library_root: PathBuf,
     relative_path: String,
-    markdown: String,
+    text: String,
 ) -> Result<MarkdownSaveResult, String> {
     let library_root = validate_existing_directory_path(&library_root)?;
     let canonical_parent = validate_library_relative_path(&library_root, &relative_path)?;
@@ -329,13 +364,13 @@ fn write_markdown_summary_in_library(
         .write(true)
         .open(&target)
         .map_err(|error| format!("markdown_save_failed:{error}"))?;
-    file.write_all(markdown.as_bytes())
+    file.write_all(text.as_bytes())
         .map_err(|error| format!("markdown_save_failed:{error}"))?;
 
     Ok(MarkdownSaveResult {
         target_path: path_to_string(target),
         library_relative_path: relative_path,
-        bytes_written: markdown.len(),
+        bytes_written: text.len(),
     })
 }
 
@@ -516,10 +551,74 @@ fn media_source_type_from_file_name(file_name: &str) -> Result<&'static str, Str
 
 fn library_directory_for_media_source_type(source_type: &str) -> &'static str {
     match source_type {
-        "audio" => "audio",
-        "pdf" => "documents",
+        "audio" => "audios",
+        "pdf" => "pdfs",
         _ => "videos",
     }
+}
+
+fn create_uuid() -> String {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let counter = LOCAL_IMPORT_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let mut hasher = Sha1::new();
+    hasher.update(format!("{unique}-{counter}").as_bytes());
+    let mut hex = format!("{:x}", hasher.finalize());
+    hex.replace_range(12..13, "4");
+    hex.replace_range(16..17, "8");
+
+    format_uuid_hex(&hex[..32])
+}
+
+fn format_uuid_hex(hex: &str) -> String {
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32],
+    )
+}
+
+fn pdf_page_count(path: &Path) -> Option<u32> {
+    let bytes = fs::read(path).ok()?;
+    let mut count = 0_u32;
+    let mut cursor = 0_usize;
+
+    while let Some(type_offset) = find_bytes(&bytes[cursor..], b"/Type") {
+        cursor += type_offset + b"/Type".len();
+        cursor = skip_pdf_whitespace(&bytes, cursor);
+
+        if bytes[cursor..].starts_with(b"/Page")
+            && !bytes
+                .get(cursor + b"/Page".len())
+                .is_some_and(|byte| byte.is_ascii_alphanumeric())
+        {
+            count = count.saturating_add(1);
+        }
+    }
+
+    (count > 0).then_some(count)
+}
+
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
+}
+
+fn skip_pdf_whitespace(bytes: &[u8], mut cursor: usize) -> usize {
+    while bytes
+        .get(cursor)
+        .is_some_and(|byte| matches!(byte, b'\0' | b'\t' | b'\n' | b'\x0c' | b'\r' | b' '))
+    {
+        cursor += 1;
+    }
+
+    cursor
 }
 
 fn sanitize_path_segment(value: &str) -> String {
@@ -557,11 +656,37 @@ fn sanitize_path_segment(value: &str) -> String {
     }
 }
 
-fn title_from_file_name(file_name: &str) -> String {
-    match file_name.rfind('.') {
-        Some(index) if index > 0 => file_name[..index].replace(['-', '_'], " "),
-        _ => file_name.replace(['-', '_'], " "),
+fn sanitize_export_file_name(value: &str) -> String {
+    let normalized: String = value
+        .trim()
+        .chars()
+        .map(|character| match character {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '-',
+            character if character.is_control() => '-',
+            character => character,
+        })
+        .collect();
+    let trimmed = normalized.trim_matches(['.', ' ', '-']).to_string();
+
+    if trimmed.is_empty() {
+        return "untitled".to_string();
     }
+
+    let (stem, extension) = match trimmed.rfind('.') {
+        Some(index) if index > 0 && index + 1 < trimmed.len() => {
+            (&trimmed[..index], &trimmed[index..])
+        }
+        _ => (trimmed.as_str(), ""),
+    };
+    let trimmed_stem = stem.trim_matches(['.', ' ', '-']);
+    let truncated_stem: String = trimmed_stem.chars().take(20).collect();
+    let file_stem = if truncated_stem.is_empty() {
+        "untitled".to_string()
+    } else {
+        truncated_stem
+    };
+
+    format!("{file_stem}{extension}")
 }
 
 fn path_to_string(path: PathBuf) -> String {
@@ -578,6 +703,8 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    const UUID_PATTERN_LENGTH: usize = 36;
+
     #[test]
     fn plans_local_file_imports_with_canonical_source_and_library_paths() {
         let fixture = TestFixture::new("trusted-import");
@@ -590,11 +717,16 @@ mod tests {
         assert!(plan.canonical_source_path.ends_with("source/demo clip.mp4"));
         assert_eq!(plan.copy_strategy, "copy-into-library");
         assert_eq!(plan.source_type, "video");
+        assert_eq!(plan.asset_id.len(), UUID_PATTERN_LENGTH);
+        assert_eq!(plan.original_file_name, "demo clip.mp4");
         assert_eq!(
             plan.library_relative_path,
-            "videos/local-demo-clip/demo-clip.mp4"
+            format!("videos/{}/demo-clip.mp4", plan.asset_id)
         );
-        assert_eq!(plan.temp_relative_path, "job-temp/local-demo-clip");
+        assert_eq!(
+            plan.temp_relative_path,
+            format!("job-temp/{}", plan.asset_id)
+        );
     }
 
     #[test]
@@ -607,9 +739,11 @@ mod tests {
             copy_local_file_into_library_root(path_to_string(source), library.clone()).unwrap();
         let target = library.join(&result.library_relative_path);
 
+        assert_eq!(result.asset_id.len(), UUID_PATTERN_LENGTH);
+        assert_eq!(result.original_file_name, "demo clip.mp4");
         assert_eq!(
             result.library_relative_path,
-            "videos/local-demo-clip/demo-clip.mp4"
+            format!("videos/{}/demo-clip.mp4", result.asset_id)
         );
         assert_eq!(result.source_type, "video");
         assert_eq!(result.file_size_bytes, 11);
@@ -617,10 +751,32 @@ mod tests {
     }
 
     #[test]
+    fn repeated_local_file_imports_get_distinct_library_paths() {
+        let fixture = TestFixture::new("trusted-copy-repeat");
+        let source = fixture.write_file("source/demo clip.mp4", "video bytes");
+        let library = fixture.create_dir("library");
+
+        let first =
+            copy_local_file_into_library_root(path_to_string(source.clone()), library.clone())
+                .unwrap();
+        let second = copy_local_file_into_library_root(path_to_string(source), library).unwrap();
+
+        assert_ne!(first.asset_id, second.asset_id);
+        assert_ne!(first.library_relative_path, second.library_relative_path);
+    }
+
+    #[test]
     fn copies_audio_and_pdf_into_shared_library_storage() {
         let fixture = TestFixture::new("trusted-copy-shared-media");
         let audio = fixture.write_file("source/demo audio.mp3", "audio bytes");
-        let pdf = fixture.write_file("source/demo paper.pdf", "pdf bytes");
+        let pdf = fixture.write_file(
+            "source/demo paper.pdf",
+            "%PDF-1.7
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Count 2 /Kids [3 0 R 4 0 R] >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R >> endobj
+4 0 obj << /Type/Page /Parent 2 0 R >> endobj",
+        );
         let library = fixture.create_dir("library");
 
         let audio_result =
@@ -629,14 +785,19 @@ mod tests {
             copy_local_file_into_library_root(path_to_string(pdf), library.clone()).unwrap();
 
         assert_eq!(audio_result.source_type, "audio");
+        assert_eq!(audio_result.original_file_name, "demo audio.mp3");
+        assert_eq!(audio_result.asset_id.len(), UUID_PATTERN_LENGTH);
         assert_eq!(
             audio_result.library_relative_path,
-            "audio/local-demo-audio/demo-audio.mp3"
+            format!("audios/{}/demo-audio.mp3", audio_result.asset_id)
         );
         assert_eq!(pdf_result.source_type, "pdf");
+        assert_eq!(pdf_result.original_file_name, "demo paper.pdf");
+        assert_eq!(pdf_result.page_count, Some(2));
+        assert_eq!(pdf_result.asset_id.len(), UUID_PATTERN_LENGTH);
         assert_eq!(
             pdf_result.library_relative_path,
-            "documents/local-demo-paper/demo-paper.pdf"
+            format!("pdfs/{}/demo-paper.pdf", pdf_result.asset_id)
         );
         assert_eq!(
             fs::read_to_string(library.join(audio_result.library_relative_path)).unwrap(),
@@ -644,7 +805,11 @@ mod tests {
         );
         assert_eq!(
             fs::read_to_string(library.join(pdf_result.library_relative_path)).unwrap(),
-            "pdf bytes"
+            "%PDF-1.7
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Count 2 /Kids [3 0 R 4 0 R] >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R >> endobj
+4 0 obj << /Type/Page /Parent 2 0 R >> endobj"
         );
     }
 
@@ -755,7 +920,8 @@ mod tests {
         let fixture = TestFixture::new("trusted-import-target-symlink");
         let source = fixture.write_file("source/demo clip.mp4", "video");
         let library = fixture.create_dir("library");
-        let import_parent = library.join("videos/local-demo-clip");
+        let asset_id = "00000000-0000-4000-8000-000000000001";
+        let import_parent = library.join(format!("videos/{asset_id}"));
         fs::create_dir_all(&import_parent).unwrap();
         let outside = fixture.write_file("outside.mp4", "old");
         let symlink = import_parent.join("demo-clip.mp4");
@@ -766,7 +932,11 @@ mod tests {
         #[cfg(windows)]
         std::os::windows::fs::symlink_file(&outside, &symlink).unwrap();
 
-        let result = trusted_local_file_import_plan_in_library(path_to_string(source), library);
+        let result = trusted_local_file_import_plan_in_library_with_asset_id(
+            path_to_string(source),
+            library,
+            Some(asset_id.to_string()),
+        );
 
         assert_eq!(result.unwrap_err(), "library_target_must_not_be_symlink");
         assert_eq!(fs::read_to_string(outside).unwrap(), "old");
@@ -777,7 +947,7 @@ mod tests {
         let fixture = TestFixture::new("trusted-markdown");
         let library = fixture.create_dir("library");
 
-        let result = write_markdown_summary_in_library(
+        let result = write_text_artifact_in_library(
             library.clone(),
             "summaries/video-1.md".to_string(),
             "# Summary".to_string(),
@@ -809,12 +979,35 @@ mod tests {
         )
         .unwrap();
 
-        assert!(result.target_path.ends_with("Readable-title.mp4"));
+        assert!(result.target_path.ends_with("Readable title.mp4"));
         assert_eq!(result.source_relative_path, "videos/video-1/source.mp4");
         assert_eq!(result.bytes_written, 11);
         assert_eq!(
-            fs::read_to_string(output.join("Readable-title.mp4")).unwrap(),
+            fs::read_to_string(output.join("Readable title.mp4")).unwrap(),
             "video-bytes"
+        );
+    }
+
+    #[test]
+    fn preserves_unicode_and_truncates_export_file_name_stems() {
+        let fixture = TestFixture::new("trusted-artifact-export-unicode");
+        let library = fixture.create_dir("library");
+        let output = fixture.create_dir("exports");
+        fixture.write_file("library/videos/video-1/summary/summary.md", "summary");
+
+        let result = export_library_artifact_from_root(
+            library,
+            "videos/video-1/summary/summary.md".to_string(),
+            path_to_string(output.clone()),
+            Some("가나다라마바사아자차카타파하1234567890 요약.md".to_string()),
+        )
+        .unwrap();
+
+        let expected_file_name = "가나다라마바사아자차카타파하123456.md";
+        assert!(result.target_path.ends_with(expected_file_name));
+        assert_eq!(
+            fs::read_to_string(output.join(expected_file_name)).unwrap(),
+            "summary"
         );
     }
 
@@ -856,7 +1049,7 @@ mod tests {
         #[cfg(windows)]
         std::os::windows::fs::symlink_dir(&outside, &symlink).unwrap();
 
-        let result = write_markdown_summary_in_library(
+        let result = write_text_artifact_in_library(
             library,
             "summaries/video-1.md".to_string(),
             "# Summary".to_string(),
@@ -873,12 +1066,12 @@ mod tests {
         let fixture = TestFixture::new("trusted-markdown-traversal");
         let library = fixture.create_dir("library");
 
-        let absolute = write_markdown_summary_in_library(
+        let absolute = write_text_artifact_in_library(
             library.clone(),
             path_to_string(fixture.root.join("outside.md")),
             "# Summary".to_string(),
         );
-        let traversal = write_markdown_summary_in_library(
+        let traversal = write_text_artifact_in_library(
             library,
             "../outside.md".to_string(),
             "# Summary".to_string(),
@@ -909,7 +1102,7 @@ mod tests {
         #[cfg(windows)]
         std::os::windows::fs::symlink_file(&outside, &symlink).unwrap();
 
-        let result = write_markdown_summary_in_library(
+        let result = write_text_artifact_in_library(
             library,
             "summaries/video-1.md".to_string(),
             "# Summary".to_string(),

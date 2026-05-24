@@ -1,0 +1,11 @@
+html,
+body,
+#root {
+  background: transparent !important;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}

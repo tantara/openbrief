@@ -30,18 +30,21 @@ import {
 
 const ThemeModeSchema = z.enum(["light", "dark", "auto"]);
 
-const themeKey = "theme-mode";
-
 export type ThemeMode = z.output<typeof ThemeModeSchema>;
 export type ResolvedTheme = Exclude<ThemeMode, "auto">;
 
-const getStoredThemeMode = (): ThemeMode => {
-  if (typeof window === "undefined") return "auto";
+const themeKey = "theme-mode";
+const fallbackThemeMode: ThemeMode = "auto";
+
+const getStoredThemeMode = (
+  defaultTheme: ThemeMode = fallbackThemeMode,
+): ThemeMode => {
+  if (typeof window === "undefined") return defaultTheme;
   try {
     const storedTheme = localStorage.getItem(themeKey);
-    return ThemeModeSchema.parse(storedTheme);
+    return storedTheme ? ThemeModeSchema.parse(storedTheme) : defaultTheme;
   } catch {
-    return "auto";
+    return defaultTheme;
   }
 };
 
@@ -114,11 +117,12 @@ const getNextTheme = (current: ThemeMode): ThemeMode => {
   return themes[(themes.indexOf(current) + 1) % themes.length]!;
 };
 
-export const themeDetectorScript = (function () {
+const createThemeDetectorScript = (fallbackThemeMode: ThemeMode) => {
   function themeFn(
     colorTokens: typeof colorSeedTokens,
     fallbackColorSeed: ColorSeed,
     colorStorageKey: string,
+    fallbackTheme: ThemeMode,
   ) {
     const isValidTheme = (theme: string): theme is ThemeMode => {
       const validThemes = ["light", "dark", "auto"] as const;
@@ -162,8 +166,8 @@ export const themeDetectorScript = (function () {
       root.style.setProperty("--sidebar-ring", toHsl(tokens.primary));
     };
 
-    const storedTheme = getStored("theme-mode") ?? "auto";
-    const validTheme = isValidTheme(storedTheme) ? storedTheme : "auto";
+    const storedTheme = getStored("theme-mode") ?? fallbackTheme;
+    const validTheme = isValidTheme(storedTheme) ? storedTheme : fallbackTheme;
     const storedColorSeed = getStored(colorStorageKey);
     const validColorSeed =
       storedColorSeed && storedColorSeed in colorTokens
@@ -186,10 +190,14 @@ export const themeDetectorScript = (function () {
     JSON.stringify(colorSeedTokens),
     JSON.stringify(defaultColorSeed),
     JSON.stringify(colorSeedStorageKey),
+    JSON.stringify(fallbackThemeMode),
   ].join(", ");
 
   return `(${themeFn.toString()})(${colorSeedScriptArgs});`;
-})();
+};
+
+export const themeDetectorScript =
+  createThemeDetectorScript(fallbackThemeMode);
 
 interface ThemeContextProps {
   themeMode: ThemeMode;
@@ -203,9 +211,18 @@ const ThemeContext = React.createContext<ThemeContextProps | undefined>(
   undefined,
 );
 
-export function ThemeProvider({ children }: React.PropsWithChildren) {
-  const [themeMode, setThemeMode] = React.useState(getStoredThemeMode);
+export function ThemeProvider({
+  children,
+  defaultTheme = fallbackThemeMode,
+}: React.PropsWithChildren<{ defaultTheme?: ThemeMode }>) {
+  const [themeMode, setThemeMode] = React.useState(() =>
+    getStoredThemeMode(defaultTheme),
+  );
   const [colorSeed, setColorSeedState] = React.useState(getStoredColorSeed);
+  const detectorScript = React.useMemo(
+    () => createThemeDetectorScript(defaultTheme),
+    [defaultTheme],
+  );
 
   React.useEffect(() => {
     if (themeMode !== "auto") return;
@@ -242,7 +259,7 @@ export function ThemeProvider({ children }: React.PropsWithChildren) {
       }}
     >
       <script
-        dangerouslySetInnerHTML={{ __html: themeDetectorScript }}
+        dangerouslySetInnerHTML={{ __html: detectorScript }}
         suppressHydrationWarning
       />
       {children}

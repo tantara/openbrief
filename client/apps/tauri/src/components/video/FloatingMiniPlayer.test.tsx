@@ -26,6 +26,9 @@ describe("FloatingMiniPlayer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /note/i }));
 
+    expect(screen.getByLabelText("Picture-in-picture player")).toHaveClass(
+      "rounded-xl",
+    );
     expect(onOpenWorkbench).toHaveBeenCalledTimes(1);
   });
 
@@ -76,9 +79,10 @@ describe("FloatingMiniPlayer", () => {
     );
 
     expect(screen.getAllByText("Audio PiP sample")).not.toHaveLength(0);
-    expect(screen.getByText("Audio")).toBeInTheDocument();
     expect(screen.getByLabelText("Audio PiP sample", { selector: "audio" }))
       .toHaveAttribute("src", "audio/local-audio-pip/sample.mp3");
+    expect(screen.getByRole("button", { name: /play audio pip sample/i }))
+      .toBeInTheDocument();
     expect(screen.queryByLabelText("PiP sample", { selector: "video" }))
       .not.toBeInTheDocument();
   });

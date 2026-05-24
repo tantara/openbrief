@@ -374,9 +374,9 @@ function createMockTranscriptTransform(prompt: string) {
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("TRANSCRIPT_SEGMENTS"))
     .map((line) => {
-      const [id, _time, ...textParts] = line.split("\t");
+      const [id, time, ...textParts] = line.split("\t");
       const text = textParts.join("\t").trim();
-      return id && text ? `${id}\t${text}` : "";
+      return id && time && text ? `${id}\t${time}\t${text}` : "";
     })
     .filter(Boolean)
     .join("\n");
