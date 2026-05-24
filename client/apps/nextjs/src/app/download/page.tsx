@@ -6,17 +6,48 @@ import type { SupportedLocale } from "~/app/_lib/i18n";
 import { buildMarketingMetadata } from "~/app/_lib/seo";
 import { Button } from "@acme/ui/button";
 
+const releaseDownloads = [
+  [
+    "https://github.com/tantara/openbrief/releases/download/v0.1.0/OpenBrief_0.1.0_aarch64.dmg",
+    "https://github.com/tantara/openbrief/releases/download/v0.1.0/OpenBrief_0.1.0_x64.dmg",
+  ],
+  [
+    "https://github.com/tantara/openbrief/releases/download/v0.1.0/OpenBrief_0.1.0_x64-setup.exe",
+    undefined,
+  ],
+  [
+    "https://github.com/tantara/openbrief/releases/download/v0.1.0/OpenBrief_0.1.0_amd64.AppImage",
+    "https://github.com/tantara/openbrief/releases/download/v0.1.0/OpenBrief_0.1.0_amd64.deb",
+    "https://github.com/tantara/openbrief/releases/download/v0.1.0/OpenBrief-0.1.0-1.x86_64.rpm",
+  ],
+] as const;
+
 export function generateMetadata(): Metadata {
   return buildMarketingMetadata(defaultLocale, "/download");
 }
 
 function DownloadButton({
   label,
+  href,
+  actionLabel,
   comingSoon,
 }: {
   label: string;
+  href?: string;
+  actionLabel: string;
   comingSoon: string;
 }) {
+  if (href) {
+    return (
+      <Button asChild variant="outline" size="sm" className="justify-between">
+        <a href={href}>
+          <span>{label}</span>
+          <span className="text-muted-foreground text-xs">{actionLabel}</span>
+        </a>
+      </Button>
+    );
+  }
+
   return (
     <Button
       disabled
@@ -65,17 +96,19 @@ export default function DownloadPage({
         id="release-builds"
         className="mx-auto grid max-w-6xl gap-4 px-5 pb-16 sm:px-6 lg:grid-cols-3"
       >
-        {copy.download.platformGroups.map((group) => (
+        {copy.download.platformGroups.map((group, groupIndex) => (
           <article key={group.name} className="bg-card rounded-md border p-5">
             <h2 className="text-xl font-semibold">{group.name}</h2>
             <p className="text-muted-foreground mt-2 text-sm">
               {copy.download.releaseDescription}
             </p>
             <div className="mt-5 grid gap-2">
-              {group.builds.map((build) => (
+              {group.builds.map((build, buildIndex) => (
                 <DownloadButton
                   key={build}
                   label={build}
+                  href={releaseDownloads[groupIndex]?.[buildIndex]}
+                  actionLabel={copy.nav.download}
                   comingSoon={copy.download.comingSoon}
                 />
               ))}
@@ -101,13 +134,13 @@ export default function DownloadPage({
             <p className="text-muted-foreground mt-2 text-sm leading-6">
               {copy.download.openSource.cardBodyStart}{" "}
               <code className="text-foreground rounded-sm bg-muted px-1 py-0.5">
-                tantara/openclip
+                tantara/openbrief
               </code>{" "}
               {copy.download.openSource.cardBodyEnd}
             </p>
             <Button asChild className="mt-5">
               <a
-                href="https://github.com/tantara/openclip"
+                href="https://github.com/tantara/openbrief"
                 target="_blank"
                 rel="noreferrer"
               >

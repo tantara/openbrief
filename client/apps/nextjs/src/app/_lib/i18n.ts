@@ -219,11 +219,11 @@ const englishCopy: MarketingCopy = {
       },
       {
         name: "Linux",
-        builds: ["x64 AppImage", "Debian package"],
+        builds: ["x64 AppImage", "Debian package", "RPM package"],
       },
     ],
     releaseDescription:
-      "Signed builds will land here as soon as packaging is wired up.",
+      "Verified v0.1.0 installers are available from the public GitHub release.",
     comingSoon: "Coming soon",
     openSource: {
       title: "Open source, if you want it",
@@ -353,10 +353,10 @@ const chineseCopy: MarketingCopy = {
       },
       {
         name: "Linux",
-        builds: ["x64 AppImage", "Debian 软件包"],
+        builds: ["x64 AppImage", "Debian 软件包", "RPM 软件包"],
       },
     ],
-    releaseDescription: "打包流程接通后，签名版本就会出现在这里。",
+    releaseDescription: "已验证的 v0.1.0 安装包可从公开的 GitHub Release 下载。",
     comingSoon: "即将推出",
     openSource: {
       title: "想要的话，也可以开源",
@@ -478,10 +478,10 @@ const koreanCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["x64 설치 프로그램", "ARM64 설치 프로그램"] },
-      { name: "Linux", builds: ["x64 AppImage", "Debian 패키지"] },
+      { name: "Linux", builds: ["x64 AppImage", "Debian 패키지", "RPM 패키지"] },
     ],
     releaseDescription:
-      "패키징이 연결되는 대로 서명된 빌드가 여기에 올라와요.",
+      "검증된 v0.1.0 설치 파일은 공개 GitHub 릴리스에서 받을 수 있어요.",
     comingSoon: "곧 제공",
     openSource: {
       title: "원한다면, 오픈 소스로",
@@ -593,10 +593,10 @@ const japaneseCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["x64 インストーラー", "ARM64 インストーラー"] },
-      { name: "Linux", builds: ["x64 AppImage", "Debian パッケージ"] },
+      { name: "Linux", builds: ["x64 AppImage", "Debian パッケージ", "RPM パッケージ"] },
     ],
     releaseDescription:
-      "パッケージングがつながり次第、署名済みビルドがここに並びます。",
+      "検証済みの v0.1.0 インストーラーは公開 GitHub リリースから入手できます。",
     comingSoon: "近日公開",
     openSource: {
       title: "オープンソースという選択肢も",
@@ -708,10 +708,10 @@ const spanishCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Instalador x64", "Instalador ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Paquete Debian"] },
+      { name: "Linux", builds: ["AppImage x64", "Paquete Debian", "Paquete RPM"] },
     ],
     releaseDescription:
-      "Las versiones firmadas aparecerán aquí en cuanto el empaquetado esté listo.",
+      "Los instaladores verificados de v0.1.0 están disponibles en la release pública de GitHub.",
     comingSoon: "Próximamente",
     openSource: {
       title: "Código abierto, si lo quieres",
@@ -823,10 +823,10 @@ const germanCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["x64-Installer", "ARM64-Installer"] },
-      { name: "Linux", builds: ["x64 AppImage", "Debian-Paket"] },
+      { name: "Linux", builds: ["x64 AppImage", "Debian-Paket", "RPM-Paket"] },
     ],
     releaseDescription:
-      "Signierte Builds erscheinen hier, sobald das Packaging steht.",
+      "Verifizierte v0.1.0-Installer sind im öffentlichen GitHub-Release verfügbar.",
     comingSoon: "Bald verfügbar",
     openSource: {
       title: "Open Source, wenn du willst",
@@ -938,10 +938,10 @@ const frenchCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Installateur x64", "Installateur ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Paquet Debian"] },
+      { name: "Linux", builds: ["AppImage x64", "Paquet Debian", "Paquet RPM"] },
     ],
     releaseDescription:
-      "Les versions signées arriveront ici dès que le packaging sera en place.",
+      "Les installateurs vérifiés v0.1.0 sont disponibles dans la release GitHub publique.",
     comingSoon: "Bientôt disponible",
     openSource: {
       title: "Open source, si tu veux",
@@ -1053,10 +1053,10 @@ const indonesianCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Installer x64", "Installer ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Paket Debian"] },
+      { name: "Linux", builds: ["AppImage x64", "Paket Debian", "Paket RPM"] },
     ],
     releaseDescription:
-      "Versi bertanda tangan akan muncul di sini begitu proses packaging siap.",
+      "Installer v0.1.0 yang sudah diverifikasi tersedia di rilis publik GitHub.",
     comingSoon: "Segera hadir",
     openSource: {
       title: "Open source, kalau kamu mau",
@@ -1168,10 +1168,10 @@ const italianCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Installer x64", "Installer ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Pacchetto Debian"] },
+      { name: "Linux", builds: ["AppImage x64", "Pacchetto Debian", "Pacchetto RPM"] },
     ],
     releaseDescription:
-      "Le versioni firmate compariranno qui non appena il packaging sarà pronto.",
+      "Gli installer verificati v0.1.0 sono disponibili nella release GitHub pubblica.",
     comingSoon: "In arrivo",
     openSource: {
       title: "Open source, se vuoi",
@@ -1283,10 +1283,10 @@ const portugueseCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Instalador x64", "Instalador ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Pacote Debian"] },
+      { name: "Linux", builds: ["AppImage x64", "Pacote Debian", "Pacote RPM"] },
     ],
     releaseDescription:
-      "As versões assinadas aparecem aqui assim que o empacotamento estiver pronto.",
+      "Os instaladores verificados da v0.1.0 estão disponíveis na release pública do GitHub.",
     comingSoon: "Em breve",
     openSource: {
       title: "Código aberto, se você quiser",
@@ -1398,10 +1398,10 @@ const vietnameseCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Trình cài đặt x64", "Trình cài đặt ARM64"] },
-      { name: "Linux", builds: ["x64 AppImage", "Gói Debian"] },
+      { name: "Linux", builds: ["x64 AppImage", "Gói Debian", "Gói RPM"] },
     ],
     releaseDescription:
-      "Bản dựng đã ký sẽ xuất hiện ở đây ngay khi quy trình đóng gói sẵn sàng.",
+      "Bộ cài v0.1.0 đã xác minh có trong bản phát hành GitHub công khai.",
     comingSoon: "Sắp ra mắt",
     openSource: {
       title: "Mã nguồn mở, nếu bạn muốn",
@@ -1513,10 +1513,10 @@ const arabicCopy: MarketingCopy = {
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["مثبّت x64", "مثبّت ARM64"] },
-      { name: "Linux", builds: ["x64 AppImage", "حزمة Debian"] },
+      { name: "Linux", builds: ["x64 AppImage", "حزمة Debian", "حزمة RPM"] },
     ],
     releaseDescription:
-      "ستظهر الإصدارات الموقّعة هنا فور جاهزية عملية التغليف.",
+      "تتوفر مثبتات v0.1.0 التي تم التحقق منها في إصدار GitHub العام.",
     comingSoon: "قريبًا",
     openSource: {
       title: "المصدر المفتوح، إن أردت",
