@@ -58,10 +58,10 @@ jobs:
         id: matrix
         shell: bash
         run: |
-          macos_arm64='{"name":"macos-arm64","os":"macos-latest"}'
-          macos_intel='{"name":"macos-intel","os":"macos-15-intel"}'
-          windows_x64='{"name":"windows-x64","os":"windows-2025-vs2026"}'
-          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04"}'
+          macos_arm64='{"name":"macos-arm64","os":"macos-latest","python":"3.11"}'
+          macos_intel='{"name":"macos-intel","os":"macos-15-intel","python":"3.10"}'
+          windows_x64='{"name":"windows-x64","os":"windows-2025-vs2026","python":"3.11"}'
+          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04","python":"3.11"}'
 
           case "${{ inputs.platform }}" in
             all)
@@ -103,7 +103,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
           cache: "pip"
           cache-dependency-path: client/apps/tauri/src-tauri/sidecars/voicebox-python/pyproject.toml
 
