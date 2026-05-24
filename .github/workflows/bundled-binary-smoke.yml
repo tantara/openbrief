@@ -182,7 +182,7 @@ jobs:
           dpkg-deb -x "$deb" "$root"
 
           helper="$root/usr/bin/openbrief-helper"
-          tools="$root/usr/lib/openclip/media-tools/${{ matrix.rust_target }}"
+          tools="$root/usr/lib/OpenBrief/media-tools/${{ matrix.rust_target }}"
           ytdlp="$tools/yt-dlp"
           ffmpeg="$tools/ffmpeg"
           ffprobe="$tools/ffprobe"
@@ -237,7 +237,7 @@ jobs:
             test -s "$RUNNER_TEMP/tiny-model-transcript.json"
           fi
 
-      - name: Smoke bundled tools from Windows MSI
+      - name: Smoke bundled tools from Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -245,20 +245,31 @@ jobs:
 
           $artifactDir = "artifacts/${{ matrix.artifact }}"
           $msi = Get-ChildItem -Path $artifactDir -Recurse -Filter *.msi | Select-Object -First 1
-          if (-not $msi) {
-            throw "No MSI found in $artifactDir"
+          $exe = Get-ChildItem -Path $artifactDir -Recurse -Filter *.exe |
+            Where-Object { $_.Name -like "*setup*" } |
+            Select-Object -First 1
+          if (-not $msi -and -not $exe) {
+            throw "No MSI or setup EXE found in $artifactDir"
           }
 
-          $root = Join-Path $env:RUNNER_TEMP "openclip-msi-root"
+          $root = Join-Path $env:RUNNER_TEMP "openbrief-windows-installer-root"
           New-Item -ItemType Directory -Force -Path $root | Out-Null
-          $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @(
-            "/a",
-            "`"$($msi.FullName)`"",
-            "/qn",
-            "TARGETDIR=`"$root`""
-          ) -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            throw "MSI administrative extract failed with exit code $($process.ExitCode)"
+
+          if ($msi) {
+            $process = Start-Process -FilePath "msiexec.exe" -ArgumentList @(
+              "/a",
+              "`"$($msi.FullName)`"",
+              "/qn",
+              "TARGETDIR=`"$root`""
+            ) -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "MSI administrative extract failed with exit code $($process.ExitCode)"
+            }
+          } else {
+            7z x $exe.FullName "-o$root" -y
+            if ($LASTEXITCODE -ne 0) {
+              throw "NSIS setup extraction failed"
+            }
           }
 
           $helper = Get-ChildItem -Path $root -Recurse -Filter "openbrief-helper.exe" | Select-Object -First 1
