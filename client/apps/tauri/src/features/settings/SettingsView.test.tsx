@@ -66,6 +66,7 @@ const settings: SettingsSnapshot = {
         fileName: "localai/qwen3-asr-0.6B",
         sizeMb: 2400,
         downloaded: false,
+        downloadsOnDemand: true,
         recommended: true,
       },
       {
@@ -275,6 +276,7 @@ describe("SettingsView", () => {
     expect(screen.getByText("TTS")).toBeInTheDocument();
     expect(screen.getByText("Whisper Small")).toBeInTheDocument();
     expect(screen.getByText("Advanced models")).toBeInTheDocument();
+    expect(screen.getByText("on demand")).toBeInTheDocument();
     expect(screen.getAllByText("not downloaded").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Qwen3-TTS 0.6B").length).toBeGreaterThan(0);
     expect(screen.getAllByText("English (en)").length).toBeGreaterThan(0);

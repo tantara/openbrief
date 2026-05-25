@@ -153,6 +153,44 @@ describe("SetupDialog", () => {
     });
   });
 
+  it("allows Qwen-ASR on-demand models without claiming they are downloaded", () => {
+    const onDownloadWhisperModel = vi.fn().mockResolvedValue(undefined);
+    const onContinue = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SetupDialog
+        {...defaultProps({
+          mode: "transcription",
+          settings: {
+            ...settings,
+            stt: {
+              ...settings.stt,
+              models: [
+                {
+                  id: "qwen3-asr-0.6B",
+                  name: "Qwen3-ASR 0.6B + ForcedAligner",
+                  engine: "qwen3-asr",
+                  fileName: "localai/qwen3-asr-0.6B",
+                  sizeMb: 2400,
+                  downloaded: false,
+                  downloadsOnDemand: true,
+                  recommended: true,
+                },
+              ],
+            },
+          },
+          selectedWhisperModelId: "qwen3-asr-0.6B",
+          onDownloadWhisperModel,
+          onContinue,
+        })}
+      />,
+    );
+
+    expect(screen.getByText("on demand")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /download/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue/i })).toBeEnabled();
+  });
+
   it("asks for confirmation before downloading a warning-level model", async () => {
     const onDownloadWhisperModel = vi.fn().mockResolvedValue(undefined);
 

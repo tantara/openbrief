@@ -1825,7 +1825,9 @@ function ModelRow({
         <Badge>
           {model.downloaded
             ? t("settings.stt.downloaded")
-            : t("settings.stt.notDownloaded")}
+            : model.downloadsOnDemand
+              ? t("settings.stt.downloadsOnDemand")
+              : t("settings.stt.notDownloaded")}
         </Badge>
       </div>
       <p className="text-muted-foreground mt-1 text-xs break-words">

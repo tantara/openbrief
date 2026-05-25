@@ -397,6 +397,7 @@ fn run_streaming_helper_command<R: Runtime>(
     let mut plan = helper_sidecar::command_plan_for_request(&request)
         .map_err(|error| format!("helper_plan_failed:{error}"))?;
     plan.program = resolve_streaming_plan_program(&app, plan.tool, plan.program);
+    attach_ffmpeg_location_to_download_plan(&mut plan, media_tools_dir_for_app(&app));
     push_helper_event(
         &app,
         &library_root,
@@ -737,6 +738,28 @@ fn resolve_streaming_plan_program_from_paths(
     }
 
     fallback
+}
+
+fn attach_ffmpeg_location_to_download_plan(
+    plan: &mut helper_sidecar::CommandPlan,
+    media_tools_dir: Option<PathBuf>,
+) {
+    if plan.tool != "yt-dlp" || plan.args.iter().any(|arg| arg == "--ffmpeg-location") {
+        return;
+    }
+
+    let Some(media_tools_dir) = media_tools_dir else {
+        return;
+    };
+
+    let insert_at = plan.args.len().saturating_sub(1);
+    plan.args.splice(
+        insert_at..insert_at,
+        [
+            "--ffmpeg-location".to_string(),
+            media_tools_dir.to_string_lossy().into_owned(),
+        ],
+    );
 }
 
 fn media_tool_executable_name(tool_name: &str) -> String {
@@ -1173,6 +1196,34 @@ Provider captions text
         );
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn streaming_download_passes_bundled_ffmpeg_location() {
+        let mut plan = helper_sidecar::CommandPlan {
+            tool: "yt-dlp",
+            program: PathBuf::from("yt-dlp"),
+            args: vec![
+                "--newline".to_string(),
+                "-o".to_string(),
+                "%(title)s.%(ext)s".to_string(),
+                "https://www.youtube.com/watch?v=abc".to_string(),
+            ],
+        };
+
+        attach_ffmpeg_location_to_download_plan(
+            &mut plan,
+            Some(PathBuf::from("/tmp/openbrief-media-tools")),
+        );
+
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|pair| pair == ["--ffmpeg-location", "/tmp/openbrief-media-tools"]));
+        assert_eq!(
+            plan.args.last().map(String::as_str),
+            Some("https://www.youtube.com/watch?v=abc")
+        );
     }
 
     #[test]

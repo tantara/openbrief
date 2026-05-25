@@ -88,6 +88,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Install LLVM for macOS Intel native deps
         if: matrix.name == 'macos-intel'

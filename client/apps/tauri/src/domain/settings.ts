@@ -83,6 +83,7 @@ export type SttModelStatus = {
     fileName: string;
     sizeMb: number;
     downloaded: boolean;
+    downloadsOnDemand?: boolean;
     recommended: boolean;
   }>;
 };
@@ -139,6 +140,10 @@ export function selectPreferredSttModel(
     models.find((model) => model.recommended) ??
     models[0]
   );
+}
+
+export function isSttModelUsable(model?: SttModelStatus["models"][number]) {
+  return Boolean(model?.downloaded || model?.downloadsOnDemand);
 }
 
 export const storageUsageCategories = [

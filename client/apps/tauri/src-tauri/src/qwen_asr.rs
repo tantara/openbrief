@@ -14,6 +14,12 @@ pub const QWEN_ASR_06B_SIZE_MB: u64 = 2_400;
 pub const QWEN_ASR_17B_SIZE_MB: u64 = 5_800;
 
 const LOCALAI_EXTERNAL_BIN_PATH: &str = "openbrief-localai";
+const QWEN_ASR_06B_MLX_REPO: &str = "mlx-community/Qwen3-ASR-0.6B-8bit";
+const QWEN_ASR_06B_PYTORCH_REPO: &str = "Qwen/Qwen3-ASR-0.6B";
+const QWEN_ASR_17B_MLX_REPO: &str = "mlx-community/Qwen3-ASR-1.7B-8bit";
+const QWEN_ASR_17B_PYTORCH_REPO: &str = "Qwen/Qwen3-ASR-1.7B";
+const QWEN_ALIGNER_MLX_REPO: &str = "mlx-community/Qwen3-ForcedAligner-0.6B-8bit";
+const QWEN_ALIGNER_PYTORCH_REPO: &str = "Qwen/Qwen3-ForcedAligner-0.6B";
 
 pub fn is_qwen_asr_model_id(model_id: Option<&str>) -> bool {
     matches!(
@@ -42,8 +48,16 @@ pub fn should_route_transcribe_to_qwen(payload: &Value) -> Result<Option<String>
     Ok(Some(model_id.to_string()))
 }
 
-pub fn qwen_asr_model_downloaded(_models_root: &Path, model_id: &str) -> bool {
-    is_qwen_asr_model_id(Some(model_id))
+pub fn qwen_asr_model_downloaded(models_root: &Path, model_id: &str) -> bool {
+    let (mlx_repo, pytorch_repo) = match model_id {
+        QWEN_ASR_17B_MODEL_ID => (QWEN_ASR_17B_MLX_REPO, QWEN_ASR_17B_PYTORCH_REPO),
+        QWEN_ASR_06B_MODEL_ID => (QWEN_ASR_06B_MLX_REPO, QWEN_ASR_06B_PYTORCH_REPO),
+        _ => return false,
+    };
+
+    (hf_repo_cache_exists(models_root, mlx_repo) || hf_repo_cache_exists(models_root, pytorch_repo))
+        && (hf_repo_cache_exists(models_root, QWEN_ALIGNER_MLX_REPO)
+            || hf_repo_cache_exists(models_root, QWEN_ALIGNER_PYTORCH_REPO))
 }
 
 pub fn qwen_asr_model_dir(model_id: &str) -> &'static str {
@@ -67,6 +81,30 @@ pub async fn mark_qwen_asr_model_ready(
         .map_err(|error| format!("qwen_asr_cache_dir_create_failed:{error}"))?;
 
     Ok(("sidecar-downloads-on-demand".to_string(), 0))
+}
+
+fn hf_repo_cache_exists(models_root: &Path, repo_id: &str) -> bool {
+    let repo_cache_name = format!("models--{}", repo_id.replace('/', "--"));
+    [
+        models_root
+            .join("localai")
+            .join("cache")
+            .join("hub")
+            .join(&repo_cache_name),
+        models_root
+            .join("localai")
+            .join("hf")
+            .join("hub")
+            .join(&repo_cache_name),
+    ]
+    .into_iter()
+    .any(|repo_cache| non_empty_dir(&repo_cache.join("snapshots")) || non_empty_dir(&repo_cache))
+}
+
+fn non_empty_dir(path: &Path) -> bool {
+    fs::read_dir(path)
+        .map(|mut entries| entries.next().is_some())
+        .unwrap_or(false)
 }
 
 pub async fn run_transcribe_audio<R: Runtime>(
@@ -193,4 +231,71 @@ pub async fn run_transcribe_audio<R: Runtime>(
     );
 
     Ok(HelperRunResult { events, result })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn qwen_asr_is_not_downloaded_without_cached_weights() {
+        let root = temp_models_dir();
+
+        assert!(!qwen_asr_model_downloaded(&root, QWEN_ASR_06B_MODEL_ID));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn qwen_asr_requires_asr_and_aligner_cache() {
+        let root = temp_models_dir();
+
+        write_hf_snapshot(&root, QWEN_ASR_06B_PYTORCH_REPO);
+        assert!(!qwen_asr_model_downloaded(&root, QWEN_ASR_06B_MODEL_ID));
+
+        write_hf_snapshot(&root, QWEN_ALIGNER_PYTORCH_REPO);
+        assert!(qwen_asr_model_downloaded(&root, QWEN_ASR_06B_MODEL_ID));
+        assert!(!qwen_asr_model_downloaded(&root, QWEN_ASR_17B_MODEL_ID));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn qwen_asr_detects_mlx_cache() {
+        let root = temp_models_dir();
+
+        write_hf_snapshot(&root, QWEN_ASR_17B_MLX_REPO);
+        write_hf_snapshot(&root, QWEN_ALIGNER_MLX_REPO);
+
+        assert!(qwen_asr_model_downloaded(&root, QWEN_ASR_17B_MODEL_ID));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn write_hf_snapshot(models_root: &Path, repo_id: &str) {
+        let repo_cache_name = format!("models--{}", repo_id.replace('/', "--"));
+        let snapshot = models_root
+            .join("localai")
+            .join("cache")
+            .join("hub")
+            .join(repo_cache_name)
+            .join("snapshots")
+            .join("revision");
+        fs::create_dir_all(&snapshot).unwrap();
+        fs::write(snapshot.join("config.json"), b"{}").unwrap();
+    }
+
+    fn temp_models_dir() -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "openbrief-qwen-asr-models-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
 }

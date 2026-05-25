@@ -27,6 +27,7 @@ pub struct SttModelInfo {
     sha1: &'static str,
     size_mb: u64,
     downloaded: bool,
+    downloads_on_demand: bool,
     recommended: bool,
 }
 
@@ -59,6 +60,7 @@ struct SttModelDefinition {
     download_url: &'static str,
     sha1: &'static str,
     size_mb: u64,
+    downloads_on_demand: bool,
     recommended: bool,
 }
 
@@ -71,6 +73,7 @@ const WHISPER_MODELS: [SttModelDefinition; 6] = [
         download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
         sha1: "bd577a113a864445d4c299885e0cb97d4ba92b5f",
         size_mb: 75,
+        downloads_on_demand: false,
         recommended: false,
     },
     SttModelDefinition {
@@ -81,6 +84,7 @@ const WHISPER_MODELS: [SttModelDefinition; 6] = [
         download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
         sha1: "465707469ff3a37a2b9b8d8f89f2f99de7299dac",
         size_mb: 142,
+        downloads_on_demand: false,
         recommended: false,
     },
     SttModelDefinition {
@@ -91,6 +95,7 @@ const WHISPER_MODELS: [SttModelDefinition; 6] = [
         download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
         sha1: "55356645c2b361a969dfd0ef2c5a50d530afd8d5",
         size_mb: 466,
+        downloads_on_demand: false,
         recommended: true,
     },
     SttModelDefinition {
@@ -101,6 +106,7 @@ const WHISPER_MODELS: [SttModelDefinition; 6] = [
         download_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
         sha1: "fd9727b6e1217c2f614f9b698455c4ffd82463b4",
         size_mb: 1536,
+        downloads_on_demand: false,
         recommended: false,
     },
     SttModelDefinition {
@@ -112,6 +118,7 @@ const WHISPER_MODELS: [SttModelDefinition; 6] = [
             "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         sha1: "e050f7970618a659205450ad97eb95a18d69c9ee",
         size_mb: 547,
+        downloads_on_demand: false,
         recommended: false,
     },
     SttModelDefinition {
@@ -123,6 +130,7 @@ const WHISPER_MODELS: [SttModelDefinition; 6] = [
             "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
         sha1: "4af2b29d7ec73d781377bfd1758ca957a807e941",
         size_mb: 1536,
+        downloads_on_demand: false,
         recommended: false,
     },
 ];
@@ -135,6 +143,7 @@ const PARAKEET_V3_MODEL: SttModelDefinition = SttModelDefinition {
     download_url: "FluidInference/parakeet-tdt-0.6b-v3-coreml",
     sha1: "directory-managed-by-fluidaudio",
     size_mb: crate::fluidaudio::PARAKEET_V3_SIZE_MB,
+    downloads_on_demand: false,
     recommended: true,
 };
 
@@ -147,6 +156,7 @@ const QWEN_ASR_MODELS: [SttModelDefinition; 2] = [
         download_url: "Qwen/Qwen3-ASR-0.6B + Qwen/Qwen3-ForcedAligner-0.6B",
         sha1: "sidecar-downloads-on-demand",
         size_mb: crate::qwen_asr::QWEN_ASR_06B_SIZE_MB,
+        downloads_on_demand: true,
         recommended: true,
     },
     SttModelDefinition {
@@ -157,6 +167,7 @@ const QWEN_ASR_MODELS: [SttModelDefinition; 2] = [
         download_url: "Qwen/Qwen3-ASR-1.7B + Qwen/Qwen3-ForcedAligner-0.6B",
         sha1: "sidecar-downloads-on-demand",
         size_mb: crate::qwen_asr::QWEN_ASR_17B_SIZE_MB,
+        downloads_on_demand: true,
         recommended: false,
     },
 ];
@@ -203,6 +214,7 @@ fn catalog_for_models_dir_with_fluidaudio(
         sha1: model.sha1,
         size_mb: model.size_mb,
         downloaded: crate::qwen_asr::qwen_asr_model_downloaded(models_dir, model.id),
+        downloads_on_demand: model.downloads_on_demand,
         recommended: model.recommended,
     }));
 
@@ -216,6 +228,7 @@ fn catalog_for_models_dir_with_fluidaudio(
             sha1: PARAKEET_V3_MODEL.sha1,
             size_mb: PARAKEET_V3_MODEL.size_mb,
             downloaded: crate::fluidaudio::parakeet_model_downloaded(models_dir),
+            downloads_on_demand: PARAKEET_V3_MODEL.downloads_on_demand,
             recommended: false,
         });
     }
@@ -229,6 +242,7 @@ fn catalog_for_models_dir_with_fluidaudio(
         sha1: model.sha1,
         size_mb: model.size_mb,
         downloaded: models_dir.join(model.file_name).is_file(),
+        downloads_on_demand: model.downloads_on_demand,
         recommended: false,
     }));
 
@@ -301,7 +315,7 @@ async fn download_model_to_dir(
         return Ok(SttModelDownloadResult {
             model_id: model.id,
             file_name: model.file_name,
-            downloaded: true,
+            downloaded: crate::qwen_asr::qwen_asr_model_downloaded(models_dir, model.id),
             sha1,
             size_bytes,
         });
@@ -417,7 +431,8 @@ mod tests {
         assert_eq!(default_model.engine, crate::qwen_asr::QWEN_ASR_ENGINE);
         assert_eq!(default_model.id, crate::qwen_asr::QWEN_ASR_06B_MODEL_ID);
         assert!(default_model.recommended);
-        assert!(default_model.downloaded);
+        assert!(!default_model.downloaded);
+        assert!(default_model.downloads_on_demand);
     }
 
     #[test]

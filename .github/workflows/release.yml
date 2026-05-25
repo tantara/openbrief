@@ -35,6 +35,9 @@ on:
         type: string
         default: ""
 
+permissions:
+  contents: read
+
 jobs:
   select-platforms:
     name: Select platforms
@@ -82,6 +85,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Linux dependencies
         run: |
@@ -137,7 +142,8 @@ jobs:
       - select-platforms
       - preflight
     permissions:
-      contents: write
+      contents: read
+    environment: macos-release
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.select-platforms.outputs.matrix) }}
@@ -146,6 +152,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -203,6 +211,17 @@ jobs:
           echo "release_tag is required when upload_release is true." >&2
           exit 1
 
+      - name: Validate release tag format
+        if: inputs.upload_release == true
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9._-]+)?$ ]]; then
+            echo "release_tag must look like v0.3.0 or v0.3.0-rc.1." >&2
+            exit 1
+          fi
+
       - name: Require notarization for published macOS releases
         if: runner.os == 'macOS' && inputs.upload_release == true && inputs.notarize_macos != true
         shell: bash
@@ -250,13 +269,13 @@ jobs:
           keychain_path="$RUNNER_TEMP/openbrief-signing.keychain-db"
           keychain_password="$(openssl rand -base64 32)"
 
+          echo "OPENBRIEF_SIGNING_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
           printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
           security create-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings -lut 21600 "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
           security import "$certificate_path" \
             -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -A \
             -t cert \
             -f pkcs12 \
             -k "$keychain_path" \
@@ -323,15 +342,9 @@ jobs:
         shell: bash
         env:
           NODE_OPTIONS: "--max-old-space-size=8192"
-          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD_SECRET: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           build_config='{"bundle":{"createUpdaterArtifacts":false}}'
           if [[ "${{ runner.os }}" == "macOS" && "${{ inputs.notarize_macos }}" == "true" ]]; then
-            export APPLE_ID="$APPLE_ID_SECRET"
-            export APPLE_PASSWORD="$APPLE_PASSWORD_SECRET"
-            export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
             build_config="$(
               node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:false,macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY,hardenedRuntime:true,entitlements:"entitlements/macos-pyinstaller-sidecars.plist"}}}))'
             )"
@@ -373,18 +386,61 @@ jobs:
           xcrun stapler validate "$dmg_path"
           spctl -a -t open -vvv --context context:primary-signature "$dmg_path"
 
+      - name: Cleanup Apple signing keychain
+        if: always() && runner.os == 'macOS' && inputs.notarize_macos == true
+        shell: bash
+        run: |
+          if [[ -n "${OPENBRIEF_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$OPENBRIEF_SIGNING_KEYCHAIN" || true
+          fi
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openbrief-${{ matrix.name }}
+          path: ${{ matrix.artifact_glob }}
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub release
+    needs: build
+    if: inputs.upload_release == true
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    environment: macos-release
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: openbrief-*
+          path: release-artifacts
+          merge-multiple: true
+
       - name: Upload installers to GitHub release
-        if: inputs.upload_release == true
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_DRAFT: ${{ inputs.draft }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          tag="${{ inputs.release_tag }}"
+          if [[ -z "$RELEASE_TAG" ]]; then
+            echo "release_tag is required when upload_release is true." >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][A-Za-z0-9._-]+)?$ ]]; then
+            echo "release_tag must look like v0.3.0 or v0.3.0-rc.1." >&2
+            exit 1
+          fi
+
+          tag="$RELEASE_TAG"
           title="OpenBrief ${tag}"
           body="OpenBrief installer build. See assets for platform installers."
 
           release_args=()
-          if [[ "${{ inputs.draft }}" == "true" ]]; then
+          if [[ "$RELEASE_DRAFT" == "true" ]]; then
             release_args+=(--draft)
           fi
 
@@ -396,16 +452,17 @@ jobs:
               "${release_args[@]}" \
             || gh release view "$tag" >/dev/null
           fi
+          gh release edit "$tag" --target "$GITHUB_SHA"
 
-          bundle_dir="client/apps/tauri/src-tauri/target/${{ matrix.rust_target }}/release/bundle"
           artifact_list="$(mktemp)"
-          find "$bundle_dir" -type f \( \
+          find release-artifacts -type f \( \
               -name '*.AppImage' -o \
               -name '*.deb' -o \
               -name '*.dmg' -o \
               -name '*.exe' -o \
               -name '*.msi' -o \
-              -name '*.rpm' \
+              -name '*.rpm' -o \
+              -name '*.sig' \
             \) -print0 > "$artifact_list"
 
           if [[ ! -s "$artifact_list" ]]; then
@@ -415,17 +472,12 @@ jobs:
 
           xargs -0 -I {} gh release upload "$tag" "{}" --clobber < "$artifact_list"
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: openbrief-${{ matrix.name }}
-          path: ${{ matrix.artifact_glob }}
-          if-no-files-found: error
-
   smoke-next-step:
     name: Smoke workflow handoff
-    needs: build
-    if: always() && !cancelled() && needs.build.result == 'success'
+    needs:
+      - build
+      - publish-release
+    if: always() && !cancelled() && needs.build.result == 'success' && (!inputs.upload_release || needs.publish-release.result == 'success')
     runs-on: ubuntu-latest
 
     steps:

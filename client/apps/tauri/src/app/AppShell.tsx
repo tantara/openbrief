@@ -59,7 +59,11 @@ import {
 } from "@/domain/ingest";
 import { mediaSourceTypeForAsset } from "@/domain/media-library";
 import { defaultProviderModels } from "@/domain/provider";
-import { formatModelSize, selectPreferredSttModel } from "@/domain/settings";
+import {
+  formatModelSize,
+  isSttModelUsable,
+  selectPreferredSttModel,
+} from "@/domain/settings";
 import { formatTimestamp } from "@/domain/summary";
 import { FaqView } from "@/features/faq/FaqView";
 import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
@@ -972,7 +976,7 @@ export function AppShell() {
           providerLabelForWebUrl(targetVideo.originalUri) ?? "Provider",
         whisperModelId: selectedWhisperModel?.id,
         whisperModelName: selectedWhisperModel?.name,
-        ...(selectedWhisperModel?.downloaded
+        ...(isSttModelUsable(selectedWhisperModel)
           ? { whisperModelPath: whisperModelPath(selectedWhisperModel) }
           : {}),
       });
@@ -996,7 +1000,7 @@ export function AppShell() {
       return;
     }
 
-    if (!selectedWhisperModel?.downloaded) {
+    if (!isSttModelUsable(selectedWhisperModel)) {
       setPendingAction({ mode: "transcription", videoId });
       return;
     }
@@ -1018,7 +1022,9 @@ export function AppShell() {
     const dialogModelId = dialog.whisperModelId ?? dialogModel?.id;
     const dialogModelPath =
       dialog.whisperModelPath ??
-      (dialogModel?.downloaded ? whisperModelPath(dialogModel) : undefined);
+      (isSttModelUsable(dialogModel)
+        ? whisperModelPath(dialogModel)
+        : undefined);
     const whisperLanguage = language === "auto" ? undefined : language;
     const updateWhisperDialog = (
       patch: Partial<CaptionLanguageDialogState>,
@@ -1056,9 +1062,11 @@ export function AppShell() {
             });
           },
         });
-        setDownloadedWhisperModelIds((current) =>
-          current.includes(modelId) ? current : [...current, modelId],
-        );
+        if (result.downloaded) {
+          setDownloadedWhisperModelIds((current) =>
+            current.includes(modelId) ? current : [...current, modelId],
+          );
+        }
         await refreshSettings();
         updateWhisperDialog({
           whisperStatus: "preparing",
@@ -2677,7 +2685,7 @@ export function AppShell() {
               whisperErrorMessage: undefined,
               whisperModelId: modelId,
               whisperModelName: model?.name,
-              ...(model?.downloaded
+              ...(isSttModelUsable(model)
                 ? { whisperModelPath: whisperModelPath(model) }
                 : {}),
             };
@@ -2716,10 +2724,15 @@ export function AppShell() {
         }}
         onProviderModelChange={setSetupProviderModel}
         onDownloadWhisperModel={async (modelId, options) => {
-          await setupService.downloadWhisperModel(modelId, options);
-          setDownloadedWhisperModelIds((current) =>
-            current.includes(modelId) ? current : [...current, modelId],
+          const result = await setupService.downloadWhisperModel(
+            modelId,
+            options,
           );
+          if (result.downloaded) {
+            setDownloadedWhisperModelIds((current) =>
+              current.includes(modelId) ? current : [...current, modelId],
+            );
+          }
           await refreshSettings();
         }}
         onSaveProviderApiKey={async (provider, apiKey) => {
@@ -3287,7 +3300,9 @@ function whisperModelOptionLabel(
 ) {
   const status = model.downloaded
     ? t("setup.whisper.downloaded")
-    : t("setup.whisper.notDownloaded");
+    : model.downloadsOnDemand
+      ? t("setup.whisper.downloadsOnDemand")
+      : t("setup.whisper.notDownloaded");
 
   return `${model.name} (${formatModelSize(model.sizeMb)}) - ${status}`;
 }
