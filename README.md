@@ -1,8 +1,40 @@
+<div align="center">
+
 # OpenBrief
 
-Turn videos and audio into clear, listenable briefings.
+**Turn videos and audio into clear, listenable briefings.**
+
+Import a video or audio file, extract its transcript, generate a grounded summary, and chat with the content — all on your desktop.
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%20v2-24C8DB.svg?logo=tauri)](https://tauri.app)
+![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
+[![Stars](https://img.shields.io/github/stars/tantara/openbrief?style=social)](https://github.com/tantara/openbrief/stargazers)
+
+[Features](#features) · [Model Support](#model-support) · [Setup](#setup) · [Development](#local-development) · [Roadmap](#roadmap)
+
+![OpenBrief — Open Source YouTube Summarizer](docs/assets/openbrief_thumbnail.png)
+
+</div>
 
 OpenBrief is a pnpm/Turborepo workspace centered on a Tauri v2 desktop app. It supports importing local media or video URLs, downloading media through bundled tools, transcribing audio, generating grounded summaries, chatting with media context, organizing playlists, and exporting reusable notes.
+
+## Features
+
+- 📥 **Import anything** — paste a video link or import a local audio/video file.
+- ✍️ **Transcribe locally** — extract captions or run on-device speech-to-text.
+- 📝 **Grounded summaries** — generate blog-style markdown briefs with timestamped takeaways.
+- 💬 **Chat with media** — ask questions against the summary or full transcript.
+- 🔊 **Listen back** — turn summaries into audio with text-to-speech.
+- 🔒 **Open source & private** — runs on your machine, free to use.
+
+Build a searchable library from video links or local files, then extract transcripts and keep everything in one place.
+
+![Library view](docs/assets/screenshot_library.png)
+
+Open any item to read the transcript, generate a grounded summary, and chat with the media context side by side.
+
+![Brief and chat view](docs/assets/screenshot_note.png)
 
 ## Model Support
 
@@ -11,6 +43,7 @@ OpenBrief is a pnpm/Turborepo workspace centered on a Tauri v2 desktop app. It s
 | Speech to text | Whisper, Parakeet, Qwen3-ASR | None |
 | Text to speech | Supertonic 3, Qwen3-TTS | None |
 | Large language model | OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter DeepSeek | Local Gemma 4 |
+| Video embedding | None | Frame and clip embeddings for semantic search |
 
 ## Repository Layout
 
@@ -38,12 +71,9 @@ client/
     tailwind/         Shared Tailwind config
     typescript/       Shared TypeScript config
 
-.github/              Issue templates and release/smoke workflows
 AGENTS.md             Repository development guidance
 DESIGN.md             Product and UI direction
 ```
-
-The root may also contain local reference repos, research folders, generated build output, and runtime state such as `.omx/`, `external-research/`, `opencode/`, `OpenCut/`, `voicebox/`, or similar directories. Treat those as local/reference material unless a task explicitly says otherwise.
 
 ## Requirements
 
@@ -171,20 +201,10 @@ Use `pnpm --filter <workspace> <script>` or `pnpm -F <workspace> <script>` for a
 - [x] Support Qwen3-ASR and Qwen3-ForcedAligner.
 - [x] Support Supertonic 3 TTS.
 - [ ] Support local LLMs, including Gemma 4.
+- [ ] Add video embedding for frame and clip semantic search across the library.
 - [ ] Add voice cloning so summaries can be read aloud in a selected voice.
 - [ ] Share summaries through the web and mobile apps.
 - [ ] Support more artifact formats, including flashcards and other reusable study or publishing outputs.
-
-## Development Notes
-
-- Keep pure desktop domain logic in `client/apps/tauri/src/domain`.
-- Keep renderer side effects in `client/apps/tauri/src/services`, `client/apps/tauri/src/hooks`, or Rust commands.
-- Keep feature UI in `client/apps/tauri/src/features` and shared controls in `client/apps/tauri/src/components`.
-- Share cross-app UI through `client/packages/ui` when it is not desktop-specific.
-- User-visible renderer strings should go through `client/apps/tauri/src/i18n`.
-- Rust owns credentials, filesystem paths, sidecar execution, provider secret resolution, and app-library roots.
-- Helper subprocess execution should use argv arrays, not shell-concatenated commands.
-- Qwen3-ASR 0.6B sidecar smoke validation runs through the manual `Qwen3 ASR 0.6B Smoke` GitHub Actions workflow across macOS arm64, macOS Intel, Windows x64, and Linux x64.
 
 ## Acknowledgements
 
