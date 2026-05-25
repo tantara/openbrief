@@ -283,6 +283,7 @@ export const fr_fr = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "Télécharger des artefacts pour {title}",
   "finder.download.video": "Vidéo",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "Vignette",
   "finder.download.audio": "Audio",
   "finder.download.transcription": "Transcription",

@@ -235,6 +235,27 @@ describe("FinderView", () => {
     expect(screen.getByText("12 pages")).toBeInTheDocument();
   });
 
+  it("shows a PDF download choice from the PDF card", async () => {
+    const onDownloadArtifact = vi.fn();
+    render(
+      <FinderView
+        videos={[pdf]}
+        {...defaultProps}
+        onDownloadArtifact={onDownloadArtifact}
+      />,
+    );
+
+    const menu = await openDropdownMenu(/download artifacts for research paper/i);
+    expect(menu.getByText("PDF")).toBeInTheDocument();
+    expect(menu.queryByText("Video")).not.toBeInTheDocument();
+    expect(menu.queryByText("Thumbnail")).not.toBeInTheDocument();
+    expect(menu.queryByText("Audio")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^pdf/i }));
+
+    expect(onDownloadArtifact).toHaveBeenCalledWith(pdf, "pdf");
+  });
+
   it("shows default download artifact choices from the video card", async () => {
     render(<FinderView videos={[videoWithThumbnail]} {...defaultProps} />);
 

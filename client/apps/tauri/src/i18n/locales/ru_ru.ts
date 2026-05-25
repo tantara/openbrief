@@ -283,6 +283,7 @@ export const ru_ru = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "Скачать артефакты для {title}",
   "finder.download.video": "Видео",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "Миниатюра",
   "finder.download.audio": "Аудио",
   "finder.download.transcription": "Транскрипция",

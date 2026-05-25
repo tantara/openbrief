@@ -283,6 +283,7 @@ export const ja_jp = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "{title} のアーティファクトをダウンロード",
   "finder.download.video": "ビデオ",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "サムネイル",
   "finder.download.audio": "オーディオ",
   "finder.download.transcription": "転写",

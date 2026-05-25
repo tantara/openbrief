@@ -126,7 +126,13 @@ function createVideoDownloadItems({
               label: t("finder.download.audio"),
             },
           ]
-        : [];
+        : [
+            {
+              id: "pdf",
+              downloadKind: "pdf" as const,
+              label: t("finder.download.pdf"),
+            },
+          ];
 
   return [
     ...sourceItems,

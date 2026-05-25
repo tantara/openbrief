@@ -283,6 +283,7 @@ export const ar_ma = {
   "finder.media.pdf": "قوات الدفاع الشعبي",
   "finder.download.openMenu": "تحميل القطع الأثرية ل{title}",
   "finder.download.video": "فيديو",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "صورة مصغرة",
   "finder.download.audio": "صوتي",
   "finder.download.transcription": "النسخ",

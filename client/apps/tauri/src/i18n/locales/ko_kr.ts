@@ -283,6 +283,7 @@ export const ko_kr = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "{title}용 아티팩트 다운로드",
   "finder.download.video": "동영상",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "썸네일",
   "finder.download.audio": "오디오",
   "finder.download.transcription": "전사",

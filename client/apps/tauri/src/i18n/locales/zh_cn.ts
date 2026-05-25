@@ -283,6 +283,7 @@ export const zh_cn = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "下载 {title} 的工件",
   "finder.download.video": "视频",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "缩略图",
   "finder.download.audio": "声音的",
   "finder.download.transcription": "转录",

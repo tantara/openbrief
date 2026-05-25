@@ -283,6 +283,7 @@ export const zh_tw = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "下載 {title} 的工件",
   "finder.download.video": "影片",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "縮圖",
   "finder.download.audio": "聲音的",
   "finder.download.transcription": "轉錄",

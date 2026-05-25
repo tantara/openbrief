@@ -283,6 +283,7 @@ export const es_es = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "Descargar artefactos para {title}",
   "finder.download.video": "Video",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "Uña del pulgar",
   "finder.download.audio": "Audio",
   "finder.download.transcription": "Transcripción",

@@ -31,6 +31,7 @@ import {
 
 export type VideoArtifactDownloadKind =
   | "video"
+  | "pdf"
   | "thumbnail"
   | "audio"
   | "transcription"
@@ -228,6 +229,14 @@ async function sourceRelativePathForArtifact(
     return video.libraryPath;
   }
 
+  if (kind === "pdf") {
+    if (mediaSourceTypeForAsset(video) !== "pdf") {
+      throw new Error("pdf_export_unavailable");
+    }
+
+    return video.libraryPath;
+  }
+
   if (kind === "thumbnail") {
     if (video.thumbnailPath) {
       return video.thumbnailPath;
@@ -360,6 +369,8 @@ function artifactKindLabel(kind: VideoArtifactDownloadKind) {
   switch (kind) {
     case "video":
       return "video";
+    case "pdf":
+      return "PDF";
     case "thumbnail":
       return "thumbnail";
     case "audio":
@@ -381,6 +392,13 @@ function artifactFileFilter(
     return {
       name: "Video",
       extensions: extension ? [extension] : ["mp4", "m4v", "mov", "webm", "mkv"],
+    };
+  }
+
+  if (kind === "pdf") {
+    return {
+      name: "PDF",
+      extensions: extension ? [extension] : ["pdf"],
     };
   }
 

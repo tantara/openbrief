@@ -283,6 +283,7 @@ export const el_gr = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "Λήψη τεχνουργημάτων για {title}",
   "finder.download.video": "Βίντεο",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "Ονυξ του αντίχειρος",
   "finder.download.audio": "Ήχος",
   "finder.download.transcription": "Μεταγραφή",

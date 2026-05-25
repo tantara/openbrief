@@ -283,6 +283,7 @@ export const uk_ua = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "Завантажте артефакти для {title}",
   "finder.download.video": "відео",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "Мініатюра",
   "finder.download.audio": "Аудіо",
   "finder.download.transcription": "Транскрипція",

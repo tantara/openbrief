@@ -72,6 +72,37 @@ describe("artifactExportService", () => {
     });
   });
 
+  it("exports a PDF artifact with a PDF save filter", async () => {
+    const invokeCommand = vi.fn().mockResolvedValue({
+      targetPath: "/exports/research.pdf",
+      sourceRelativePath: "pdfs/pdf-1/research.pdf",
+      bytesWritten: 10,
+    });
+    const fileDialogService = {
+      selectVideoFile: vi.fn(),
+      selectImageFile: vi.fn(),
+      selectSavePath: vi.fn().mockResolvedValue("/exports/Research copy.pdf"),
+    };
+    const service = createArtifactExportService({
+      invokeCommand,
+      helperClient: new FakeHelperClient(),
+      fileDialogService,
+    });
+
+    await service.exportVideoArtifact({ video: pdf, kind: "pdf" });
+
+    expect(fileDialogService.selectSavePath).toHaveBeenCalledWith({
+      title: "Export PDF",
+      defaultPath: "research.pdf",
+      filters: [{ name: "PDF", extensions: ["pdf"] }],
+    });
+    expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
+      sourceRelativePath: "pdfs/pdf-1/research.pdf",
+      outputDirectory: "/exports",
+      fileName: "Research copy.pdf",
+    });
+  });
+
   it("extracts audio before exporting it to the selected save path", async () => {
     const invokeCommand = vi.fn(async (command: string) => {
       if (command === "resolve_library_file_path") {
@@ -381,4 +412,17 @@ const video: VideoAsset = {
   thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
   importStatus: "ready",
   createdAtIso: "2026-05-21T00:00:00.000Z",
+};
+
+const pdf: VideoAsset = {
+  ...video,
+  id: "pdf-1",
+  title: "Research paper",
+  sourceKind: "local-file",
+  sourceType: "pdf",
+  originalUri: "file:///tmp/research.pdf",
+  libraryPath: "pdfs/pdf-1/research.pdf",
+  thumbnailPath: undefined,
+  durationSeconds: undefined,
+  pageCount: 12,
 };

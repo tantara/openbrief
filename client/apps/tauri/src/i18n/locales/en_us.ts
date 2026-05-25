@@ -220,6 +220,7 @@ export const en_us = {
   "finder.media.pdf": "PDF",
   "finder.download.openMenu": "Download artifacts for {title}",
   "finder.download.video": "Video",
+  "finder.download.pdf": "PDF",
   "finder.download.thumbnail": "Thumbnail",
   "finder.download.audio": "Audio",
   "finder.download.transcription": "Transcription",
