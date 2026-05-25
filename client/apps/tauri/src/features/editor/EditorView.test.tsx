@@ -23,6 +23,17 @@ const importedOnlyVideo = {
   libraryPath: "videos/video-2/meeting.mp4",
 };
 
+const pdf = {
+  id: "pdf-1",
+  title: "Pitch Deck",
+  sourceType: "pdf" as const,
+  sourceKind: "local-file" as const,
+  originalUri: "file:///pitch.pdf",
+  libraryPath: "pdfs/pdf-1/pitch.pdf",
+  importStatus: "ready" as const,
+  createdAtIso: "2026-05-25T00:00:00.000Z",
+};
+
 const transcript = [
   {
     id: "seg-1",
@@ -254,6 +265,63 @@ describe("EditorView", () => {
     expect(screen.getByTestId("editor-preview-frame")).toHaveAttribute(
       "data-preview-aspect",
       "16:9",
+    );
+  });
+
+  it("opens editor-generated videos that came from PDF sources", () => {
+    const onSelectVideo = vi.fn();
+    const pdfComposition = {
+      id: "composition-pdf",
+      sourceId: pdf.id,
+      sourceType: "pdf" as const,
+      scenario: "pdf-to-video" as const,
+      adapter: "deno-hyperframes" as const,
+      title: "Pitch Deck",
+      prompt: "Create a concise pitch video from this PDF summary.",
+      html: "<html><body>PDF generated video</body></html>",
+      entryPath: "pdfs/pdf-1/generated-video/composition-pdf/index.html",
+      manifestPath:
+        "pdfs/pdf-1/generated-video/composition-pdf/composition.json",
+      renderPath: "pdfs/pdf-1/generated-video/composition-pdf/render.mp4",
+      durationSeconds: 18,
+      aspectRatio: "9:16" as const,
+      createdAtIso: "2026-05-25T00:00:00.000Z",
+      updatedAtIso: "2026-05-25T00:00:00.000Z",
+    };
+
+    render(
+      <EditorView
+        videos={[video, pdf]}
+        selectedVideoId={video.id}
+        selectedVideo={video}
+        selectedTranscript={transcript}
+        compositionHistory={[]}
+        generatedCompositions={[pdfComposition]}
+        rendersByCompositionId={{}}
+        onSelectVideo={onSelectVideo}
+        onSaveComposition={vi.fn()}
+        onSaveRender={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /Library/ }));
+
+    expect(screen.getByText("Pitch Deck")).toBeInTheDocument();
+    expect(screen.getByText("PDF")).toBeInTheDocument();
+    expect(
+      screen.getByText((content) => content.includes("pdfs/pdf-1")),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open in editor" }));
+
+    expect(onSelectVideo).toHaveBeenCalledWith(pdf.id);
+    expect(screen.getByRole("tab", { name: /Editor/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("editor-preview-frame")).toHaveAttribute(
+      "data-preview-aspect",
+      "9:16",
     );
   });
 });

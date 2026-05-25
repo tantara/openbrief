@@ -121,10 +121,18 @@ export function EditorView({
       defaultAiProviderPreferences.editorAgent,
     );
 
+  const libraryCompositions = useMemo(
+    () => dedupeGeneratedCompositions(generatedCompositions),
+    [generatedCompositions],
+  );
   const activeComposition =
     compositionHistory.find(
       (composition) => composition.id === activeCompositionId,
-    ) ?? latestComposition;
+    ) ??
+    libraryCompositions.find(
+      (composition) => composition.id === activeCompositionId,
+    ) ??
+    latestComposition;
   const latestRender = activeComposition
     ? rendersByCompositionId[activeComposition.id]?.[0]
     : undefined;
@@ -134,10 +142,6 @@ export function EditorView({
   const previewAspectRatio = activeComposition?.aspectRatio ?? aspectRatio;
   const agentProviderConfig =
     editorAgentProviderConfig ?? localEditorAgentProviderConfig;
-  const libraryCompositions = useMemo(
-    () => dedupeGeneratedCompositions(generatedCompositions),
-    [generatedCompositions],
-  );
 
   useEffect(() => {
     if (!activeCompositionId && latestComposition) {
@@ -388,6 +392,7 @@ export function EditorView({
       {activeEditorTab === "library" ? (
         <GeneratedVideoLibrary
           compositions={libraryCompositions}
+          sources={videos}
           rendersByCompositionId={rendersByCompositionId}
           onOpenComposition={(composition) => {
             onSelectVideo(composition.sourceId);
@@ -688,14 +693,20 @@ export function EditorView({
 
 function GeneratedVideoLibrary({
   compositions,
+  sources,
   rendersByCompositionId,
   onOpenComposition,
 }: {
   compositions: VideoGenerationComposition[];
+  sources: VideoAsset[];
   rendersByCompositionId: Record<string, VideoGenerationRender[]>;
   onOpenComposition(composition: VideoGenerationComposition): void;
 }) {
   const { t } = useI18n();
+  const sourcesById = useMemo(
+    () => new Map(sources.map((source) => [source.id, source])),
+    [sources],
+  );
 
   if (compositions.length === 0) {
     return (
@@ -715,6 +726,11 @@ function GeneratedVideoLibrary({
     <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
       {compositions.map((composition) => {
         const latestRender = rendersByCompositionId[composition.id]?.[0];
+        const source = sourcesById.get(composition.sourceId);
+        const sourceType = source
+          ? mediaSourceTypeForAsset(source)
+          : composition.sourceType;
+        const sourceTitle = source?.title.trim() || composition.sourceId;
 
         return (
           <Card key={composition.id} className="overflow-hidden">
@@ -740,8 +756,13 @@ function GeneratedVideoLibrary({
               </div>
 
               <div className="text-muted-foreground grid gap-1 text-xs">
-                <div>
-                  {t("editor.library.source")} {composition.sourceId}
+                <div className="flex items-center gap-2">
+                  <span className="truncate">
+                    {t("editor.library.source")} {sourceTitle}
+                  </span>
+                  <Badge variant="outline" className="shrink-0">
+                    {mediaSourceTypeLabel(sourceType, t)}
+                  </Badge>
                 </div>
                 <div>
                   {composition.aspectRatio} · {composition.durationSeconds}s
@@ -829,6 +850,22 @@ function GeneratedVideoPreview({
       </div>
     </div>
   );
+}
+
+function mediaSourceTypeLabel(
+  sourceType: VideoGenerationComposition["sourceType"],
+  t: ReturnType<typeof useI18n>["t"],
+) {
+  switch (sourceType) {
+    case "audio":
+      return t("finder.mediaType.audio");
+    case "csv":
+      return t("finder.mediaType.csv");
+    case "pdf":
+      return t("finder.mediaType.pdf");
+    case "video":
+      return t("finder.mediaType.video");
+  }
 }
 
 function dedupeGeneratedCompositions(
