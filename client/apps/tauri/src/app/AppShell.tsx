@@ -31,6 +31,7 @@ import type {
   VideoSummaryTemplateId,
 } from "@/domain/summary";
 import type { TranscriptLanguageOption } from "@/domain/transcript-actions";
+import type { VideoGenerationComposition } from "@/domain/video-generation";
 import type { SetupDialogMode } from "@/features/setup/SetupDialog";
 import type { TranslationKey } from "@/i18n";
 import type {
@@ -643,6 +644,14 @@ export function AppShell() {
         .map((videoId) => state.videos.find((video) => video.id === videoId))
         .filter((video): video is VideoAsset => Boolean(video)),
     [openWorkbenchVideoIds, state.videos],
+  );
+  const generatedEditorCompositions = useMemo(
+    () =>
+      collectGeneratedEditorCompositions(
+        state.videoGenerationsBySourceId,
+        state.videoGenerationHistoryBySourceId,
+      ),
+    [state.videoGenerationsBySourceId, state.videoGenerationHistoryBySourceId],
   );
   const activeSummaryId = selectedVideo
     ? activeSummaryIdsByVideoId[selectedVideo.id]
@@ -2324,6 +2333,7 @@ export function AppShell() {
               ? (state.videoGenerationHistoryBySourceId[selectedVideo.id] ?? [])
               : []
           }
+          generatedCompositions={generatedEditorCompositions}
           rendersByCompositionId={state.videoGenerationRendersByCompositionId}
           onSelectVideo={setSelectedVideoId}
           onSaveComposition={saveVideoGenerationComposition}
@@ -3510,6 +3520,27 @@ function viewForPath(path: string) {
   if (path === "/onboarding") return "onboarding";
   if (path === "/playlists") return "playlists";
   return "finder";
+}
+
+function collectGeneratedEditorCompositions(
+  latestBySourceId: Record<string, VideoGenerationComposition>,
+  historyBySourceId: Record<string, VideoGenerationComposition[]>,
+) {
+  const byId = new Map<string, VideoGenerationComposition>();
+
+  for (const composition of Object.values(latestBySourceId)) {
+    byId.set(composition.id, composition);
+  }
+
+  for (const compositions of Object.values(historyBySourceId)) {
+    for (const composition of compositions) {
+      byId.set(composition.id, composition);
+    }
+  }
+
+  return [...byId.values()].sort((left, right) =>
+    right.updatedAtIso.localeCompare(left.updatedAtIso),
+  );
 }
 
 function videoIdFromImportResult(result: unknown) {
