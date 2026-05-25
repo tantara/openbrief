@@ -331,6 +331,7 @@ export const en_us = {
   "workbench.summary.failed": "Summary failed",
   "workbench.summary.save": "Save markdown",
   "workbench.summary.empty": "Generate a markdown summary after transcript extraction.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcriptRequired": "Transcription is required for summary. Please extract transcription first.",
   "workbench.summary.transcribe": "Transcribe",
   "workbench.podcast.title": "Podcast",

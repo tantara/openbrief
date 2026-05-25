@@ -1,6 +1,7 @@
 import type { ChatContextMode } from "@/domain/chat";
 import type {
   ChatMessage,
+  MediaSourceType,
   ProviderKind,
   SummaryDocument,
   TranscriptJob,
@@ -412,9 +413,17 @@ export function WorkbenchView({
     : localChatProviderConfig;
   const videoTabs = normalizeVideoTabs(openVideos, video);
   const activeWorkbenchVideoId = activeVideoId ?? video?.id ?? "";
+  const sourceType = video ? mediaSourceTypeForAsset(video) : "video";
+  const canExtractTranscript = sourceType === "video" || sourceType === "audio";
+  const hasNativeSourceContent = isNativeSourceContentType(sourceType);
   const chatContextOptions = [
     { value: "summary" as const, label: t("workbench.chat.summary") },
-    { value: "transcript" as const, label: t("workbench.chat.transcript") },
+    {
+      value: "transcript" as const,
+      label: hasNativeSourceContent
+        ? t(nativeSourceLabelKey(sourceType))
+        : t("workbench.chat.transcript"),
+    },
   ];
   const briefModeOptions = [
     { value: "summary" as const, label: t("workbench.brief.summary") },
@@ -501,6 +510,8 @@ export function WorkbenchView({
     summaryTabs.find((candidate) => candidate.id === activeSummaryId) ??
     summaryTabs[0] ??
     summary;
+  const hasSummarySource =
+    renderedTranscript.length > 0 || hasNativeSourceContent;
   const streamingSummaryDraft =
     summaryJob?.status === "running" && summaryJob.streamingMode
       ? summaryJob.draftText
@@ -513,8 +524,6 @@ export function WorkbenchView({
         : undefined,
     [rawSummaryMarkdown],
   );
-  const sourceType = video ? mediaSourceTypeForAsset(video) : "video";
-  const canExtractTranscript = sourceType === "video" || sourceType === "audio";
   const activeTranscriptSegmentId = useMemo(() => {
     if (
       !video ||
@@ -625,6 +634,12 @@ export function WorkbenchView({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeWorkbenchVideoId, onSelectVideoTab, video, videoTabs]);
+
+  useEffect(() => {
+    if (hasNativeSourceContent && !activeSummary && contextMode === "summary") {
+      setContextMode("transcript");
+    }
+  }, [activeSummary, contextMode, hasNativeSourceContent]);
 
   if (!video) {
     return (
@@ -781,7 +796,7 @@ export function WorkbenchView({
   }
 
   function generateSummary() {
-    if (isSummarizing || renderedTranscript.length === 0) return;
+    if (isSummarizing || !hasSummarySource) return;
 
     setIsSummaryGenerateDialogOpen(false);
     void onGenerateSummary(
@@ -1024,90 +1039,54 @@ export function WorkbenchView({
               ) : (
                 <CsvViewer media={video} />
               )}
-              <div className="grid gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={
-                    !canExtractTranscript ||
-                    isExtractingTranscript ||
-                    isTranscribing
-                  }
-                  onClick={() => void runAction(onExtractTranscript)}
-                >
-                  <Subtitles className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {isTranscribing
-                    ? t("workbench.extractingTranscript")
-                    : t("workbench.extractTranscript")}
-                </Button>
-              </div>
-              {transcriptJob ? (
-                <TranscriptProgressCard transcriptJob={transcriptJob} />
-              ) : null}
-              {transcript.length > 0 ? (
-                <TranscriptActionPanel
-                  variants={transcriptVariants}
-                  activeVariantId={activeTranscriptVariantId}
-                  baseTranscriptLabel={
-                    baseTranscriptSourceKind
-                      ? transcriptSourceKindLabel(baseTranscriptSourceKind)
-                      : t("workbench.transcript.variant.original")
-                  }
-                  targetLanguage={targetTranslationLanguage}
-                  duplicateTranslation={duplicateTranslation}
-                  isReviewing={isReviewingTranscript}
-                  isTranslating={isTranslatingTranscript}
-                  translateDialogOpen={isTranslateDialogOpen}
-                  onVariantChange={(variantId) =>
-                    onSelectTranscriptVariant?.(variantId)
-                  }
-                  onTargetLanguageChange={setTargetTranslationLanguage}
-                  onReview={() => void runTranscriptReview()}
-                  onTranslate={() => setIsTranslateDialogOpen(true)}
-                  onTranslateDialogOpenChange={setIsTranslateDialogOpen}
-                  onConfirmTranslate={() => void runTranscriptTranslation()}
-                  onOverlay={onOpenTranscriptOverlay}
-                />
-              ) : null}
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {renderedTranscript.length === 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-muted-foreground text-sm">
+              {canExtractTranscript ? (
+                <>
+                  <div className="grid gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isExtractingTranscript || isTranscribing}
+                      onClick={() => void runAction(onExtractTranscript)}
+                    >
+                      <Subtitles className="mr-2 h-4 w-4" aria-hidden="true" />
                       {isTranscribing
-                        ? t("workbench.transcript.running")
-                        : t("workbench.transcript.empty")}
-                    </p>
-                    {!isTranscribing ? (
-                      <div
-                        aria-label={t("workbench.transcript.exampleLabel")}
-                        className="bg-muted/50 space-y-2 rounded-md p-3 text-sm"
-                      >
-                        <span className={badgeVariants({ variant: "outline" })}>
-                          {t("workbench.transcript.exampleBadge")}
-                        </span>
-                        <div className="flex gap-3">
-                          <span className="text-muted-foreground shrink-0 font-mono text-xs">
-                            00:12
-                          </span>
-                          <span>{t("workbench.transcript.example.one")}</span>
-                        </div>
-                        <div className="flex gap-3">
-                          <span className="text-muted-foreground shrink-0 font-mono text-xs">
-                            00:47
-                          </span>
-                          <span>{t("workbench.transcript.example.two")}</span>
-                        </div>
-                        <div className="flex gap-3">
-                          <span className="text-muted-foreground shrink-0 font-mono text-xs">
-                            01:18
-                          </span>
-                          <span>{t("workbench.transcript.example.three")}</span>
-                        </div>
-                      </div>
-                    ) : null}
+                        ? t("workbench.extractingTranscript")
+                        : t("workbench.extractTranscript")}
+                    </Button>
                   </div>
-                ) : (
-                  <>
+                  {transcriptJob ? (
+                    <TranscriptProgressCard transcriptJob={transcriptJob} />
+                  ) : null}
+                  {transcript.length > 0 ? (
+                    <TranscriptActionPanel
+                      variants={transcriptVariants}
+                      activeVariantId={activeTranscriptVariantId}
+                      baseTranscriptLabel={
+                        baseTranscriptSourceKind
+                          ? transcriptSourceKindLabel(baseTranscriptSourceKind)
+                          : t("workbench.transcript.variant.original")
+                      }
+                      targetLanguage={targetTranslationLanguage}
+                      duplicateTranslation={duplicateTranslation}
+                      isReviewing={isReviewingTranscript}
+                      isTranslating={isTranslatingTranscript}
+                      translateDialogOpen={isTranslateDialogOpen}
+                      onVariantChange={(variantId) =>
+                        onSelectTranscriptVariant?.(variantId)
+                      }
+                      onTargetLanguageChange={setTargetTranslationLanguage}
+                      onReview={() => void runTranscriptReview()}
+                      onTranslate={() => setIsTranslateDialogOpen(true)}
+                      onTranslateDialogOpenChange={setIsTranslateDialogOpen}
+                      onConfirmTranslate={() => void runTranscriptTranslation()}
+                      onOverlay={onOpenTranscriptOverlay}
+                    />
+                  ) : null}
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    {renderedTranscript.length === 0 ? (
+                      <TranscriptEmptyState isTranscribing={isTranscribing} />
+                    ) : (
+                      <>
                     {isVoiceCloneModeEnabled ? (
                       <div className="border-border text-muted-foreground mb-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs">
                         <span>
@@ -1313,8 +1292,12 @@ export function WorkbenchView({
                       })}
                     </ol>
                   </>
-                )}
-              </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <NativeSourceContextPanel media={video} sourceType={sourceType} />
+              )}
             </CardContent>
           </Card>
         </ResizablePanel>
@@ -1375,7 +1358,7 @@ export function WorkbenchView({
                     lengthMode={summaryLengthMode}
                     languageCode={summaryLanguage.code}
                     isGenerating={isSummarizing}
-                    disabled={renderedTranscript.length === 0}
+                    disabled={!hasSummarySource}
                     onOpenChange={setIsSummaryGenerateDialogOpen}
                     onTemplateChange={setSummaryTemplateId}
                     onLengthChange={setSummaryLengthMode}
@@ -1435,7 +1418,9 @@ export function WorkbenchView({
               </div>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-              {briefMode === "summary" && transcript.length === 0 ? (
+              {briefMode === "summary" &&
+              renderedTranscript.length === 0 &&
+              !hasNativeSourceContent ? (
                 <div
                   role="alert"
                   className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
@@ -1503,7 +1488,7 @@ export function WorkbenchView({
                             lengthMode={summaryLengthMode}
                             languageCode={summaryLanguage.code}
                             isGenerating={isSummarizing}
-                            disabled={renderedTranscript.length === 0}
+                            disabled={!hasSummarySource}
                             onOpenChange={setIsSummaryGenerateDialogOpen}
                             onTemplateChange={setSummaryTemplateId}
                             onLengthChange={setSummaryLengthMode}
@@ -1511,7 +1496,11 @@ export function WorkbenchView({
                             onGenerate={generateSummary}
                           />
                         }
-                        description={t("workbench.summary.empty")}
+                        description={t(
+                          hasNativeSourceContent
+                            ? "workbench.summary.sourceEmpty"
+                            : "workbench.summary.empty",
+                        )}
                       />
                     ) : null}
                   </div>
@@ -1796,6 +1785,82 @@ function TranscriptSegmentEditForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function TranscriptEmptyState({ isTranscribing }: { isTranscribing: boolean }) {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-3">
+      <p className="text-muted-foreground text-sm">
+        {isTranscribing
+          ? t("workbench.transcript.running")
+          : t("workbench.transcript.empty")}
+      </p>
+      {!isTranscribing ? (
+        <div
+          aria-label={t("workbench.transcript.exampleLabel")}
+          className="bg-muted/50 space-y-2 rounded-md p-3 text-sm"
+        >
+          <span className={badgeVariants({ variant: "outline" })}>
+            {t("workbench.transcript.exampleBadge")}
+          </span>
+          <div className="flex gap-3">
+            <span className="text-muted-foreground shrink-0 font-mono text-xs">
+              00:12
+            </span>
+            <span>{t("workbench.transcript.example.one")}</span>
+          </div>
+          <div className="flex gap-3">
+            <span className="text-muted-foreground shrink-0 font-mono text-xs">
+              00:47
+            </span>
+            <span>{t("workbench.transcript.example.two")}</span>
+          </div>
+          <div className="flex gap-3">
+            <span className="text-muted-foreground shrink-0 font-mono text-xs">
+              01:18
+            </span>
+            <span>{t("workbench.transcript.example.three")}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NativeSourceContextPanel({
+  media,
+  sourceType,
+}: {
+  media: VideoAsset;
+  sourceType: MediaSourceType;
+}) {
+  const { t } = useI18n();
+  const metadata =
+    sourceType === "pdf" && media.pageCount && media.pageCount > 0
+      ? t(media.pageCount === 1 ? "finder.meta.page" : "finder.meta.pages", {
+          count: media.pageCount,
+        })
+      : undefined;
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="border-border bg-muted/30 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
+        <span className={badgeVariants({ variant: "outline" })}>
+          {t(nativeSourceLabelKey(sourceType))}
+        </span>
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {media.title}
+        </span>
+        {metadata ? (
+          <span className="text-muted-foreground shrink-0 text-xs">
+            {metadata}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -3906,6 +3971,24 @@ function ChatContextControl({
       options={options}
     />
   );
+}
+
+function isNativeSourceContentType(sourceType: MediaSourceType) {
+  return sourceType === "pdf" || sourceType === "csv";
+}
+
+function nativeSourceLabelKey(sourceType: MediaSourceType): TranslationKey {
+  switch (sourceType) {
+    case "pdf":
+      return "finder.media.pdf";
+    case "csv":
+      return "finder.media.csv";
+    case "audio":
+      return "finder.media.audio";
+    case "video":
+    default:
+      return "finder.media.video";
+  }
 }
 
 function normalizeVideoTabs(

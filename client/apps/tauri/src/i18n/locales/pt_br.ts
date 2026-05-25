@@ -388,6 +388,7 @@ export const pt_br = {
   "workbench.summary.generating": "Gerando resumo...",
   "workbench.summary.failed": "Falha no resumo",
   "workbench.summary.empty": "Gere um resumo de redução após a extração da transcrição.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Transcrever",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "Versões {count}",

@@ -206,6 +206,12 @@ describe("provider service", () => {
         body: {
           openbriefText: "Final",
           openbriefFinishReason: "stop",
+          openbriefUsage: {
+            inputTokens: 20,
+            cachedInputTokens: 4,
+            outputTokens: 6,
+            totalTokens: 26,
+          },
         },
       };
     });
@@ -224,7 +230,16 @@ describe("provider service", () => {
       onTextSnapshot,
     });
 
-    expect(result).toMatchObject({ ok: true, text: "Final" });
+    expect(result).toMatchObject({
+      ok: true,
+      text: "Final",
+      usage: {
+        inputTokens: 20,
+        cachedInputTokens: 4,
+        outputTokens: 6,
+        totalTokens: 26,
+      },
+    });
     expect(onTextSnapshot).toHaveBeenCalledWith("Partial");
     expect(onTextSnapshot).toHaveBeenCalledWith("Final");
   });

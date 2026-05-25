@@ -388,6 +388,7 @@ export const zh_tw = {
   "workbench.summary.generating": "正在產生摘要...",
   "workbench.summary.failed": "摘要失敗",
   "workbench.summary.empty": "擷取轉錄後產生 Markdown 摘要。",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "錄製",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "{count} 版本",

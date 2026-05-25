@@ -466,7 +466,7 @@ describe("WorkbenchView", () => {
     expect(onOpenPictureInPicture).toHaveBeenCalledWith("audio-1");
   });
 
-  it("renders a PDF viewer in the first workbench column for PDF assets", () => {
+  it("renders PDF assets without transcript-only note affordances", async () => {
     render(
       <WorkbenchView
         {...defaultProps({
@@ -481,8 +481,60 @@ describe("WorkbenchView", () => {
       "src",
       "documents/local-pdf-sample/pdf-sample.pdf",
     );
+    expect(
+      screen.queryByRole("button", { name: /extract transcript/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Transcript example")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/transcription is required for summary/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("12 pages")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "PDF" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
     expect(screen.getByRole("heading", { name: /brief/i })).toBeInTheDocument();
     expect(screen.getByText("Chat")).toBeInTheDocument();
+  });
+
+  it("uses the PDF source badge as the default chat context for PDF assets", async () => {
+    const onSendChat = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          video: pdfFixture,
+          activeVideoId: pdfFixture.id,
+          openVideos: [pdfFixture],
+          onSendChat,
+        })}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "PDF" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
+
+    fireEvent.change(screen.getByLabelText(/chat question/i), {
+      target: { value: "What is in this PDF?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    await waitFor(() =>
+      expect(onSendChat).toHaveBeenCalledWith({
+        question: "What is in this PDF?",
+        contextMode: "transcript",
+        provider: "openai",
+        model: "gpt-5.4-mini",
+        summaryId: undefined,
+        streamingMode: false,
+      }),
+    );
   });
 
   it("renders a CSV preview in the first workbench column for CSV assets", async () => {
@@ -2195,6 +2247,7 @@ const pdfFixture: VideoAsset = {
   sourceKind: "local-file",
   originalUri: "/tmp/pdf-sample.pdf",
   libraryPath: "documents/local-pdf-sample/pdf-sample.pdf",
+  pageCount: 12,
   importStatus: "ready",
   createdAtIso: "2026-05-21T00:00:00.000Z",
 };

@@ -30,9 +30,14 @@ pub async fn storage_usage_snapshot<R: Runtime>(
 ) -> Result<StorageUsageSnapshot, String> {
     let workspace_root = crate::workspace::workspace_root_for_app(&app)?;
     let shared_models_root = crate::workspace::models_dir_for_app(&app)?;
+    let shared_supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        storage_usage_snapshot_for_workspace(&workspace_root, &shared_models_root)
+        storage_usage_snapshot_for_workspace(
+            &workspace_root,
+            &shared_models_root,
+            &shared_supertonic_root,
+        )
     })
     .await
     .map_err(|error| format!("storage_usage_task_join_failed:{error}"))?
@@ -41,6 +46,7 @@ pub async fn storage_usage_snapshot<R: Runtime>(
 fn storage_usage_snapshot_for_workspace(
     workspace_root: &Path,
     shared_models_root: &Path,
+    shared_supertonic_root: &Path,
 ) -> Result<StorageUsageSnapshot, String> {
     let library_root = workspace_root.join("library");
     let database = database_size(&library_root)?;
@@ -48,7 +54,8 @@ fn storage_usage_snapshot_for_workspace(
     let audio = recursive_size(&library_root.join("audios"))?;
     let pdf = recursive_size(&library_root.join("pdfs"))?;
     let csv = recursive_size(&library_root.join("csvs"))?;
-    let model_checkpoint = recursive_size(shared_models_root)?;
+    let model_checkpoint =
+        recursive_size(shared_models_root)? + recursive_size(shared_supertonic_root)?;
 
     Ok(storage_usage_snapshot_from_sizes(
         database,
@@ -226,11 +233,16 @@ mod tests {
         write_bytes(&root.join("library/csvs/csv-1/source.csv"), 12);
         write_bytes(&shared.join("models/whisper/ggml-small.bin"), 40);
         write_bytes(
-            &shared.join("models/supertonic/runtime/python/site-packages/module.py"),
+            &shared.join("supertonic/python/site-packages/module.py"),
             10,
         );
 
-        let snapshot = storage_usage_snapshot_for_workspace(&root, &shared.join("models")).unwrap();
+        let snapshot = storage_usage_snapshot_for_workspace(
+            &root,
+            &shared.join("models"),
+            &shared.join("supertonic"),
+        )
+        .unwrap();
 
         assert_eq!(snapshot.total_bytes, 222);
         assert_eq!(snapshot.items[0].size_bytes, 15);

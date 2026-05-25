@@ -388,6 +388,7 @@ export const fr_fr = {
   "workbench.summary.generating": "Génération du résumé...",
   "workbench.summary.failed": "Échec du résumé",
   "workbench.summary.empty": "Générez un résumé de démarque après l'extraction de la transcription.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Transcrire",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "Versions {count}",

@@ -307,7 +307,7 @@ fn generate_supertonic_chat_tts_blocking(
                 .unwrap_or(DEFAULT_VOICE_STYLE_ID),
         )?;
         let models_root = shared_models_root.join("supertonic");
-        let supertonic_root = models_root.join("runtime");
+        let supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
         fs::create_dir_all(models_root.join("hf"))
             .map_err(|error| format!("supertonic_model_dir_create_failed:{error}"))?;
         let args =
@@ -405,7 +405,7 @@ fn generate_tts_preview_blocking(
                 .unwrap_or(DEFAULT_VOICE_STYLE_ID),
         )?;
         let models_root = shared_models_root.join("supertonic");
-        let supertonic_root = models_root.join("runtime");
+        let supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
         fs::create_dir_all(models_root.join("hf"))
             .map_err(|error| format!("supertonic_model_dir_create_failed:{error}"))?;
         let args =
@@ -481,7 +481,7 @@ fn generate_supertonic_podcast_tts_blocking(
             .map_err(|error| format!("supertonic_podcast_script_write_failed:{error}"))?;
     }
     let models_root = shared_models_root.join("supertonic");
-    let supertonic_root = models_root.join("runtime");
+    let supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
     fs::create_dir_all(models_root.join("hf"))
         .map_err(|error| format!("supertonic_model_dir_create_failed:{error}"))?;
 

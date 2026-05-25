@@ -259,6 +259,7 @@ describe("FinderView", () => {
 
     expect(screen.getByText("PDF · ready")).toBeInTheDocument();
     expect(screen.getByText("12 pages")).toBeInTheDocument();
+    expect(screen.queryByText("No transcript")).not.toBeInTheDocument();
   });
 
   it("shows the first PDF page as a top-cropped library thumbnail", () => {

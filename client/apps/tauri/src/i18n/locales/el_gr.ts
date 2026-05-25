@@ -388,6 +388,7 @@ export const el_gr = {
   "workbench.summary.generating": "Δημιουργία σύνοψης...",
   "workbench.summary.failed": "Η περίληψη απέτυχε",
   "workbench.summary.empty": "Δημιουργήστε μια σύνοψη επισήμανσης μετά την εξαγωγή μεταγραφής.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Αντιγράφω",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "Εκδόσεις {count}",

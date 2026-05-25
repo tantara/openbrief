@@ -388,6 +388,7 @@ export const uk_ua = {
   "workbench.summary.generating": "Створення підсумку...",
   "workbench.summary.failed": "Помилка резюме",
   "workbench.summary.empty": "Створіть підсумок розцінки після вилучення транскрипту.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Транскрибувати",
   "workbench.podcast.title": "Подкаст",
   "workbench.podcast.history": "Версії {count}",

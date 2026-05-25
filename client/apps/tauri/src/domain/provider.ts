@@ -276,7 +276,9 @@ function createProviderBody({
         temperature: generationParams.temperature,
         top_p: generationParams.topP,
         max_tokens: generationParams.maxTokens,
-        ...(streamingMode ? { stream: true } : {}),
+        ...(streamingMode
+          ? { stream: true, stream_options: { include_usage: true } }
+          : {}),
         messages: createOpenAiCompatibleMessages(
           systemPrompt,
           userPrompt,

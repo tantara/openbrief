@@ -388,6 +388,7 @@ export const de_de = {
   "workbench.summary.generating": "Zusammenfassung wird erstellt...",
   "workbench.summary.failed": "Zusammenfassung fehlgeschlagen",
   "workbench.summary.empty": "Generieren Sie nach der Transkriptextraktion eine Markdown-Zusammenfassung.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Transkribieren",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "{count}-Versionen",

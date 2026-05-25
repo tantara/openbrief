@@ -388,6 +388,7 @@ export const ko_kr = {
   "workbench.summary.generating": "요약 생성 중...",
   "workbench.summary.failed": "요약 실패",
   "workbench.summary.empty": "성적표 추출 후 마크다운 요약을 생성합니다.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "고쳐 쓰다",
   "workbench.podcast.title": "팟캐스트",
   "workbench.podcast.history": "{count} 버전",

@@ -388,6 +388,7 @@ export const ru_ru = {
   "workbench.summary.generating": "Создание сводки...",
   "workbench.summary.failed": "Сводка не удалась",
   "workbench.summary.empty": "Создайте сводку уценки после извлечения расшифровки.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Расшифровать",
   "workbench.podcast.title": "Подкаст",
   "workbench.podcast.history": "Версии {count}",

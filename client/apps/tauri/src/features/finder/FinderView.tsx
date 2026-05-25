@@ -852,6 +852,8 @@ function VideoGrid({
           (transcriptsByVideoId?.[video.id]?.length ?? 0) > 0;
         const hasSummary = Boolean(summariesByVideoId?.[video.id]);
         const canOpenInNote = sourceType === "pdf" || sourceType === "csv";
+        const canHaveTranscript =
+          sourceType === "video" || sourceType === "audio";
 
         return (
           <Card key={video.id}>
@@ -897,12 +899,14 @@ function VideoGrid({
                 <VideoAuthorLink video={video} />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <FinderStatusPill active={hasTranscript}>
-                  <Subtitles className="h-3 w-3" aria-hidden="true" />
-                  {hasTranscript
-                    ? t("finder.badge.transcript")
-                    : t("finder.badge.noTranscript")}
-                </FinderStatusPill>
+                {canHaveTranscript ? (
+                  <FinderStatusPill active={hasTranscript}>
+                    <Subtitles className="h-3 w-3" aria-hidden="true" />
+                    {hasTranscript
+                      ? t("finder.badge.transcript")
+                      : t("finder.badge.noTranscript")}
+                  </FinderStatusPill>
+                ) : null}
                 <FinderStatusPill active={hasSummary}>
                   <FileText className="h-3 w-3" aria-hidden="true" />
                   {hasSummary

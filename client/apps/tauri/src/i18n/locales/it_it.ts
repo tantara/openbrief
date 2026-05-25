@@ -388,6 +388,7 @@ export const it_it = {
   "workbench.summary.generating": "Generazione riepilogo in corso...",
   "workbench.summary.failed": "Riepilogo non riuscito",
   "workbench.summary.empty": "Genera un riepilogo del ribasso dopo l'estrazione della trascrizione.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Trascrivere",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "Versioni {count}",

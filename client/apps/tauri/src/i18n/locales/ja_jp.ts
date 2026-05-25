@@ -388,6 +388,7 @@ export const ja_jp = {
   "workbench.summary.generating": "概要を生成中...",
   "workbench.summary.failed": "サマリーに失敗しました",
   "workbench.summary.empty": "トランスクリプトの抽出後にマークダウンの概要を生成します。",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "転写する",
   "workbench.podcast.title": "ポッドキャスト",
   "workbench.podcast.history": "{count} バージョン",

@@ -86,6 +86,9 @@ export function extractProviderUsage(
   provider: ProviderKind,
   body: unknown,
 ): AiTokenUsage | undefined {
+  const syntheticUsage = aiTokenUsageFromRecord(asRecord(body)?.openbriefUsage);
+  if (syntheticUsage) return syntheticUsage;
+
   switch (provider) {
     case "openai":
     case "openrouter":
@@ -247,6 +250,7 @@ async function readStreamingResponseBody(
   let buffer = "";
   let text = "";
   let finishReason: ProviderFinishReason = "unknown";
+  let usage: AiTokenUsage | undefined;
 
   while (true) {
     const { value, done } = await reader.read();
@@ -261,6 +265,7 @@ async function readStreamingResponseBody(
       options.onTextSnapshot?.(text);
     }
     if (parsed.finishReason !== "unknown") finishReason = parsed.finishReason;
+    usage = mergeTokenUsage(usage, parsed.usage);
   }
 
   buffer += decoder.decode();
@@ -270,10 +275,12 @@ async function readStreamingResponseBody(
     options.onTextSnapshot?.(text);
   }
   if (parsed.finishReason !== "unknown") finishReason = parsed.finishReason;
+  usage = mergeTokenUsage(usage, parsed.usage);
 
   return {
     openbriefText: text,
     openbriefFinishReason: finishReason,
+    ...(usage ? { openbriefUsage: usage } : {}),
   };
 }
 
@@ -283,12 +290,14 @@ function consumeSseBuffer(buffer: string, provider: ProviderKind, flush = false)
   let match: RegExpExecArray | null;
   let textDelta = "";
   let finishReason: ProviderFinishReason = "unknown";
+  let usage: AiTokenUsage | undefined;
 
   while ((match = separatorPattern.exec(buffer))) {
     const parsed = parseSseFrame(buffer.slice(cursor, match.index), provider);
     cursor = separatorPattern.lastIndex;
     textDelta += parsed.textDelta;
     if (parsed.finishReason !== "unknown") finishReason = parsed.finishReason;
+    usage = mergeTokenUsage(usage, parsed.usage);
   }
 
   if (flush && cursor < buffer.length) {
@@ -296,11 +305,13 @@ function consumeSseBuffer(buffer: string, provider: ProviderKind, flush = false)
     cursor = buffer.length;
     textDelta += parsed.textDelta;
     if (parsed.finishReason !== "unknown") finishReason = parsed.finishReason;
+    usage = mergeTokenUsage(usage, parsed.usage);
   }
 
   return {
     textDelta,
     finishReason,
+    usage,
     remainder: buffer.slice(cursor),
   };
 }
@@ -308,6 +319,7 @@ function consumeSseBuffer(buffer: string, provider: ProviderKind, flush = false)
 function parseSseFrame(frame: string, provider: ProviderKind) {
   let textDelta = "";
   let finishReason: ProviderFinishReason = "unknown";
+  let usage: AiTokenUsage | undefined;
   const dataLines = frame
     .split(/\r?\n/)
     .filter((line) => line.startsWith("data:"))
@@ -321,12 +333,17 @@ function parseSseFrame(frame: string, provider: ProviderKind) {
       textDelta += extractProviderStreamTextDelta(provider, parsed);
       const nextFinishReason = extractProviderFinishReason(provider, parsed);
       if (nextFinishReason !== "unknown") finishReason = nextFinishReason;
+      usage = mergeTokenUsage(
+        usage,
+        extractProviderUsage(provider, parsed) ??
+          extractProviderStreamUsage(provider, parsed),
+      );
     } catch {
       // Keepalive and provider comment frames are ignored.
     }
   }
 
-  return { textDelta, finishReason };
+  return { textDelta, finishReason, usage };
 }
 
 function extractProviderStreamTextDelta(provider: ProviderKind, body: unknown) {
@@ -394,6 +411,70 @@ function compactUsage(usage: AiTokenUsage): AiTokenUsage | undefined {
   );
 
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function extractProviderStreamUsage(provider: ProviderKind, body: unknown) {
+  if (provider !== "anthropic") return undefined;
+
+  const record = asRecord(body);
+  const usage = asRecord(record?.usage) ?? asRecord(asRecord(record?.message)?.usage);
+
+  return anthropicUsageFromRecord(usage);
+}
+
+function anthropicUsageFromRecord(
+  usage: Record<string, unknown> | undefined,
+): AiTokenUsage | undefined {
+  if (!usage) return undefined;
+
+  const inputTokens = asNumber(usage.input_tokens);
+  const outputTokens = asNumber(usage.output_tokens);
+  const cachedInputTokens =
+    asNumber(usage.cache_read_input_tokens) ??
+    asNumber(usage.cached_input_tokens);
+
+  return compactUsage({
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    totalTokens: sumTokens(inputTokens, outputTokens),
+  });
+}
+
+function aiTokenUsageFromRecord(value: unknown): AiTokenUsage | undefined {
+  const usage = asRecord(value);
+  if (!usage) return undefined;
+
+  return compactUsage({
+    inputTokens: asNumber(usage.inputTokens),
+    cachedInputTokens: asNumber(usage.cachedInputTokens),
+    outputTokens: asNumber(usage.outputTokens),
+    totalTokens: asNumber(usage.totalTokens),
+  });
+}
+
+function mergeTokenUsage(
+  current: AiTokenUsage | undefined,
+  next: AiTokenUsage | undefined,
+): AiTokenUsage | undefined {
+  if (!current) return next;
+  if (!next) return current;
+
+  return compactUsage({
+    inputTokens: sumOptionalTokens(current.inputTokens, next.inputTokens),
+    cachedInputTokens: sumOptionalTokens(
+      current.cachedInputTokens,
+      next.cachedInputTokens,
+    ),
+    outputTokens: sumOptionalTokens(current.outputTokens, next.outputTokens),
+    totalTokens: sumOptionalTokens(current.totalTokens, next.totalTokens),
+  });
+}
+
+function sumOptionalTokens(...values: Array<number | undefined>) {
+  return values.some((value) => typeof value === "number")
+    ? values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+    : undefined;
 }
 
 function normalizeFinishReason(value: unknown): ProviderFinishReason {

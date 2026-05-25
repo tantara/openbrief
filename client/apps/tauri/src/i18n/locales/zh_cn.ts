@@ -388,6 +388,7 @@ export const zh_cn = {
   "workbench.summary.generating": "正在生成摘要...",
   "workbench.summary.failed": "摘要失败",
   "workbench.summary.empty": "提取转录后生成 Markdown 摘要。",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "录制",
   "workbench.podcast.title": "播客",
   "workbench.podcast.history": "{count} 版本",

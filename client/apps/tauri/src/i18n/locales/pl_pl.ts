@@ -388,6 +388,7 @@ export const pl_pl = {
   "workbench.summary.generating": "Generuję podsumowanie...",
   "workbench.summary.failed": "Podsumowanie nie powiodło się",
   "workbench.summary.empty": "Wygeneruj podsumowanie przecen po wyodrębnieniu transkryptu.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "Rozpisać",
   "workbench.podcast.title": "Podcast",
   "workbench.podcast.history": "Wersje {count}",

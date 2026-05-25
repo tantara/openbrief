@@ -388,6 +388,7 @@ export const ar_ma = {
   "workbench.summary.generating": "جارٍ إنشاء الملخص...",
   "workbench.summary.failed": "فشل الملخص",
   "workbench.summary.empty": "إنشاء ملخص تخفيض السعر بعد استخراج النص.",
+  "workbench.summary.sourceEmpty": "Generate a markdown summary from this source.",
   "workbench.summary.transcribe": "نسخ",
   "workbench.podcast.title": "بودكاست",
   "workbench.podcast.history": "إصدارات {count}",
