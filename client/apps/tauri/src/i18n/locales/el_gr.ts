@@ -84,6 +84,8 @@ export const el_gr = {
   "nav.search": "Αναζήτηση",
   "nav.shortcuts": "Συντομεύσεις",
   "nav.shortcuts.description": "Αλλάξτε σελίδες χωρίς να αφήσετε το πληκτρολόγιο.",
+  "workspace.menu": "Workspace",
+  "workspace.create": "Νέο workspace",
   "finder.search.label": "Αναζήτηση βίντεο",
   "finder.search.placeholder": "Αναζήτηση τίτλου, URL, απομαγνητοφώνησης, σύνοψης, ετικετών και θεμάτων",
   "finder.filter.shortLabel": "Εμφάνιση",

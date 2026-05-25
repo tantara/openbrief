@@ -281,12 +281,13 @@ fn policy_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
 }
 
 fn app_data_media_tools_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    Ok(app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join(MEDIA_TOOLS_RESOURCE_DIR)
-        .join(runtime_target_triple()))
+    Ok(crate::workspace::workspace_child_dir_for_app(
+        app,
+        MEDIA_TOOLS_RESOURCE_DIR,
+        "media_tools_dir_create_failed",
+        "media_tools_dir_invalid",
+    )?
+    .join(runtime_target_triple()))
 }
 
 fn bundled_ytdlp_path_for_app<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {

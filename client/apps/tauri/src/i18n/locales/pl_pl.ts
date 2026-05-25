@@ -84,6 +84,8 @@ export const pl_pl = {
   "nav.search": "Szukaj",
   "nav.shortcuts": "Skróty",
   "nav.shortcuts.description": "Przełączaj strony bez odrywania rąk od klawiatury.",
+  "workspace.menu": "Obszar roboczy",
+  "workspace.create": "Nowy obszar",
   "finder.search.label": "Szukaj filmów",
   "finder.search.placeholder": "Szukaj tytułu, URL, transkrypcji, podsumowania, tagów i tematów",
   "finder.filter.shortLabel": "Pokaż",

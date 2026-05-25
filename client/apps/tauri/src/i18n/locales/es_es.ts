@@ -84,6 +84,8 @@ export const es_es = {
   "nav.search": "Buscar",
   "nav.shortcuts": "Atajos",
   "nav.shortcuts.description": "Cambia de página sin dejar el teclado.",
+  "workspace.menu": "Espacio de trabajo",
+  "workspace.create": "Nuevo espacio",
   "finder.search.label": "Buscar videos",
   "finder.search.placeholder": "Buscar título, URL, transcripción, resumen, etiquetas y temas",
   "finder.filter.shortLabel": "Mostrar",

@@ -84,6 +84,8 @@ export const zh_tw = {
   "nav.search": "搜尋",
   "nav.shortcuts": "快捷鍵",
   "nav.shortcuts.description": "不用離開鍵盤即可切換頁面。",
+  "workspace.menu": "工作區",
+  "workspace.create": "新增工作區",
   "finder.search.label": "搜尋影片",
   "finder.search.placeholder": "搜尋標題、URL、逐字稿、摘要、標籤和主題",
   "finder.filter.shortLabel": "顯示",

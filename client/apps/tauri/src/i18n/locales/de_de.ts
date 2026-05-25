@@ -84,6 +84,8 @@ export const de_de = {
   "nav.search": "Suchen",
   "nav.shortcuts": "Kurzbefehle",
   "nav.shortcuts.description": "Wechseln Sie Seiten, ohne die Tastatur zu verlassen.",
+  "workspace.menu": "Arbeitsbereich",
+  "workspace.create": "Neuer Arbeitsbereich",
   "finder.search.label": "Videos suchen",
   "finder.search.placeholder": "Titel, URL, Transkript, Zusammenfassung, Tags, Themen suchen",
   "finder.filter.shortLabel": "Anzeigen",

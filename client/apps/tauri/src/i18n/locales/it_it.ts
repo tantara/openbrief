@@ -84,6 +84,8 @@ export const it_it = {
   "nav.search": "Cerca",
   "nav.shortcuts": "Scorciatoie",
   "nav.shortcuts.description": "Cambia pagina senza lasciare la tastiera.",
+  "workspace.menu": "Area di lavoro",
+  "workspace.create": "Nuova area",
   "finder.search.label": "Cerca video",
   "finder.search.placeholder": "Cerca titolo, URL, trascrizione, riepilogo, tag e argomenti",
   "finder.filter.shortLabel": "Mostra",

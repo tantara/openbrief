@@ -144,4 +144,21 @@ describe("AppLayout", () => {
       ),
     ).toBe(true);
   });
+
+  it("opens the workspace menu from the logo context menu", async () => {
+    render(
+      <AppLayout
+        activeView="finder"
+        pageTitle="Library"
+        onActiveViewChange={() => {}}
+      >
+        <div>Current page</div>
+      </AppLayout>,
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Workspace" }));
+
+    expect(await screen.findByText("Default")).toBeInTheDocument();
+    expect(screen.getByText("New workspace")).toBeInTheDocument();
+  });
 });

@@ -5,7 +5,7 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
 static LOCAL_IMPORT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -422,14 +422,7 @@ fn write_text_artifact_in_library(
 }
 
 fn openbrief_library_root_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    let root = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("library");
-
-    fs::create_dir_all(&root).map_err(|error| format!("library_root_create_failed:{error}"))?;
-    validate_existing_directory_path(&root)
+    crate::workspace::library_root_for_app(app)
 }
 
 fn validate_existing_file(path: &str) -> Result<PathBuf, String> {

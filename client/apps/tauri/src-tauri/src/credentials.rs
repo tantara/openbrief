@@ -5,7 +5,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
@@ -244,18 +244,9 @@ fn save_provider_api_key_to_dir(
 }
 
 fn credentials_dir_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    let credentials_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("credentials");
-
-    fs::create_dir_all(&credentials_dir)
-        .map_err(|error| format!("provider_credentials_dir_create_failed:{error}"))?;
+    let credentials_dir = crate::workspace::credentials_dir_for_app(app)?;
     secure_directory_permissions(&credentials_dir)?;
-    credentials_dir
-        .canonicalize()
-        .map_err(|error| format!("provider_credentials_dir_invalid:{error}"))
+    Ok(credentials_dir)
 }
 
 fn provider_api_key_path(credentials_dir: &Path, provider: ProviderKind) -> PathBuf {

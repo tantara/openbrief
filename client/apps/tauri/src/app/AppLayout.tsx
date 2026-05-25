@@ -1,6 +1,7 @@
 import type { LibraryView } from "@/hooks/useMediaLibrary";
+import type { WorkspaceSnapshot } from "@/services/workspaceService";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   isAddVideoShortcutKey,
   isSearchShortcutKey,
@@ -11,6 +12,12 @@ import {
 import { ShortcutKbd } from "@/components/keyboard/ShortcutKbd";
 import { useI18n } from "@/i18n";
 import {
+  createWorkspaceService,
+  reloadForWorkspaceChange,
+} from "@/services/workspaceService";
+import {
+  Check,
+  FolderPlus,
   LayoutGrid,
   ListVideo,
   Notebook,
@@ -20,6 +27,14 @@ import {
 
 import { cn } from "@acme/ui";
 import { Button } from "@acme/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@acme/ui/context-menu";
 import { OpenBriefMark } from "@acme/ui/openbrief-mark";
 import {
   Tooltip,
@@ -56,6 +71,49 @@ export function AppLayout({
   }));
   const primaryShortcuts = shortcuts.filter((item) => item.view !== "settings");
   const settingsShortcut = shortcuts.find((item) => item.view === "settings");
+  const workspaceService = useMemo(() => createWorkspaceService(), []);
+  const [workspaceSnapshot, setWorkspaceSnapshot] =
+    useState<WorkspaceSnapshot>();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    workspaceService
+      .loadSnapshot()
+      .then((snapshot) => {
+        if (!cancelled) {
+          setWorkspaceSnapshot(snapshot);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspaceSnapshot(undefined);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceService]);
+
+  const createNewWorkspace = useCallback(() => {
+    void workspaceService
+      .createWorkspace()
+      .then(() => reloadForWorkspaceChange());
+  }, [workspaceService]);
+
+  const switchWorkspace = useCallback(
+    (workspaceId: string) => {
+      if (workspaceId === workspaceSnapshot?.activeWorkspaceId) {
+        return;
+      }
+
+      void workspaceService
+        .switchWorkspace(workspaceId)
+        .then(() => reloadForWorkspaceChange());
+    },
+    [workspaceService, workspaceSnapshot?.activeWorkspaceId],
+  );
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -89,9 +147,41 @@ export function AppLayout({
   return (
     <div className="bg-background text-foreground min-h-screen">
       <aside className="border-border bg-card fixed inset-y-0 left-0 z-50 flex w-20 flex-col items-center border-r px-3 py-5">
-        <div className="bg-primary text-primary-foreground mb-6 flex h-11 w-11 items-center justify-center rounded-lg">
-          <OpenBriefMark className="h-5 w-5" />
-        </div>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <button
+              type="button"
+              className="bg-primary text-primary-foreground focus-visible:ring-ring focus-visible:ring-offset-background mb-6 flex h-11 w-11 items-center justify-center rounded-lg transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              aria-label={t("workspace.menu")}
+            >
+              <OpenBriefMark className="h-5 w-5" />
+            </button>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-56">
+            <ContextMenuLabel>{t("workspace.menu")}</ContextMenuLabel>
+            <ContextMenuSeparator />
+            {workspaceSnapshot?.workspaces.map((workspace) => (
+              <ContextMenuItem
+                key={workspace.id}
+                onSelect={() => switchWorkspace(workspace.id)}
+                disabled={workspace.active}
+              >
+                <Check
+                  className={cn("h-4 w-4", !workspace.active && "opacity-0")}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 truncate">
+                  {workspace.name}
+                </span>
+              </ContextMenuItem>
+            ))}
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={createNewWorkspace}>
+              <FolderPlus className="h-4 w-4" aria-hidden="true" />
+              {t("workspace.create")}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
         <TooltipProvider delayDuration={0}>
           <nav className="flex flex-col gap-2" aria-label="Primary">
             {primaryShortcuts.map((item) => (

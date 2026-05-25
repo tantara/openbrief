@@ -796,27 +796,16 @@ pub fn runtime_target_triple() -> &'static str {
 }
 
 fn app_library_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    let root = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("library");
-
-    fs::create_dir_all(&root).map_err(|error| format!("library_root_create_failed:{error}"))?;
-    root.canonicalize()
-        .map_err(|error| format!("library_root_invalid:{error}"))
+    crate::workspace::library_root_for_app(app)
 }
 
 fn app_models_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    let root = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("models");
-
-    fs::create_dir_all(&root).map_err(|error| format!("models_root_create_failed:{error}"))?;
-    root.canonicalize()
-        .map_err(|error| format!("models_root_invalid:{error}"))
+    crate::workspace::workspace_child_dir_for_app(
+        app,
+        "models",
+        "models_root_create_failed",
+        "models_root_invalid",
+    )
 }
 
 fn prepare_helper_command_for_sidecar(

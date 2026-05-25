@@ -84,6 +84,8 @@ export const ja_jp = {
   "nav.search": "検索",
   "nav.shortcuts": "ショートカット",
   "nav.shortcuts.description": "キーボードから手を離さずにページを切り替えます。",
+  "workspace.menu": "ワークスペース",
+  "workspace.create": "新規ワークスペース",
   "finder.search.label": "動画を検索",
   "finder.search.placeholder": "タイトル、URL、文字起こし、要約、タグ、トピックを検索",
   "finder.filter.shortLabel": "表示",

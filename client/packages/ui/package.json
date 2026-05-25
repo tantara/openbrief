@@ -8,6 +8,7 @@
     "./button": "./src/button.tsx",
     "./card": "./src/card.tsx",
     "./color-theme": "./src/color-theme.ts",
+    "./context-menu": "./src/context-menu.tsx",
     "./dialog": "./src/dialog.tsx",
     "./dropdown-menu": "./src/dropdown-menu.tsx",
     "./field": "./src/field.tsx",

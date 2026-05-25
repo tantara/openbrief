@@ -6,7 +6,7 @@ use std::{
     process::{Command, Stdio},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 
 const RUNNER_SCRIPT: &str = include_str!("../sidecars/supertonic-python/openbrief_supertonic.py");
@@ -191,10 +191,7 @@ pub async fn generate_supertonic_podcast_tts(
 
 #[tauri::command]
 pub fn tts_voice_catalog(app: AppHandle) -> Result<Vec<TtsVoiceCatalogModel>, String> {
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?;
+    let app_data = crate::workspace::workspace_root_for_app(&app)?;
 
     Ok(tts_voice_catalog_from_app_data(&app_data))
 }
@@ -264,10 +261,7 @@ fn generate_supertonic_chat_tts_blocking(
     }
 
     let library_root = app_library_root(&app)?;
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?;
+    let app_data = crate::workspace::workspace_root_for_app(&app)?;
     let generation_id = create_generation_id(&request.chat_message_id, text);
     let output_relative_path = chat_tts_audio_relative_path(
         &request.asset_library_path,
@@ -369,10 +363,7 @@ fn generate_tts_preview_blocking(
         return Err("tts_preview_text_empty".to_string());
     }
 
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?;
+    let app_data = crate::workspace::workspace_root_for_app(&app)?;
     let preview_dir = app_data.join("tts-previews");
     fs::create_dir_all(&preview_dir)
         .map_err(|error| format!("tts_preview_dir_create_failed:{error}"))?;
@@ -465,10 +456,7 @@ fn generate_supertonic_podcast_tts_blocking(
     }
 
     let library_root = app_library_root(&app)?;
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?;
+    let app_data = crate::workspace::workspace_root_for_app(&app)?;
     let model_id = sanitize_tts_model_id(request.model_id.as_deref().unwrap_or(MODEL_REPO_ID))?;
     if is_qwen_tts_model(&model_id) {
         return Err("supertonic_podcast_qwen_tts_unsupported".to_string());
@@ -889,14 +877,7 @@ fn venv_python(venv_dir: &Path) -> PathBuf {
 }
 
 fn app_library_root(app: &AppHandle) -> Result<PathBuf, String> {
-    let root = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("library");
-    fs::create_dir_all(&root).map_err(|error| format!("library_root_create_failed:{error}"))?;
-    root.canonicalize()
-        .map_err(|error| format!("library_root_invalid:{error}"))
+    crate::workspace::library_root_for_app(app)
 }
 
 fn chat_tts_audio_relative_path(

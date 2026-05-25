@@ -6,7 +6,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -287,16 +287,7 @@ fn model_by_id_with_availability(
 }
 
 fn models_dir_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    let models_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("models");
-
-    fs::create_dir_all(&models_dir).map_err(|error| format!("models_dir_create_failed:{error}"))?;
-    models_dir
-        .canonicalize()
-        .map_err(|error| format!("models_dir_invalid:{error}"))
+    crate::workspace::models_dir_for_app(app)
 }
 
 async fn download_model_to_dir(

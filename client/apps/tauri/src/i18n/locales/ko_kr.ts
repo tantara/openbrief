@@ -84,6 +84,8 @@ export const ko_kr = {
   "nav.search": "검색",
   "nav.shortcuts": "단축키",
   "nav.shortcuts.description": "키보드에서 손을 떼지 않고 페이지를 전환합니다.",
+  "workspace.menu": "작업 공간",
+  "workspace.create": "새 작업 공간",
   "finder.search.label": "동영상 검색",
   "finder.search.placeholder": "제목, URL, 자막, 요약, 태그, 주제 검색",
   "finder.filter.shortLabel": "보기",

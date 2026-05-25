@@ -84,6 +84,8 @@ export const ru_ru = {
   "nav.search": "Поиск",
   "nav.shortcuts": "Горячие клавиши",
   "nav.shortcuts.description": "Переключайте страницы, не отрываясь от клавиатуры.",
+  "workspace.menu": "Рабочая область",
+  "workspace.create": "Новая область",
   "finder.search.label": "Поиск видео",
   "finder.search.placeholder": "Ищите по названию, URL, транскрипту, резюме, тегам и темам",
   "finder.filter.shortLabel": "Показать",

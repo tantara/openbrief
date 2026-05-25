@@ -5,7 +5,7 @@ use std::{
     fs,
     path::{Component, Path, PathBuf},
 };
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
 pub fn load_media_library_snapshot<R: Runtime>(app: AppHandle<R>) -> Result<Value, String> {
@@ -735,14 +735,7 @@ fn media_library_db_path_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathB
 }
 
 fn openbrief_library_root_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    let root = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?
-        .join("library");
-    fs::create_dir_all(&root).map_err(|error| format!("library_root_create_failed:{error}"))?;
-    root.canonicalize()
-        .map_err(|error| format!("library_root_invalid:{error}"))
+    crate::workspace::library_root_for_app(app)
 }
 
 fn validate_library_relative_artifact_path(relative_path: &str) -> Result<(), String> {

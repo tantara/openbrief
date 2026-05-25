@@ -5,7 +5,7 @@ use std::{
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -28,26 +28,25 @@ pub struct StorageUsageSnapshot {
 pub async fn storage_usage_snapshot<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<StorageUsageSnapshot, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("app_data_dir_unavailable:{error}"))?;
+    let workspace_root = crate::workspace::workspace_root_for_app(&app)?;
 
-    tauri::async_runtime::spawn_blocking(move || storage_usage_snapshot_for_app_data(&app_data_dir))
-        .await
-        .map_err(|error| format!("storage_usage_task_join_failed:{error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        storage_usage_snapshot_for_workspace(&workspace_root)
+    })
+    .await
+    .map_err(|error| format!("storage_usage_task_join_failed:{error}"))?
 }
 
-fn storage_usage_snapshot_for_app_data(
-    app_data_dir: &Path,
+fn storage_usage_snapshot_for_workspace(
+    workspace_root: &Path,
 ) -> Result<StorageUsageSnapshot, String> {
-    let library_root = app_data_dir.join("library");
+    let library_root = workspace_root.join("library");
     let database = database_size(&library_root)?;
     let video = recursive_size(&library_root.join("videos"))?;
     let audio = recursive_size(&library_root.join("audios"))?;
     let pdf = recursive_size(&library_root.join("pdfs"))?;
-    let model_checkpoint = recursive_size(&app_data_dir.join("models"))?
-        + recursive_size(&app_data_dir.join("supertonic"))?;
+    let model_checkpoint = recursive_size(&workspace_root.join("models"))?
+        + recursive_size(&workspace_root.join("supertonic"))?;
 
     Ok(storage_usage_snapshot_from_sizes(
         database,
@@ -221,7 +220,7 @@ mod tests {
         write_bytes(&root.join("models/whisper/ggml-small.bin"), 40);
         write_bytes(&root.join("supertonic/python/site-packages/module.py"), 10);
 
-        let snapshot = storage_usage_snapshot_for_app_data(&root).unwrap();
+        let snapshot = storage_usage_snapshot_for_workspace(&root).unwrap();
 
         assert_eq!(snapshot.total_bytes, 210);
         assert_eq!(snapshot.items[0].size_bytes, 15);

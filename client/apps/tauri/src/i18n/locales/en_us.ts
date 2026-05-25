@@ -14,6 +14,8 @@ export const en_us = {
   "nav.search": "Search",
   "nav.shortcuts": "Shortcuts",
   "nav.shortcuts.description": "Switch pages without leaving the keyboard.",
+  "workspace.menu": "Workspace",
+  "workspace.create": "New workspace",
   "help.menu": "Help",
   "help.onboarding": "Onboarding",
   "help.tutorial": "Tutorial",

@@ -84,6 +84,8 @@ export const uk_ua = {
   "nav.search": "Пошук",
   "nav.shortcuts": "Гарячі клавіші",
   "nav.shortcuts.description": "Перемикайте сторінки, не відриваючись від клавіатури.",
+  "workspace.menu": "Робочий простір",
+  "workspace.create": "Новий простір",
   "finder.search.label": "Пошук відео",
   "finder.search.placeholder": "Шукайте за назвою, URL, транскриптом, резюме, тегами й темами",
   "finder.filter.shortLabel": "Показати",

@@ -14,6 +14,7 @@ mod storage_usage;
 mod stt_models;
 mod supertonic;
 mod trusted_paths;
+mod workspace;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
@@ -215,6 +216,9 @@ pub fn run() {
             trusted_paths::write_text_artifact,
             trusted_paths::export_library_artifact,
             trusted_paths::export_tts_preview_audio,
+            workspace::workspace_snapshot,
+            workspace::create_workspace,
+            workspace::switch_workspace,
             hide_transcript_overlay,
         ])
         .run(tauri::generate_context!())

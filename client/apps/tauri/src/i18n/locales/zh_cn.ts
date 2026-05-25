@@ -84,6 +84,8 @@ export const zh_cn = {
   "nav.search": "搜索",
   "nav.shortcuts": "快捷键",
   "nav.shortcuts.description": "不用离开键盘即可切换页面。",
+  "workspace.menu": "工作区",
+  "workspace.create": "新建工作区",
   "finder.search.label": "搜索视频",
   "finder.search.placeholder": "搜索标题、URL、转录、摘要、标签和主题",
   "finder.filter.shortLabel": "显示",

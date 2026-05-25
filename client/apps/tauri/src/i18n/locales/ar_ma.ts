@@ -84,6 +84,8 @@ export const ar_ma = {
   "nav.search": "بحث",
   "nav.shortcuts": "اختصارات",
   "nav.shortcuts.description": "بدّل الصفحات من لوحة المفاتيح مباشرة.",
+  "workspace.menu": "مساحة العمل",
+  "workspace.create": "مساحة عمل جديدة",
   "finder.search.label": "بحث في الفيديوهات",
   "finder.search.placeholder": "ابحث في العنوان والرابط والنص والملخص والوسوم والمواضيع",
   "finder.filter.shortLabel": "عرض",
