@@ -535,7 +535,7 @@ pub fn download_youtube_plan(payload: &Value) -> HelperResult<CommandPlan> {
         "--extractor-args".into(),
         "youtube:player_client=default,-web,-web_safari".into(),
         "--format".into(),
-        "bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a][acodec^=mp4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best[height<=720]/best".into(),
+        "bestvideo[ext=mp4][vcodec^=avc1][height<=720][fps<=30]+bestaudio[ext=m4a][acodec^=mp4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720][fps<=30]/bestvideo[ext=mp4][height<=720][fps<=30]+bestaudio[ext=m4a]/best[ext=mp4][height<=720][fps<=30]/best[height<=720][fps<=30]/bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a][acodec^=mp4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/best[height<=720]/best".into(),
         "--merge-output-format".into(),
         "mp4".into(),
         "--write-thumbnail".into(),
@@ -687,6 +687,8 @@ pub fn transcode_video_plan(payload: &Value) -> HelperResult<CommandPlan> {
             "veryfast".into(),
             "-crf".into(),
             "23".into(),
+            "-vf".into(),
+            "fps=30".into(),
             "-pix_fmt".into(),
             "yuv420p".into(),
             "-c:a".into(),
@@ -919,6 +921,23 @@ fn probe_media_result_from_stdout(stdout: &str) -> HelperResult<Value> {
     let height = video_stream
         .and_then(|stream| stream.get("height"))
         .and_then(Value::as_u64);
+    let frame_rate = video_stream
+        .and_then(|stream| {
+            stream
+                .get("avg_frame_rate")
+                .or_else(|| stream.get("r_frame_rate"))
+        })
+        .and_then(Value::as_str)
+        .and_then(parse_ffprobe_rate);
+    let pixel_format = video_stream
+        .and_then(|stream| stream.get("pix_fmt"))
+        .and_then(Value::as_str);
+    let video_profile = video_stream
+        .and_then(|stream| stream.get("profile"))
+        .and_then(Value::as_str);
+    let video_level = video_stream
+        .and_then(|stream| stream.get("level"))
+        .and_then(Value::as_u64);
     let resolution = match (width, height) {
         (Some(width), Some(height)) if width > 0 && height > 0 => Some(format!("{width}x{height}")),
         _ => None,
@@ -933,8 +952,29 @@ fn probe_media_result_from_stdout(stdout: &str) -> HelperResult<Value> {
         "audioCodec": audio_codec,
         "width": width,
         "height": height,
+        "frameRate": frame_rate,
+        "pixelFormat": pixel_format,
+        "videoProfile": video_profile,
+        "videoLevel": video_level,
         "resolution": resolution,
     }))
+}
+
+fn parse_ffprobe_rate(value: &str) -> Option<f64> {
+    if let Some((numerator, denominator)) = value.split_once('/') {
+        let numerator = numerator.parse::<f64>().ok()?;
+        let denominator = denominator.parse::<f64>().ok()?;
+        if denominator == 0.0 {
+            return None;
+        }
+        let rate = numerator / denominator;
+        return rate.is_finite().then_some(rate);
+    }
+
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|rate| rate.is_finite() && *rate > 0.0)
 }
 
 fn download_youtube_result(payload: &Value) -> HelperResult<Value> {
@@ -1433,7 +1473,7 @@ mod tests {
                 "--extractor-args",
                 "youtube:player_client=default,-web,-web_safari",
                 "--format",
-                "bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a][acodec^=mp4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4][height<=720]/best[height<=720]/best",
+                "bestvideo[ext=mp4][vcodec^=avc1][height<=720][fps<=30]+bestaudio[ext=m4a][acodec^=mp4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720][fps<=30]/bestvideo[ext=mp4][height<=720][fps<=30]+bestaudio[ext=m4a]/best[ext=mp4][height<=720][fps<=30]/best[height<=720][fps<=30]/bestvideo[ext=mp4][vcodec^=avc1][height<=720]+bestaudio[ext=m4a][acodec^=mp4a]/best[ext=mp4][vcodec^=avc1][acodec^=mp4a][height<=720]/best[height<=720]/best",
                 "--merge-output-format",
                 "mp4",
                 "--write-thumbnail",
@@ -1525,6 +1565,8 @@ mod tests {
                 "veryfast",
                 "-crf",
                 "23",
+                "-vf",
+                "fps=30",
                 "-pix_fmt",
                 "yuv420p",
                 "-c:a",
@@ -1541,7 +1583,7 @@ mod tests {
     #[test]
     fn shapes_probe_media_result_from_ffprobe_json() {
         let result = probe_media_result_from_stdout(
-            r#"{"streams":[{"codec_type":"audio","codec_name":"aac"},{"codec_type":"video","codec_name":"h264","width":1280,"height":720}],"format":{"duration":"42.5","size":"2048","format_name":"mov,mp4"}}"#,
+            r#"{"streams":[{"codec_type":"audio","codec_name":"aac"},{"codec_type":"video","codec_name":"h264","profile":"Main","pix_fmt":"yuv420p","level":32,"width":1280,"height":720,"avg_frame_rate":"60000/1001"}],"format":{"duration":"42.5","size":"2048","format_name":"mov,mp4"}}"#,
         )
         .unwrap();
 
@@ -1553,7 +1595,18 @@ mod tests {
         assert_eq!(result["audioCodec"], "aac");
         assert_eq!(result["width"], 1280);
         assert_eq!(result["height"], 720);
+        assert_eq!(result["frameRate"], 60000.0 / 1001.0);
+        assert_eq!(result["pixelFormat"], "yuv420p");
+        assert_eq!(result["videoProfile"], "Main");
+        assert_eq!(result["videoLevel"], 32);
         assert_eq!(result["resolution"], "1280x720");
+    }
+
+    #[test]
+    fn parses_ffprobe_fractional_frame_rates() {
+        assert_eq!(parse_ffprobe_rate("30000/1001"), Some(30000.0 / 1001.0));
+        assert_eq!(parse_ffprobe_rate("0/0"), None);
+        assert_eq!(parse_ffprobe_rate("30"), Some(30.0));
     }
 
     #[test]

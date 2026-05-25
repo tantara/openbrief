@@ -522,19 +522,26 @@ async function ensureWebviewPlayableVideo(
   return result.videoPath;
 }
 
-function isWebviewPlayableProbe(probeResult: ProbeMediaResult) {
+export function isWebviewPlayableProbe(probeResult: ProbeMediaResult) {
   const container = probeResult.container.toLowerCase();
   const videoCodec = probeResult.videoCodec?.toLowerCase();
   const audioCodec = probeResult.audioCodec?.toLowerCase();
+  const pixelFormat = probeResult.pixelFormat?.toLowerCase();
   const isMp4Container =
     container.includes("mp4") ||
     container.includes("mov") ||
     container.includes("m4v");
+  const isStableFrameRate =
+    probeResult.frameRate === undefined || probeResult.frameRate <= 30.5;
+  const isWebviewPixelFormat =
+    pixelFormat === undefined || pixelFormat === "yuv420p";
 
   return (
     isMp4Container &&
     videoCodec === "h264" &&
-    (!audioCodec || audioCodec === "aac" || audioCodec === "mp3")
+    (!audioCodec || audioCodec === "aac" || audioCodec === "mp3") &&
+    isStableFrameRate &&
+    isWebviewPixelFormat
   );
 }
 

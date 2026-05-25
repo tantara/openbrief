@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMockIngestService,
   createTauriIngestService,
+  isWebviewPlayableProbe,
 } from "@/services/ingestService";
 import { FakeHelperClient, type HelperClient } from "@/services/fakeHelperClient";
 import { logRuntimeInfo } from "@/services/runtimeLogger";
@@ -275,5 +276,86 @@ describe("mock ingest service", () => {
         }),
       );
     }
+  });
+
+  it("transcodes downloaded H.264 video when the probed frame rate is too high for WebView", async () => {
+    const commands: string[] = [];
+    const highFrameRateHelper: HelperClient = {
+      async run(command) {
+        commands.push(command.command);
+
+        if (command.command === "download_youtube") {
+          return {
+            command: "download_youtube",
+            videoPath: `${command.outputDir}/source.mp4`,
+            title: "High Frame Rate Video",
+            captionsAvailable: false,
+          };
+        }
+
+        if (command.command === "probe_media") {
+          return {
+            command: "probe_media",
+            durationSeconds: 120,
+            fileSizeBytes: 1048576,
+            container: "mov,mp4",
+            videoCodec: "h264",
+            audioCodec: "aac",
+            width: 1280,
+            height: 720,
+            frameRate: 60000 / 1001,
+            pixelFormat: "yuv420p",
+          };
+        }
+
+        if (command.command === "transcode_video") {
+          expect(command.videoPath).toMatch(/source\.mp4$/);
+          expect(command.outputPath).toMatch(/playback\.mp4$/);
+          return {
+            command: "transcode_video",
+            videoPath: command.outputPath,
+          };
+        }
+
+        if (command.command === "extract_thumbnail") {
+          return {
+            command: "extract_thumbnail",
+            thumbnailPath: command.outputPath,
+          };
+        }
+
+        throw new Error(`unexpected command: ${command.command}`);
+      },
+      eventsForJob() {
+        return [];
+      },
+    };
+    const service = createTauriIngestService(highFrameRateHelper);
+
+    const result = await service.importYoutubeUrl({
+      url: "https://www.youtube.com/watch?v=openclip-test-id",
+      nowIso: "2026-05-21T00:00:00.000Z",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.video.libraryPath).toMatch(/\/playback\.mp4$/);
+    }
+    expect(commands).toContain("transcode_video");
+  });
+
+  it("classifies 60fps MP4 probes as requiring a playback transcode", () => {
+    expect(
+      isWebviewPlayableProbe({
+        command: "probe_media",
+        durationSeconds: 120,
+        fileSizeBytes: 1048576,
+        container: "mov,mp4",
+        videoCodec: "h264",
+        audioCodec: "aac",
+        frameRate: 60000 / 1001,
+        pixelFormat: "yuv420p",
+      }),
+    ).toBe(false);
   });
 });

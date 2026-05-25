@@ -20,6 +20,7 @@ const QWEN_ASR_17B_MLX_REPO: &str = "mlx-community/Qwen3-ASR-1.7B-8bit";
 const QWEN_ASR_17B_PYTORCH_REPO: &str = "Qwen/Qwen3-ASR-1.7B";
 const QWEN_ALIGNER_MLX_REPO: &str = "mlx-community/Qwen3-ForcedAligner-0.6B-8bit";
 const QWEN_ALIGNER_PYTORCH_REPO: &str = "Qwen/Qwen3-ForcedAligner-0.6B";
+const QWEN_ASR_CHUNK_SECONDS: &str = "600";
 
 pub fn is_qwen_asr_model_id(model_id: Option<&str>) -> bool {
     matches!(
@@ -146,6 +147,8 @@ pub async fn run_transcribe_audio<R: Runtime>(
         language.to_string(),
         "--cache-dir".to_string(),
         cache_dir,
+        "--chunk-seconds".to_string(),
+        QWEN_ASR_CHUNK_SECONDS.to_string(),
     ];
 
     log::info!(

@@ -8,6 +8,7 @@ import os
 import platform
 import struct
 import sys
+import tempfile
 import wave
 from pathlib import Path
 from typing import Any
@@ -125,6 +126,8 @@ ALIGNER_MODEL_REPOS = {
         "pytorch": "Qwen/Qwen3-ForcedAligner-0.6B",
     },
 }
+
+DEFAULT_ASR_CHUNK_SECONDS = 600.0
 
 
 def module_available(name: str) -> bool:
@@ -543,6 +546,152 @@ def transcript_segments(text: str, words: list[dict[str, Any]]) -> list[dict[str
     ]
 
 
+def normalize_asr_chunk_seconds(value: Any) -> float:
+    chunk_seconds = float(value)
+    if not math.isfinite(chunk_seconds) or chunk_seconds < 0:
+        raise ValueError("ASR chunk seconds must be a finite non-negative number")
+    return chunk_seconds
+
+
+@contextlib.contextmanager
+def prepared_audio_chunks(
+    audio_path: Path,
+    chunk_seconds: float,
+    work_dir: Path,
+):
+    if chunk_seconds <= 0:
+        yield [{"path": audio_path, "startSeconds": 0.0}]
+        return
+
+    try:
+        source = wave.open(str(audio_path), "rb")
+    except (wave.Error, FileNotFoundError):
+        yield [{"path": audio_path, "startSeconds": 0.0}]
+        return
+
+    with source:
+        frame_rate = source.getframerate()
+        total_frames = source.getnframes()
+        if frame_rate <= 0 or total_frames <= 0:
+            yield [{"path": audio_path, "startSeconds": 0.0}]
+            return
+
+        frames_per_chunk = max(1, int(chunk_seconds * frame_rate))
+        duration_seconds = total_frames / frame_rate
+        if duration_seconds <= chunk_seconds or total_frames <= frames_per_chunk:
+            yield [{"path": audio_path, "startSeconds": 0.0}]
+            return
+
+        with tempfile.TemporaryDirectory(
+            prefix="openbrief-qwen-asr-chunks-",
+            dir=str(work_dir),
+        ) as temp_dir:
+            chunks = []
+            channels = source.getnchannels()
+            sample_width = source.getsampwidth()
+            compression_type = source.getcomptype()
+            compression_name = source.getcompname()
+            for index, start_frame in enumerate(range(0, total_frames, frames_per_chunk)):
+                source.setpos(start_frame)
+                frame_count = min(frames_per_chunk, total_frames - start_frame)
+                chunk_path = Path(temp_dir) / f"chunk-{index:04d}.wav"
+                with wave.open(str(chunk_path), "wb") as chunk_file:
+                    chunk_file.setnchannels(channels)
+                    chunk_file.setsampwidth(sample_width)
+                    chunk_file.setframerate(frame_rate)
+                    chunk_file.setcomptype(compression_type, compression_name)
+                    chunk_file.writeframes(source.readframes(frame_count))
+                chunks.append(
+                    {
+                        "path": chunk_path,
+                        "startSeconds": round(start_frame / frame_rate, 3),
+                    }
+                )
+            yield chunks
+
+
+def offset_words(
+    words: list[dict[str, Any]],
+    offset_seconds: float,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            **word,
+            "startSeconds": round(float(word.get("startSeconds", 0.0)) + offset_seconds, 3),
+            "endSeconds": round(float(word.get("endSeconds", 0.0)) + offset_seconds, 3),
+        }
+        for word in words
+    ]
+
+
+def offset_segment(
+    segment: dict[str, Any],
+    *,
+    offset_seconds: float,
+    segment_index: int,
+) -> dict[str, Any]:
+    raw_words = segment.get("words", [])
+    words = offset_words(raw_words, offset_seconds)
+    start_seconds = round(
+        float(
+            segment.get(
+                "startSeconds",
+                raw_words[0]["startSeconds"] if raw_words else 0.0,
+            )
+        )
+        + offset_seconds,
+        3,
+    )
+    end_value = segment.get("endSeconds")
+    merged = {
+        "id": f"qwen3-asr-segment-{segment_index}",
+        "startSeconds": start_seconds,
+        "text": str(segment.get("text", "")).strip(),
+        "sourceKind": "local-stt",
+        "words": words,
+    }
+    if end_value is not None:
+        merged["endSeconds"] = round(float(end_value) + offset_seconds, 3)
+    elif words:
+        merged["endSeconds"] = words[-1]["endSeconds"]
+    return merged
+
+
+def merge_chunk_transcripts(
+    chunks: list[dict[str, Any]],
+    transcripts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    text_parts = []
+    segments = []
+    language = None
+    segment_index = 1
+
+    for chunk, transcript in zip(chunks, transcripts, strict=False):
+        chunk_text = str(transcript.get("text", "")).strip()
+        if chunk_text:
+            text_parts.append(chunk_text)
+        language = language or transcript.get("language")
+
+        for segment in transcript.get("segments", []):
+            merged = offset_segment(
+                segment,
+                offset_seconds=float(chunk.get("startSeconds", 0.0)),
+                segment_index=segment_index,
+            )
+            if merged["text"] or merged["words"]:
+                segments.append(merged)
+                segment_index += 1
+
+    text = " ".join(text_parts).strip()
+    if not segments:
+        segments = transcript_segments(text, [])
+    return {
+        "text": text,
+        "language": language or "en",
+        "segments": segments,
+    }
+
+
 def smoke_transcript(text: str, language: str | None) -> dict[str, Any]:
     words = [
         {"text": "Welcome", "startSeconds": 0.0, "endSeconds": 0.32},
@@ -558,7 +707,7 @@ def smoke_transcript(text: str, language: str | None) -> dict[str, Any]:
 
 def transcribe_with_mlx(
     *,
-    audio_path: Path,
+    chunks: list[dict[str, Any]],
     model_repo: str,
     aligner_repo: str,
     language_label: str | None,
@@ -570,31 +719,41 @@ def transcribe_with_mlx(
 
     with contextlib.redirect_stdout(sys.stderr):
         asr_model = load_stt_model(model_repo)
-        asr_result = asr_model.generate(
-            str(audio_path),
-            language=language_label,
-            verbose=False,
-        )
-    text = str(getattr(asr_result, "text", "")).strip()
-    detected_language = getattr(asr_result, "language", None) or language_label
-    aligner_language = language_label or detected_language or "English"
-    aligner_code = language_code_for_label(str(aligner_language))
-    if aligner_code and aligner_code not in QWEN3_ALIGNER_LANGUAGES:
-        raise ValueError(f"Qwen3 forced aligner does not support {aligner_language}")
-
-    with contextlib.redirect_stdout(sys.stderr):
         aligner_model = load_stt_model(aligner_repo)
-        alignment = aligner_model.generate(
-            str(audio_path),
-            text=text,
-            language=aligner_language,
+
+    transcripts = []
+    for chunk in chunks:
+        chunk_path = Path(chunk["path"])
+        with contextlib.redirect_stdout(sys.stderr):
+            asr_result = asr_model.generate(
+                str(chunk_path),
+                language=language_label,
+                verbose=False,
+            )
+        text = str(getattr(asr_result, "text", "")).strip()
+        detected_language = getattr(asr_result, "language", None) or language_label
+        aligner_language = language_label or detected_language or "English"
+        aligner_code = language_code_for_label(str(aligner_language))
+        if aligner_code and aligner_code not in QWEN3_ALIGNER_LANGUAGES:
+            raise ValueError(f"Qwen3 forced aligner does not support {aligner_language}")
+
+        with contextlib.redirect_stdout(sys.stderr):
+            alignment = aligner_model.generate(
+                str(chunk_path),
+                text=text,
+                language=aligner_language,
+            )
+        words = normalize_alignment_items(alignment)
+        transcripts.append(
+            {
+                "text": text,
+                "language": aligner_code
+                or language_code_for_label(str(detected_language))
+                or "en",
+                "segments": transcript_segments(text, words),
+            }
         )
-    words = normalize_alignment_items(alignment)
-    return {
-        "text": text,
-        "language": aligner_code or language_code_for_label(str(detected_language)) or "en",
-        "segments": transcript_segments(text, words),
-    }
+    return merge_chunk_transcripts(chunks, transcripts)
 
 
 def torch_device_kwargs() -> dict[str, Any]:
@@ -607,7 +766,7 @@ def torch_device_kwargs() -> dict[str, Any]:
 
 def transcribe_with_pytorch(
     *,
-    audio_path: Path,
+    chunks: list[dict[str, Any]],
     model_repo: str,
     aligner_repo: str,
     language_label: str | None,
@@ -629,28 +788,33 @@ def transcribe_with_pytorch(
         model_kwargs["cache_dir"] = cache_dir
 
     model = Qwen3ASRModel.from_pretrained(model_repo, **model_kwargs)
-    results = model.transcribe(
-        audio=str(audio_path),
-        language=language_label,
-        return_time_stamps=True,
-    )
-    result = results[0]
-    text = str(getattr(result, "text", "")).strip()
-    language_code = language_code_for_label(getattr(result, "language", None)) or "en"
-    alignments = []
-    for item in getattr(result, "time_stamps", None) or []:
-        if hasattr(item, "items"):
-            alignments.extend(list(item.items))
-        elif isinstance(item, list):
-            alignments.extend(item)
-        else:
-            alignments.append(item)
-    words = normalize_alignment_items(alignments)
-    return {
-        "text": text,
-        "language": language_code,
-        "segments": transcript_segments(text, words),
-    }
+    transcripts = []
+    for chunk in chunks:
+        results = model.transcribe(
+            audio=str(chunk["path"]),
+            language=language_label,
+            return_time_stamps=True,
+        )
+        result = results[0]
+        text = str(getattr(result, "text", "")).strip()
+        language_code = language_code_for_label(getattr(result, "language", None)) or "en"
+        alignments = []
+        for item in getattr(result, "time_stamps", None) or []:
+            if hasattr(item, "items"):
+                alignments.extend(list(item.items))
+            elif isinstance(item, list):
+                alignments.extend(item)
+            else:
+                alignments.append(item)
+        words = normalize_alignment_items(alignments)
+        transcripts.append(
+            {
+                "text": text,
+                "language": language_code,
+                "segments": transcript_segments(text, words),
+            }
+        )
+    return merge_chunk_transcripts(chunks, transcripts)
 
 
 def transcribe(args: argparse.Namespace) -> dict[str, Any]:
@@ -666,6 +830,7 @@ def transcribe(args: argparse.Namespace) -> dict[str, Any]:
     audio_path = Path(args.audio).expanduser()
     if not audio_path.is_file() and os.environ.get("OPENBRIEF_QWEN_ASR_SMOKE") != "1":
         raise ValueError(f"Audio file not found: {audio_path}")
+    chunk_seconds = normalize_asr_chunk_seconds(args.chunk_seconds)
 
     output_path = Path(args.output).expanduser()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -687,23 +852,27 @@ def transcribe(args: argparse.Namespace) -> dict[str, Any]:
     if os.environ.get("OPENBRIEF_QWEN_ASR_SMOKE") == "1":
         transcript = smoke_transcript(args.smoke_text, language_code)
         actual_backend = "smoke"
-    elif backend == "mlx":
-        transcript = transcribe_with_mlx(
-            audio_path=audio_path,
-            model_repo=model_repo,
-            aligner_repo=aligner_repo,
-            language_label=language_label,
-        )
-        actual_backend = "mlx"
+        chunk_count = 1
     else:
-        transcript = transcribe_with_pytorch(
-            audio_path=audio_path,
-            model_repo=model_repo,
-            aligner_repo=aligner_repo,
-            language_label=language_label,
-            cache_dir=cache_dir,
-        )
-        actual_backend = "pytorch"
+        with prepared_audio_chunks(audio_path, chunk_seconds, output_path.parent) as chunks:
+            chunk_count = len(chunks)
+            if backend == "mlx":
+                transcript = transcribe_with_mlx(
+                    chunks=chunks,
+                    model_repo=model_repo,
+                    aligner_repo=aligner_repo,
+                    language_label=language_label,
+                )
+                actual_backend = "mlx"
+            else:
+                transcript = transcribe_with_pytorch(
+                    chunks=chunks,
+                    model_repo=model_repo,
+                    aligner_repo=aligner_repo,
+                    language_label=language_label,
+                    cache_dir=cache_dir,
+                )
+                actual_backend = "pytorch"
 
     result = {
         "command": "transcribe_audio",
@@ -720,6 +889,8 @@ def transcribe(args: argparse.Namespace) -> dict[str, Any]:
         },
         "language": transcript["language"],
         "backend": actual_backend,
+        "chunkSeconds": chunk_seconds,
+        "chunkCount": chunk_count,
     }
     output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return result
@@ -751,6 +922,11 @@ def build_parser() -> argparse.ArgumentParser:
     transcribe_parser.add_argument("--language", default="auto")
     transcribe_parser.add_argument("--output", default="openbrief-qwen-asr.json")
     transcribe_parser.add_argument("--cache-dir", default="")
+    transcribe_parser.add_argument(
+        "--chunk-seconds",
+        default=str(int(DEFAULT_ASR_CHUNK_SECONDS)),
+        help="Split WAV input into bounded chunks before Qwen3-ASR inference; 0 disables chunking.",
+    )
     transcribe_parser.add_argument("--smoke-text", default="Welcome to OpenBrief")
     return parser
 

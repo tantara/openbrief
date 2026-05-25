@@ -138,6 +138,13 @@ export type HelperCommandResult =
       container: string;
       videoCodec?: string;
       audioCodec?: string;
+      width?: number;
+      height?: number;
+      resolution?: string;
+      frameRate?: number;
+      pixelFormat?: string;
+      videoProfile?: string;
+      videoLevel?: number;
     }
   | {
       command: "download_youtube";
@@ -178,6 +185,8 @@ export type HelperCommandResult =
       engine?: "whisper" | "fluidaudio" | "qwen3-asr";
       modelId?: string;
       language?: string;
+      chunkSeconds?: number;
+      chunkCount?: number;
     }
   | {
       command: "cancel_job";
