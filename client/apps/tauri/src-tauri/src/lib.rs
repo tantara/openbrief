@@ -10,6 +10,7 @@ mod media_tools;
 mod platform_plugins;
 mod provider;
 mod qwen_asr;
+mod runtime_tools;
 mod storage_usage;
 mod stt_models;
 mod supertonic;
@@ -190,6 +191,7 @@ pub fn run() {
             media_tools::yt_dlp_update_status,
             media_tools::set_yt_dlp_update_policy,
             media_tools::update_yt_dlp_now,
+            runtime_tools::install_deno_runtime,
             platform_plugins::platform_plugin_contract,
             provider::complete_provider_request,
             provider::complete_provider_stream_request,

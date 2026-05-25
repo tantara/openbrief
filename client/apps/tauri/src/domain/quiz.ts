@@ -76,6 +76,7 @@ const quizDirectoryBySourceType = {
   video: "videos",
   audio: "audios",
   pdf: "pdfs",
+  csv: "csvs",
 } as const;
 
 export const DEFAULT_QUIZ_SYSTEM_PROMPT = [

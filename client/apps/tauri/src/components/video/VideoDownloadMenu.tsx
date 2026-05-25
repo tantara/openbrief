@@ -1,19 +1,18 @@
+import type { MediaSourceType, VideoAsset } from "@/domain/media-library";
+import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
+import { mediaSourceTypeForAsset } from "@/domain/media-library";
+import { useI18n } from "@/i18n";
 import { Download } from "lucide-react";
-import { Button, type ButtonProps } from "@acme/ui/button";
+
+import type { ButtonProps } from "@acme/ui/button";
+import { cn } from "@acme/ui";
+import { Button } from "@acme/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@acme/ui/dropdown-menu";
-import {
-  mediaSourceTypeForAsset,
-  type MediaSourceType,
-  type VideoAsset,
-} from "@/domain/media-library";
-import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
-import { useI18n } from "@/i18n";
-import { cn } from "@acme/ui";
 
 type VideoDownloadMenuButtonProps = {
   video: VideoAsset;
@@ -126,7 +125,21 @@ function createVideoDownloadItems({
               label: t("finder.download.audio"),
             },
           ]
-        : [];
+        : sourceType === "pdf"
+          ? [
+              {
+                id: "pdf",
+                downloadKind: "pdf" as const,
+                label: t("finder.download.pdf"),
+              },
+            ]
+          : [
+              {
+                id: "csv",
+                downloadKind: "csv" as const,
+                label: t("finder.download.csv"),
+              },
+            ];
 
   return [
     ...sourceItems,

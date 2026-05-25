@@ -89,11 +89,22 @@ describe("classifyDownloadError", () => {
     );
   });
 
-  it("keeps unknown diagnostics when no classifier matches", () => {
+  it("classifies offline network failures", () => {
     const error = classifyDownloadError("network offline");
 
+    expect(error.kind).toBe("network-offline");
+    expect(error.userMessage).toContain("offline");
+    expect(error.recoveryActions.map((action) => action.kind)).toEqual([
+      "change-network",
+      "retry-later",
+    ]);
+  });
+
+  it("keeps unknown diagnostics when no classifier matches", () => {
+    const error = classifyDownloadError("unexpected download failure");
+
     expect(error.kind).toBe("unknown");
-    expect(error.userMessage).toBe("network offline");
+    expect(error.userMessage).toBe("unexpected download failure");
     expect(error.recoveryActions).toEqual([]);
   });
 });

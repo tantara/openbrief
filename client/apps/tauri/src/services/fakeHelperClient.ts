@@ -151,6 +151,25 @@ function createFakeResult(command: Exclude<HelperCommand, { command: "cancel_job
         command: "transcode_video",
         videoPath: command.outputPath,
       } satisfies HelperCommandResult;
+    case "inspect_video_generation_runtime":
+      return {
+        command: "inspect_video_generation_runtime",
+        adapter: "deno-hyperframes",
+        package: "hyperframes@0.6.42",
+        available: true,
+        tools: {
+          deno: { available: true, version: "deno 2.x fake" },
+          ffmpeg: { available: true, version: "ffmpeg fake" },
+          hyperframes: { available: true, version: "hyperframes 0.6.42 fake" },
+        },
+        missing: [],
+        message: "Fake HyperFrames runtime is available.",
+      } satisfies HelperCommandResult;
+    case "render_html_composition":
+      return {
+        command: "render_html_composition",
+        videoPath: command.outputPath,
+      } satisfies HelperCommandResult;
     case "transcribe_audio":
       return {
         command: "transcribe_audio",

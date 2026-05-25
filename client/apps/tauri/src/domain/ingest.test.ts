@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
 import {
   createLocalFileImportPlan,
   createLocalFileIngestResult,
   createYoutubeDownloadCommand,
   mediaSourceTypeFromFileName,
 } from "@/domain/ingest";
+import { describe, expect, it } from "vitest";
 
 describe("ingest domain", () => {
   const uuidPattern =
@@ -39,16 +39,17 @@ describe("ingest domain", () => {
     expect(first.targetRelativePath).not.toBe(second.targetRelativePath);
   });
 
-  it("classifies local video, audio, and PDF files for shared metadata", () => {
+  it("classifies local video, audio, PDF, and CSV files for shared metadata", () => {
     expect(mediaSourceTypeFromFileName("clip.mov")).toBe("video");
     expect(mediaSourceTypeFromFileName("voice memo.mp3")).toBe("audio");
     expect(mediaSourceTypeFromFileName("brief.pdf")).toBe("pdf");
+    expect(mediaSourceTypeFromFileName("metrics.csv")).toBe("csv");
     expect(() => mediaSourceTypeFromFileName("notes.txt")).toThrow(
       "local_file_unsupported_extension",
     );
   });
 
-  it("plans audio and PDF imports into media-specific library directories", () => {
+  it("plans audio, PDF, and CSV imports into media-specific library directories", () => {
     expect(
       createLocalFileImportPlan({
         sourcePath: "/Users/example/Music/demo audio.mp3",
@@ -69,6 +70,16 @@ describe("ingest domain", () => {
         new RegExp(`^pdfs/${uuidPattern}/demo-paper\\.pdf$`),
       ),
     });
+    expect(
+      createLocalFileImportPlan({
+        sourcePath: "/Users/example/Documents/demo metrics.csv",
+      }),
+    ).toMatchObject({
+      sourceType: "csv",
+      targetRelativePath: expect.stringMatching(
+        new RegExp(`^csvs/${uuidPattern}/demo-metrics\\.csv$`),
+      ),
+    });
   });
 
   it("creates local video metadata without retaining an external library path", () => {
@@ -84,7 +95,9 @@ describe("ingest domain", () => {
       sourceKind: "local-file",
       sourceType: "video",
       originalFileName: "source.mp4",
-      libraryPath: expect.stringMatching(new RegExp(`^videos/${uuidPattern}/source\\.mp4$`)),
+      libraryPath: expect.stringMatching(
+        new RegExp(`^videos/${uuidPattern}/source\\.mp4$`),
+      ),
       fileSizeBytes: 10,
       durationSeconds: 5,
       importStatus: "ready",
@@ -93,22 +106,28 @@ describe("ingest domain", () => {
 
   it.each([
     ["youtube", "https://youtu.be/example"],
-    ["tiktok", "https://www.tiktok.com/@samplecreator/video/7320000000000000000"],
+    [
+      "tiktok",
+      "https://www.tiktok.com/@samplecreator/video/7320000000000000000",
+    ],
     ["twitch", "https://www.twitch.tv/videos/123456789"],
     ["vimeo", "https://vimeo.com/123456789"],
-  ] as const)("builds fake-helper %s download commands for single videos", (provider, url) => {
-    const command = createYoutubeDownloadCommand({
-      url,
-    });
+  ] as const)(
+    "builds fake-helper %s download commands for single videos",
+    (provider, url) => {
+      const command = createYoutubeDownloadCommand({
+        url,
+      });
 
-    expect("ok" in command).toBe(false);
-    expect(command).toMatchObject({
-      command: "download_youtube",
-      sourceKind: provider,
-      outputDir: expect.stringMatching(new RegExp(`^videos/${provider}-`)),
-      tempDir: expect.stringMatching(new RegExp(`^job-temp/${provider}-`)),
-    });
-  });
+      expect("ok" in command).toBe(false);
+      expect(command).toMatchObject({
+        command: "download_youtube",
+        sourceKind: provider,
+        outputDir: expect.stringMatching(new RegExp(`^videos/${provider}-`)),
+        tempDir: expect.stringMatching(new RegExp(`^job-temp/${provider}-`)),
+      });
+    },
+  );
 
   it("rejects playlist and channel URLs with a clear v1 message", () => {
     const rejected = createYoutubeDownloadCommand({
@@ -118,7 +137,8 @@ describe("ingest domain", () => {
     expect("ok" in rejected && rejected.ok).toBe(false);
     expect(rejected).toMatchObject({
       ok: false,
-      message: "Playlist, channel, profile, and collection imports are not supported in v1",
+      message:
+        "Playlist, channel, profile, and collection imports are not supported in v1",
     });
   });
 });

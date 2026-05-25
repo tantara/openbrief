@@ -139,11 +139,29 @@ pub(crate) fn credentials_dir_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<
 }
 
 pub(crate) fn models_dir_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    workspace_child_dir_for_app(
+    app_data_child_dir_for_app(
         app,
         "models",
         "models_dir_create_failed",
         "models_dir_invalid",
+    )
+}
+
+pub(crate) fn supertonic_dir_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    app_data_child_dir_for_app(
+        app,
+        "supertonic",
+        "supertonic_dir_create_failed",
+        "supertonic_dir_invalid",
+    )
+}
+
+pub(crate) fn media_tools_dir_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    app_data_child_dir_for_app(
+        app,
+        "media-tools",
+        "media_tools_dir_create_failed",
+        "media_tools_dir_invalid",
     )
 }
 
@@ -155,6 +173,27 @@ pub(crate) fn workspace_child_dir_for_app<R: Runtime>(
 ) -> Result<PathBuf, String> {
     let root = workspace_root_for_app(app)?;
     let child_dir = root.join(child);
+    fs::create_dir_all(&child_dir).map_err(|error| format!("{create_error}:{error}"))?;
+    canonicalize_existing_dir(&child_dir, invalid_error)
+}
+
+fn app_data_child_dir_for_app<R: Runtime>(
+    app: &AppHandle<R>,
+    child: &str,
+    create_error: &str,
+    invalid_error: &str,
+) -> Result<PathBuf, String> {
+    let app_data_dir = app_data_dir_for_app(app)?;
+    app_data_child_dir(&app_data_dir, child, create_error, invalid_error)
+}
+
+fn app_data_child_dir(
+    app_data_dir: &Path,
+    child: &str,
+    create_error: &str,
+    invalid_error: &str,
+) -> Result<PathBuf, String> {
+    let child_dir = app_data_dir.join(child);
     fs::create_dir_all(&child_dir).map_err(|error| format!("{create_error}:{error}"))?;
     canonicalize_existing_dir(&child_dir, invalid_error)
 }
@@ -521,6 +560,35 @@ mod tests {
                 && workspace.active
                 && workspace.path.ends_with("workspace/research-notes")
         }));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn shared_app_data_children_use_app_data_root() {
+        let root = create_temp_root("workspace-shared-children");
+        let workspace_root = workspace_home_dir(&root).join("research-notes");
+        fs::create_dir_all(workspace_root.join("library")).unwrap();
+
+        let models = app_data_child_dir(
+            &root,
+            "models",
+            "models_dir_create_failed",
+            "models_dir_invalid",
+        )
+        .unwrap();
+        let supertonic = app_data_child_dir(
+            &root,
+            "supertonic",
+            "supertonic_dir_create_failed",
+            "supertonic_dir_invalid",
+        )
+        .unwrap();
+
+        assert_eq!(models, root.join("models").canonicalize().unwrap());
+        assert_eq!(supertonic, root.join("supertonic").canonicalize().unwrap());
+        assert!(!workspace_root.join("models").exists());
+        assert!(!workspace_root.join("supertonic").exists());
 
         let _ = fs::remove_dir_all(root);
     }

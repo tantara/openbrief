@@ -39,6 +39,13 @@ export const pageShortcutDefinitions = [
     keys: ["modifier", "4"],
   },
   {
+    id: "editor",
+    view: "editor",
+    labelKey: "nav.editor",
+    faqLabelKey: "faq.shortcuts.editor",
+    keys: ["modifier", "5"],
+  },
+  {
     id: "settings",
     view: "settings",
     labelKey: "nav.settings",
@@ -94,6 +101,8 @@ export function viewForShortcutKey(key: string): LibraryView | undefined {
       return "playlists";
     case "4":
       return "voices";
+    case "5":
+      return "editor";
     case "0":
       return "settings";
     default:

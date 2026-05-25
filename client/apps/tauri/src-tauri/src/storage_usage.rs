@@ -29,9 +29,15 @@ pub async fn storage_usage_snapshot<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<StorageUsageSnapshot, String> {
     let workspace_root = crate::workspace::workspace_root_for_app(&app)?;
+    let shared_models_root = crate::workspace::models_dir_for_app(&app)?;
+    let shared_supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        storage_usage_snapshot_for_workspace(&workspace_root)
+        storage_usage_snapshot_for_workspace(
+            &workspace_root,
+            &shared_models_root,
+            &shared_supertonic_root,
+        )
     })
     .await
     .map_err(|error| format!("storage_usage_task_join_failed:{error}"))?
@@ -39,20 +45,24 @@ pub async fn storage_usage_snapshot<R: Runtime>(
 
 fn storage_usage_snapshot_for_workspace(
     workspace_root: &Path,
+    shared_models_root: &Path,
+    shared_supertonic_root: &Path,
 ) -> Result<StorageUsageSnapshot, String> {
     let library_root = workspace_root.join("library");
     let database = database_size(&library_root)?;
     let video = recursive_size(&library_root.join("videos"))?;
     let audio = recursive_size(&library_root.join("audios"))?;
     let pdf = recursive_size(&library_root.join("pdfs"))?;
-    let model_checkpoint = recursive_size(&workspace_root.join("models"))?
-        + recursive_size(&workspace_root.join("supertonic"))?;
+    let csv = recursive_size(&library_root.join("csvs"))?;
+    let model_checkpoint =
+        recursive_size(shared_models_root)? + recursive_size(shared_supertonic_root)?;
 
     Ok(storage_usage_snapshot_from_sizes(
         database,
         video,
         audio,
         pdf,
+        csv,
         model_checkpoint,
         measured_at_iso(),
     ))
@@ -63,15 +73,17 @@ fn storage_usage_snapshot_from_sizes(
     video: u64,
     audio: u64,
     pdf: u64,
+    csv: u64,
     model_checkpoint: u64,
     measured_at_iso: String,
 ) -> StorageUsageSnapshot {
-    let total_bytes = database + video + audio + pdf + model_checkpoint;
+    let total_bytes = database + video + audio + pdf + csv + model_checkpoint;
     let mut items = vec![
         storage_item("database", "Database", database),
         storage_item("video", "Video", video),
         storage_item("audio", "Audio", audio),
         storage_item("pdf", "PDF", pdf),
+        storage_item("csv", "CSV", csv),
         storage_item("model-checkpoint", "Model checkpoint", model_checkpoint),
     ];
 
@@ -211,25 +223,37 @@ mod tests {
     #[test]
     fn computes_storage_snapshot_from_known_roots() {
         let root = create_temp_root("storage-snapshot");
+        let shared = create_temp_root("storage-shared");
         write_bytes(&root.join("library/openbrief.sqlite3"), 10);
         write_bytes(&root.join("library/openbrief.sqlite3-wal"), 5);
         write_bytes(&root.join("library/videos/video-1/source.mp4"), 80);
         write_bytes(&root.join("library/videos/video-1/chat/tts/audio.wav"), 20);
         write_bytes(&root.join("library/audios/audio-1/source.mp3"), 30);
         write_bytes(&root.join("library/pdfs/pdf-1/source.pdf"), 15);
-        write_bytes(&root.join("models/whisper/ggml-small.bin"), 40);
-        write_bytes(&root.join("supertonic/python/site-packages/module.py"), 10);
+        write_bytes(&root.join("library/csvs/csv-1/source.csv"), 12);
+        write_bytes(&shared.join("models/whisper/ggml-small.bin"), 40);
+        write_bytes(
+            &shared.join("supertonic/python/site-packages/module.py"),
+            10,
+        );
 
-        let snapshot = storage_usage_snapshot_for_workspace(&root).unwrap();
+        let snapshot = storage_usage_snapshot_for_workspace(
+            &root,
+            &shared.join("models"),
+            &shared.join("supertonic"),
+        )
+        .unwrap();
 
-        assert_eq!(snapshot.total_bytes, 210);
+        assert_eq!(snapshot.total_bytes, 222);
         assert_eq!(snapshot.items[0].size_bytes, 15);
         assert_eq!(snapshot.items[1].size_bytes, 100);
         assert_eq!(snapshot.items[2].size_bytes, 30);
         assert_eq!(snapshot.items[3].size_bytes, 15);
-        assert_eq!(snapshot.items[4].size_bytes, 50);
+        assert_eq!(snapshot.items[4].size_bytes, 12);
+        assert_eq!(snapshot.items[5].size_bytes, 50);
 
         let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(shared);
     }
 
     #[test]
@@ -240,31 +264,34 @@ mod tests {
             0,
             0,
             0,
+            0,
             "2026-05-24T00:00:00.000Z".to_string(),
         );
 
         assert_eq!(snapshot.total_bytes, 0);
-        assert_eq!(snapshot.items.len(), 5);
+        assert_eq!(snapshot.items.len(), 6);
         assert!(snapshot.items.iter().all(|item| item.percentage == 0.0));
     }
 
     #[test]
-    fn computes_percentages_from_five_category_total() {
+    fn computes_percentages_from_category_total() {
         let snapshot = storage_usage_snapshot_from_sizes(
             1,
             2,
             3,
             4,
+            5,
             10,
             "2026-05-24T00:00:00.000Z".to_string(),
         );
 
-        assert_eq!(snapshot.total_bytes, 20);
-        assert_eq!(snapshot.items[0].percentage, 5.0);
-        assert_eq!(snapshot.items[1].percentage, 10.0);
-        assert_eq!(snapshot.items[2].percentage, 15.0);
-        assert_eq!(snapshot.items[3].percentage, 20.0);
-        assert_eq!(snapshot.items[4].percentage, 50.0);
+        assert_eq!(snapshot.total_bytes, 25);
+        assert_eq!(snapshot.items[0].percentage, 4.0);
+        assert_eq!(snapshot.items[1].percentage, 8.0);
+        assert_eq!(snapshot.items[2].percentage, 12.0);
+        assert_eq!(snapshot.items[3].percentage, 16.0);
+        assert_eq!(snapshot.items[4].percentage, 20.0);
+        assert_eq!(snapshot.items[5].percentage, 40.0);
     }
 
     #[test]

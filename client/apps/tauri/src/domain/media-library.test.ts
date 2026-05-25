@@ -1,29 +1,29 @@
-import { describe, expect, it } from "vitest";
 import {
-  createLibraryRelativePath,
   addVideoToPlaylist,
   createChatSessionArtifactPath,
-  createVideoPlaylist,
-  createVideoEvidenceAnchors,
-  filterVideoLibrary,
-  playlistVideos,
-  renameVideoPlaylist,
-  reorderPlaylistVideos,
-  setVideoPlaylistCover,
+  createLibraryRelativePath,
   createSummaryArtifactPath,
-  createVideoArtifactDirectory,
   createVideoArtifactBundle,
-  createVideoBundleManifest,
+  createVideoArtifactDirectory,
   createVideoAudioArtifactPath,
+  createVideoBundleManifest,
+  createVideoEvidenceAnchors,
   createVideoFrameArtifactPath,
+  createVideoPlaylist,
   createVideoPosterArtifactPath,
   createVideoTranscriptArtifactDirectory,
   createVideoTranscriptJsonArtifactPath,
+  filterVideoLibrary,
   getStoragePolicy,
   libraryDirectories,
+  playlistVideos,
+  renameVideoPlaylist,
+  reorderPlaylistVideos,
   sanitizePathSegment,
   selectTranscriptSource,
+  setVideoPlaylistCover,
 } from "@/domain/media-library";
+import { describe, expect, it } from "vitest";
 
 describe("media library contracts", () => {
   it("keeps the planned app-managed library directories stable", () => {
@@ -31,6 +31,7 @@ describe("media library contracts", () => {
       "videos",
       "audios",
       "pdfs",
+      "csvs",
       "playlists",
       "thumbnails",
       "transcripts",
@@ -40,9 +41,15 @@ describe("media library contracts", () => {
   });
 
   it("copies local imports into app-managed storage on every platform", () => {
-    expect(getStoragePolicy("macos")?.localImportStrategy).toBe("copy-into-library");
-    expect(getStoragePolicy("windows")?.localImportStrategy).toBe("copy-into-library");
-    expect(getStoragePolicy("linux")?.localImportStrategy).toBe("copy-into-library");
+    expect(getStoragePolicy("macos")?.localImportStrategy).toBe(
+      "copy-into-library",
+    );
+    expect(getStoragePolicy("windows")?.localImportStrategy).toBe(
+      "copy-into-library",
+    );
+    expect(getStoragePolicy("linux")?.localImportStrategy).toBe(
+      "copy-into-library",
+    );
   });
 
   it("prefers YouTube captions before local STT", () => {
@@ -52,9 +59,9 @@ describe("media library contracts", () => {
 
   it("sanitizes path segments before constructing library paths", () => {
     expect(sanitizePathSegment("../bad/name.mp4")).toBe("bad-name.mp4");
-    expect(createLibraryRelativePath("videos", "../asset", "source file.mp4")).toBe(
-      "videos/asset/source-file.mp4",
-    );
+    expect(
+      createLibraryRelativePath("videos", "../asset", "source file.mp4"),
+    ).toBe("videos/asset/source-file.mp4");
   });
 
   it("keeps per-video artifact paths under the video directory", () => {
@@ -124,6 +131,8 @@ describe("media library contracts", () => {
         transcriptVariantPaths: [],
         summaryPaths: ["videos/video-1/summary/summary-1/summary.md"],
         chatSessionPaths: ["videos/video-1/chat/default.jsonl"],
+        videoGenerationCompositionPaths: [],
+        videoGenerationRenderPaths: [],
       },
     });
   });
@@ -313,32 +322,56 @@ describe("media library contracts", () => {
       filterVideoLibrary({ videos, query: { sortBy: "created_at" } }).map(
         (video) => video.id,
       ),
-    ).toEqual(["newer-medium-large", "middle-long-medium", "older-short-small"]);
+    ).toEqual([
+      "newer-medium-large",
+      "middle-long-medium",
+      "older-short-small",
+    ]);
     expect(
       filterVideoLibrary({ videos, query: { sortBy: "created_at_asc" } }).map(
         (video) => video.id,
       ),
-    ).toEqual(["older-short-small", "middle-long-medium", "newer-medium-large"]);
+    ).toEqual([
+      "older-short-small",
+      "middle-long-medium",
+      "newer-medium-large",
+    ]);
     expect(
       filterVideoLibrary({ videos, query: { sortBy: "time" } }).map(
         (video) => video.id,
       ),
-    ).toEqual(["middle-long-medium", "newer-medium-large", "older-short-small"]);
+    ).toEqual([
+      "middle-long-medium",
+      "newer-medium-large",
+      "older-short-small",
+    ]);
     expect(
       filterVideoLibrary({ videos, query: { sortBy: "time_asc" } }).map(
         (video) => video.id,
       ),
-    ).toEqual(["older-short-small", "newer-medium-large", "middle-long-medium"]);
+    ).toEqual([
+      "older-short-small",
+      "newer-medium-large",
+      "middle-long-medium",
+    ]);
     expect(
       filterVideoLibrary({ videos, query: { sortBy: "size" } }).map(
         (video) => video.id,
       ),
-    ).toEqual(["newer-medium-large", "middle-long-medium", "older-short-small"]);
+    ).toEqual([
+      "newer-medium-large",
+      "middle-long-medium",
+      "older-short-small",
+    ]);
     expect(
       filterVideoLibrary({ videos, query: { sortBy: "size_asc" } }).map(
         (video) => video.id,
       ),
-    ).toEqual(["older-short-small", "middle-long-medium", "newer-medium-large"]);
+    ).toEqual([
+      "older-short-small",
+      "middle-long-medium",
+      "newer-medium-large",
+    ]);
   });
 
   it("creates, renames, appends, and reorders playlist videos", () => {

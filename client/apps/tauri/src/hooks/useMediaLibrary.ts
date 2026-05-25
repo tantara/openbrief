@@ -45,6 +45,10 @@ import type {
   TranscriptLanguageOption,
   TranscriptVariant,
 } from "@/domain/transcript-actions";
+import type {
+  VideoGenerationComposition,
+  VideoGenerationRender,
+} from "@/domain/video-generation";
 import type { HelperClient } from "@/services/fakeHelperClient";
 import type { IngestService } from "@/services/ingestService";
 import type {
@@ -68,6 +72,7 @@ import { createPodcastDocument, createPodcastId } from "@/domain/podcast";
 import { normalizeQuestionCount } from "@/domain/quiz";
 import { createTranscriptJobId } from "@/domain/transcript";
 import { createTranscriptSourceVariant } from "@/domain/transcript-actions";
+import { userFacingAiRequestErrorMessage } from "@/domain/user-facing-error";
 import { FakeHelperClient } from "@/services/fakeHelperClient";
 import {
   createMockIngestService,
@@ -89,6 +94,7 @@ import { createHelperTranscriptService } from "@/services/transcriptService";
 export type LibraryView =
   | "finder"
   | "workbench"
+  | "editor"
   | "playlists"
   | "voices"
   | "settings"
@@ -115,6 +121,9 @@ export type MediaLibraryState = {
   quizzesByVideoId: Record<string, QuizDocument>;
   quizHistoryByVideoId: Record<string, QuizDocument[]>;
   quizJobsByVideoId: Record<string, QuizGenerationJob>;
+  videoGenerationsBySourceId: Record<string, VideoGenerationComposition>;
+  videoGenerationHistoryBySourceId: Record<string, VideoGenerationComposition[]>;
+  videoGenerationRendersByCompositionId: Record<string, VideoGenerationRender[]>;
   activeChatSessionIdsByVideoId: Record<string, string>;
   playlists: VideoPlaylist[];
 };
@@ -529,8 +538,7 @@ export function useMediaLibrary(
         status: "failed",
         provider,
         model,
-        errorMessage:
-          error instanceof Error ? error.message : "summary_generation_failed",
+        errorMessage: userFacingAiRequestErrorMessage(error),
       });
       throw error;
     } finally {
@@ -618,7 +626,7 @@ export function useMediaLibrary(
         status: "failed",
         provider,
         model,
-        errorMessage: error instanceof Error ? error.message : "chat_failed",
+        errorMessage: userFacingAiRequestErrorMessage(error),
       });
       throw error;
     }
@@ -1311,6 +1319,11 @@ export function useMediaLibrary(
       quizzesByVideoId: librarySnapshot.quizzesByVideoId,
       quizHistoryByVideoId: librarySnapshot.quizHistoryByVideoId,
       quizJobsByVideoId,
+      videoGenerationsBySourceId: librarySnapshot.videoGenerationsBySourceId,
+      videoGenerationHistoryBySourceId:
+        librarySnapshot.videoGenerationHistoryBySourceId,
+      videoGenerationRendersByCompositionId:
+        librarySnapshot.videoGenerationRendersByCompositionId,
       activeChatSessionIdsByVideoId,
       playlists: librarySnapshot.playlists,
     } satisfies MediaLibraryState,
@@ -1346,6 +1359,8 @@ export function useMediaLibrary(
     deleteVideo,
     updateTranscriptSegment,
     updateSummaryMarkdown,
+    saveVideoGenerationComposition,
+    saveVideoGenerationRender,
     createPlaylist,
     renamePlaylist,
     setPlaylistCover,
@@ -1387,6 +1402,48 @@ function setChatJob(videoId: string, job: AiGenerationJob) {
 
   function clearChatJob(videoId: string) {
     setChatJobsByVideoId((current) => omitRecordKey(current, videoId));
+  }
+
+  function saveVideoGenerationComposition(
+    composition: VideoGenerationComposition,
+  ) {
+    updateLibrarySnapshot((current) => {
+      const history = current.videoGenerationHistoryBySourceId[composition.sourceId] ?? [];
+      const nextHistory = [
+        composition,
+        ...history.filter((candidate) => candidate.id !== composition.id),
+      ].sort(compareVideoGenerationUpdatedAtDesc);
+
+      return {
+        ...current,
+        videoGenerationsBySourceId: {
+          ...current.videoGenerationsBySourceId,
+          [composition.sourceId]: composition,
+        },
+        videoGenerationHistoryBySourceId: {
+          ...current.videoGenerationHistoryBySourceId,
+          [composition.sourceId]: nextHistory,
+        },
+      };
+    }, true);
+  }
+
+  function saveVideoGenerationRender(render: VideoGenerationRender) {
+    updateLibrarySnapshot((current) => {
+      const renders =
+        current.videoGenerationRendersByCompositionId[render.compositionId] ?? [];
+
+      return {
+        ...current,
+        videoGenerationRendersByCompositionId: {
+          ...current.videoGenerationRendersByCompositionId,
+          [render.compositionId]: [
+            render,
+            ...renders.filter((candidate) => candidate.id !== render.id),
+          ],
+        },
+      };
+    }, true);
   }
 
   function setPodcastJob(videoId: string, job: PodcastGenerationJob) {
@@ -1708,6 +1765,16 @@ function updateIngestJob(
   patch: Partial<IngestJob>,
 ) {
   return jobs.map((job) => (job.id === jobId ? { ...job, ...patch } : job));
+}
+
+function compareVideoGenerationUpdatedAtDesc(
+  left: VideoGenerationComposition,
+  right: VideoGenerationComposition,
+) {
+  return (
+    (Date.parse(right.updatedAtIso ?? right.createdAtIso) || 0) -
+    (Date.parse(left.updatedAtIso ?? left.createdAtIso) || 0)
+  );
 }
 
 function createDefaultIngestService() {

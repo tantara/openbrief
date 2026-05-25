@@ -229,6 +229,42 @@ fn save_media_library_snapshot_to_connection(
         )?;
     }
 
+    for (source_id, compositions) in object_field(snapshot, "videoGenerationHistoryBySourceId") {
+        for composition in as_array(compositions) {
+            insert_record(
+                &tx,
+                "video_generation_composition",
+                &format!("{source_id}:{}", value_id(composition)),
+                Some(source_id),
+                value_updated_sort_key(composition),
+                composition,
+            )?;
+        }
+    }
+    for (source_id, composition) in object_field(snapshot, "videoGenerationsBySourceId") {
+        insert_record(
+            &tx,
+            "video_generation_composition",
+            &format!("{source_id}:{}", value_id(composition)),
+            Some(source_id),
+            value_updated_sort_key(composition),
+            composition,
+        )?;
+    }
+    for (composition_id, renders) in object_field(snapshot, "videoGenerationRendersByCompositionId")
+    {
+        for render in as_array(renders) {
+            insert_record(
+                &tx,
+                "video_generation_render",
+                &format!("{composition_id}:{}", value_id(render)),
+                Some(composition_id),
+                value_sort_key(render),
+                render,
+            )?;
+        }
+    }
+
     tx.commit()
         .map_err(|error| format!("media_library_db_commit_failed:{error}"))?;
 
@@ -358,6 +394,9 @@ fn load_media_library_snapshot_from_connection(
     let mut summaries_by_video_id = Map::new();
     let mut chat_messages_by_video_id: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let mut podcast_history_by_video_id: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    let mut video_generation_history_by_source_id: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    let mut video_generation_renders_by_composition_id: BTreeMap<String, Vec<Value>> =
+        BTreeMap::new();
 
     for row in rows {
         let (kind, key, video_id, json_text) =
@@ -405,6 +444,22 @@ fn load_media_library_snapshot_from_connection(
                         .push(value);
                 }
             }
+            "video_generation_composition" => {
+                if let Some(source_id) = video_id {
+                    video_generation_history_by_source_id
+                        .entry(source_id)
+                        .or_default()
+                        .push(value);
+                }
+            }
+            "video_generation_render" => {
+                if let Some(composition_id) = video_id {
+                    video_generation_renders_by_composition_id
+                        .entry(composition_id)
+                        .or_default()
+                        .push(value);
+                }
+            }
             _ => {}
         }
     }
@@ -418,6 +473,16 @@ fn load_media_library_snapshot_from_connection(
             podcasts_by_video_id.insert(video_id.clone(), latest.clone());
         }
     }
+    let mut video_generations_by_source_id = Map::new();
+    for (source_id, compositions) in &mut video_generation_history_by_source_id {
+        sort_updated_at_desc(compositions);
+        if let Some(latest) = compositions.first() {
+            video_generations_by_source_id.insert(source_id.clone(), latest.clone());
+        }
+    }
+    for renders in video_generation_renders_by_composition_id.values_mut() {
+        sort_created_at_desc(renders);
+    }
 
     Ok(json!({
         "videos": videos,
@@ -430,6 +495,9 @@ fn load_media_library_snapshot_from_connection(
         "chatMessagesByVideoId": chat_messages_by_video_id,
         "podcastsByVideoId": podcasts_by_video_id,
         "podcastHistoryByVideoId": podcast_history_by_video_id,
+        "videoGenerationsBySourceId": video_generations_by_source_id,
+        "videoGenerationHistoryBySourceId": video_generation_history_by_source_id,
+        "videoGenerationRendersByCompositionId": video_generation_renders_by_composition_id,
     }))
 }
 
@@ -570,7 +638,12 @@ fn podcast_audio_exists(library_root: &Path, podcast: &Value) -> Result<bool, St
 fn write_video_bundle_manifests(library_root: &Path, snapshot: &Value) -> Result<(), String> {
     for video in array_field(snapshot, "videos") {
         let video_id = value_id(video);
-        let manifest_path = video_bundle_manifest_path(video_id);
+        let manifest_path = video
+            .get("libraryPath")
+            .and_then(Value::as_str)
+            .and_then(|library_path| asset_directory_from_library_path(library_path).ok())
+            .map(|asset_directory| format!("{asset_directory}/openbrief-video.json"))
+            .unwrap_or_else(|| video_bundle_manifest_path(video_id));
         let mut artifacts = Map::new();
         if let Some(thumbnail_path) = video.get("thumbnailPath").and_then(Value::as_str) {
             artifacts.insert(
@@ -600,6 +673,16 @@ fn write_video_bundle_manifests(library_root: &Path, snapshot: &Value) -> Result
         artifacts.insert(
             "podcastAudioPaths".to_string(),
             string_array_value(podcast_audio_paths_for_video(snapshot, video_id)),
+        );
+        artifacts.insert(
+            "videoGenerationCompositionPaths".to_string(),
+            string_array_value(video_generation_composition_paths_for_source(
+                snapshot, video_id,
+            )),
+        );
+        artifacts.insert(
+            "videoGenerationRenderPaths".to_string(),
+            string_array_value(video_generation_render_paths_for_source(snapshot, video_id)),
         );
         let manifest = json!({
             "schemaVersion": 1,
@@ -743,8 +826,9 @@ fn validate_library_relative_artifact_path(relative_path: &str) -> Result<(), St
     let relative = PathBuf::from(relative_path);
 
     let mut components = relative.components();
-    if !matches!(components.next(), Some(Component::Normal(segment)) if segment == "videos") {
-        return Err("media_library_artifact_path_must_start_with_videos".to_string());
+    if !matches!(components.next(), Some(Component::Normal(segment)) if segment == "videos" || segment == "audios" || segment == "pdfs" || segment == "csvs")
+    {
+        return Err("media_library_artifact_path_must_start_with_asset_directory".to_string());
     }
 
     if relative.components().any(|component| {
@@ -787,7 +871,7 @@ fn asset_directory_from_library_path(relative_path: &str) -> Result<String, Stri
         return Err("media_library_asset_path_missing_asset_id".to_string());
     };
     let directory = directory.to_string_lossy();
-    if !matches!(directory.as_ref(), "videos" | "audios" | "pdfs") {
+    if !matches!(directory.as_ref(), "videos" | "audios" | "pdfs" | "csvs") {
         return Err("media_library_asset_path_unsupported_directory".to_string());
     }
 
@@ -854,11 +938,28 @@ fn value_sort_key(value: &Value) -> Option<String> {
         .map(str::to_string)
 }
 
+fn value_updated_sort_key(value: &Value) -> Option<String> {
+    value
+        .get("updatedAtIso")
+        .or_else(|| value.get("createdAtIso"))
+        .or_else(|| value.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
 fn sort_created_at_desc(values: &mut [Value]) {
     values.sort_by(|left, right| {
         value_sort_key(right)
             .unwrap_or_default()
             .cmp(&value_sort_key(left).unwrap_or_default())
+    });
+}
+
+fn sort_updated_at_desc(values: &mut [Value]) {
+    values.sort_by(|left, right| {
+        value_updated_sort_key(right)
+            .unwrap_or_default()
+            .cmp(&value_updated_sort_key(left).unwrap_or_default())
     });
 }
 
@@ -1007,6 +1108,71 @@ fn podcast_audio_paths_for_video(snapshot: &Value, video_id: &str) -> Vec<String
     podcast_artifact_paths_for_video(snapshot, video_id, "podcastAudioPath")
 }
 
+fn video_generation_composition_paths_for_source(snapshot: &Value, source_id: &str) -> Vec<String> {
+    let mut paths = object_field(snapshot, "videoGenerationHistoryBySourceId")
+        .find(|(candidate_source_id, _)| *candidate_source_id == source_id)
+        .map(|(_, compositions)| {
+            as_array(compositions)
+                .iter()
+                .filter_map(|composition| {
+                    composition
+                        .get("manifestPath")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if let Some(latest_path) = object_field(snapshot, "videoGenerationsBySourceId")
+        .find(|(candidate_source_id, _)| *candidate_source_id == source_id)
+        .and_then(|(_, composition)| {
+            composition
+                .get("manifestPath")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+    {
+        paths.push(latest_path);
+    }
+
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
+fn video_generation_render_paths_for_source(snapshot: &Value, source_id: &str) -> Vec<String> {
+    let composition_ids = object_field(snapshot, "videoGenerationHistoryBySourceId")
+        .find(|(candidate_source_id, _)| *candidate_source_id == source_id)
+        .map(|(_, compositions)| {
+            as_array(compositions)
+                .iter()
+                .filter_map(|composition| composition.get("id").and_then(Value::as_str))
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut paths = Vec::new();
+
+    for composition_id in composition_ids {
+        if let Some(renders) = object_field(snapshot, "videoGenerationRendersByCompositionId")
+            .find(|(candidate_composition_id, _)| *candidate_composition_id == composition_id)
+            .map(|(_, renders)| as_array(renders))
+        {
+            paths.extend(renders.iter().filter_map(|render| {
+                render
+                    .get("outputPath")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            }));
+        }
+    }
+
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
 fn podcast_artifact_paths_for_video(
     snapshot: &Value,
     video_id: &str,
@@ -1148,6 +1314,15 @@ mod tests {
             reloaded["podcastHistoryByVideoId"]["video-1"][0]["artifacts"]["podcastAudioPath"],
             "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/podcast.wav"
         );
+        assert_eq!(
+            reloaded["videoGenerationsBySourceId"]["video-1"]["id"],
+            "composition-video-1-2026-05-21"
+        );
+        assert_eq!(
+            reloaded["videoGenerationRendersByCompositionId"]["composition-video-1-2026-05-21"][0]
+                ["outputPath"],
+            "videos/video-1/generated-video/composition-video-1-2026-05-21/render.mp4"
+        );
         let manifest: Value = serde_json::from_str(
             &fs::read_to_string(library.join("videos/video-1/openbrief-video.json")).unwrap(),
         )
@@ -1177,6 +1352,14 @@ mod tests {
         assert_eq!(
             manifest["artifacts"]["podcastAudioPaths"][0],
             "videos/video-1/podcast/podcast-video-1-2026-05-21/audio/podcast.wav"
+        );
+        assert_eq!(
+            manifest["artifacts"]["videoGenerationCompositionPaths"][0],
+            "videos/video-1/generated-video/composition-video-1-2026-05-21/composition.json"
+        );
+        assert_eq!(
+            manifest["artifacts"]["videoGenerationRenderPaths"][0],
+            "videos/video-1/generated-video/composition-video-1-2026-05-21/render.mp4"
         );
     }
 
@@ -1280,7 +1463,19 @@ mod tests {
     fn rejects_artifacts_outside_video_directories() {
         assert_eq!(
             validate_library_relative_artifact_path("summaries/video-1.md").unwrap_err(),
-            "media_library_artifact_path_must_start_with_videos"
+            "media_library_artifact_path_must_start_with_asset_directory"
+        );
+        assert!(validate_library_relative_artifact_path(
+            "audios/audio-1/generated-video/c/index.html"
+        )
+        .is_ok());
+        assert!(
+            validate_library_relative_artifact_path("pdfs/pdf-1/generated-video/c/index.html")
+                .is_ok()
+        );
+        assert!(
+            validate_library_relative_artifact_path("csvs/csv-1/generated-video/c/index.html")
+                .is_ok()
         );
         assert_eq!(
             validate_library_relative_artifact_path("videos/video-1/../bad.md").unwrap_err(),
@@ -1423,6 +1618,54 @@ mod tests {
             },
             "podcastHistoryByVideoId": {
                 "video-1": [podcast]
+            },
+            "videoGenerationsBySourceId": {
+                "video-1": {
+                    "id": "composition-video-1-2026-05-21",
+                    "sourceId": "video-1",
+                    "sourceType": "video",
+                    "scenario": "summary-to-video",
+                    "adapter": "deno-hyperframes",
+                    "title": "Design Review",
+                    "prompt": "Make a concise briefing.",
+                    "html": "<html></html>",
+                    "entryPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/index.html",
+                    "manifestPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/composition.json",
+                    "renderPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/render.mp4",
+                    "durationSeconds": 45,
+                    "aspectRatio": "16:9",
+                    "createdAtIso": "2026-05-21T00:06:00.000Z",
+                    "updatedAtIso": "2026-05-21T00:06:00.000Z"
+                }
+            },
+            "videoGenerationHistoryBySourceId": {
+                "video-1": [{
+                    "id": "composition-video-1-2026-05-21",
+                    "sourceId": "video-1",
+                    "sourceType": "video",
+                    "scenario": "summary-to-video",
+                    "adapter": "deno-hyperframes",
+                    "title": "Design Review",
+                    "prompt": "Make a concise briefing.",
+                    "html": "<html></html>",
+                    "entryPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/index.html",
+                    "manifestPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/composition.json",
+                    "renderPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/render.mp4",
+                    "durationSeconds": 45,
+                    "aspectRatio": "16:9",
+                    "createdAtIso": "2026-05-21T00:06:00.000Z",
+                    "updatedAtIso": "2026-05-21T00:06:00.000Z"
+                }]
+            },
+            "videoGenerationRendersByCompositionId": {
+                "composition-video-1-2026-05-21": [{
+                    "id": "render-composition-video-1-2026-05-21",
+                    "compositionId": "composition-video-1-2026-05-21",
+                    "sourceId": "video-1",
+                    "adapter": "deno-hyperframes",
+                    "outputPath": "videos/video-1/generated-video/composition-video-1-2026-05-21/render.mp4",
+                    "createdAtIso": "2026-05-21T00:07:00.000Z"
+                }]
             }
         })
     }

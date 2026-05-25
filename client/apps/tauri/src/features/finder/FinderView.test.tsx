@@ -1,7 +1,3 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { FinderView } from "@/features/finder/FinderView";
 import type {
   SummaryDocument,
   TranscriptSegment,
@@ -9,7 +5,17 @@ import type {
   VideoLibraryQuery,
 } from "@/domain/media-library";
 import type { PodcastDocument } from "@/domain/podcast";
+import { useState } from "react";
+import { FinderView } from "@/features/finder/FinderView";
 import { generateVideoThumbnail } from "@/services/browserThumbnail";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/browserThumbnail", () => ({
   generateVideoThumbnail: vi.fn(async () => "blob:generated-thumbnail"),
@@ -51,6 +57,15 @@ const pdf: VideoAsset = {
   libraryPath: "documents/pdf-1/research.pdf",
   durationSeconds: undefined,
   pageCount: 12,
+};
+const csv: VideoAsset = {
+  ...video,
+  id: "csv-1",
+  title: "Revenue metrics",
+  sourceType: "csv",
+  originalUri: "file:///tmp/revenue.csv",
+  libraryPath: "csvs/csv-1/revenue.csv",
+  durationSeconds: undefined,
 };
 
 const defaultProps = {
@@ -127,20 +142,24 @@ describe("FinderView", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: /add video/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /add video/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /how to use openbrief/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/download or import a video/i)).toBeInTheDocument();
-    expect(screen.getByText(/generate a blog-style markdown summary/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/generate a blog-style markdown summary/i),
+    ).toBeInTheDocument();
 
-  const tutorialLink = screen.getByRole("link", { name: /open tutorial/i });
-  expect(tutorialLink).toHaveAttribute("href", "/tutorial");
-  expect(tutorialLink).toHaveClass("px-3");
-  expect(tutorialLink).not.toHaveClass("px-0");
-  fireEvent.click(tutorialLink);
-  expect(onOpenTutorial).toHaveBeenCalled();
-});
+    const tutorialLink = screen.getByRole("link", { name: /open tutorial/i });
+    expect(tutorialLink).toHaveAttribute("href", "/tutorial");
+    expect(tutorialLink).toHaveClass("px-3");
+    expect(tutorialLink).not.toHaveClass("px-0");
+    fireEvent.click(tutorialLink);
+    expect(onOpenTutorial).toHaveBeenCalled();
+  });
 
   it("opens the shared add video dialog from the no matches state", () => {
     const onAddVideo = vi.fn();
@@ -175,8 +194,9 @@ describe("FinderView", () => {
     expect(screen.getByText("2:05")).toBeInTheDocument();
     expect(screen.getByText("5.0 MB")).toBeInTheDocument();
     expect(screen.getByText("Video · ready")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sample creator/i }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /sample creator/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("No transcript")).toBeInTheDocument();
     expect(screen.getByText("No summary")).toBeInTheDocument();
     expect(screen.getByTitle("Architecture walkthrough")).toHaveAttribute(
@@ -189,7 +209,9 @@ describe("FinderView", () => {
     );
     expect(defaultProps.onOpenVideo).toHaveBeenCalledWith("video-thumb");
 
-    fireEvent.click(screen.getByRole("button", { name: /play architecture walkthrough/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /play architecture walkthrough/i }),
+    );
     expect(onPlayVideo).toHaveBeenCalledWith("video-thumb");
   });
 
@@ -213,7 +235,9 @@ describe("FinderView", () => {
       screen.getByRole("button", { name: /open interview audio/i }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /play interview audio/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /play interview audio/i }),
+    );
     expect(onPlayVideo).toHaveBeenCalledWith("audio-1");
     expect(generateVideoThumbnail).not.toHaveBeenCalled();
   });
@@ -221,7 +245,9 @@ describe("FinderView", () => {
   it("hides video-only artifact downloads for audio cards", async () => {
     render(<FinderView videos={[audio]} {...defaultProps} />);
 
-    const menu = await openDropdownMenu(/download artifacts for interview audio/i);
+    const menu = await openDropdownMenu(
+      /download artifacts for interview audio/i,
+    );
 
     expect(menu.getByText("Audio")).toBeInTheDocument();
     expect(menu.queryByText("Video")).not.toBeInTheDocument();
@@ -233,6 +259,89 @@ describe("FinderView", () => {
 
     expect(screen.getByText("PDF · ready")).toBeInTheDocument();
     expect(screen.getByText("12 pages")).toBeInTheDocument();
+    expect(screen.queryByText("No transcript")).not.toBeInTheDocument();
+  });
+
+  it("shows the first PDF page as a top-cropped library thumbnail", () => {
+    vi.mocked(generateVideoThumbnail).mockClear();
+
+    render(<FinderView videos={[pdf]} {...defaultProps} />);
+
+    const preview = screen.getByTitle("Research paper");
+    expect(preview.tagName).toBe("IFRAME");
+    expect(preview).toHaveAttribute(
+      "src",
+      "documents/pdf-1/research.pdf#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+    );
+    expect(preview).toHaveClass("top-0");
+    expect(generateVideoThumbnail).not.toHaveBeenCalled();
+  });
+
+  it("opens imported PDFs in Note from the inline library action", () => {
+    const onOpenVideo = vi.fn();
+    render(
+      <FinderView videos={[pdf]} {...defaultProps} onOpenVideo={onOpenVideo} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /open research paper in note/i }),
+    );
+
+    expect(onOpenVideo).toHaveBeenCalledWith("pdf-1");
+  });
+
+  it("shows a PDF download choice from the PDF card", async () => {
+    const onDownloadArtifact = vi.fn();
+    render(
+      <FinderView
+        videos={[pdf]}
+        {...defaultProps}
+        onDownloadArtifact={onDownloadArtifact}
+      />,
+    );
+
+    const menu = await openDropdownMenu(
+      /download artifacts for research paper/i,
+    );
+    expect(menu.getByText("PDF")).toBeInTheDocument();
+    expect(menu.queryByText("Video")).not.toBeInTheDocument();
+    expect(menu.queryByText("Thumbnail")).not.toBeInTheDocument();
+    expect(menu.queryByText("Audio")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^pdf/i }));
+
+    expect(onDownloadArtifact).toHaveBeenCalledWith(pdf, "pdf");
+  });
+
+  it("shows a CSV download choice from the CSV card", async () => {
+    const onDownloadArtifact = vi.fn();
+    const onOpenVideo = vi.fn();
+    render(
+      <FinderView
+        videos={[csv]}
+        {...defaultProps}
+        onOpenVideo={onOpenVideo}
+        onDownloadArtifact={onDownloadArtifact}
+      />,
+    );
+
+    expect(screen.getByText("CSV · ready")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /open revenue metrics in note/i }),
+    );
+    expect(onOpenVideo).toHaveBeenCalledWith("csv-1");
+
+    const menu = await openDropdownMenu(
+      /download artifacts for revenue metrics/i,
+    );
+    expect(menu.getByText("CSV")).toBeInTheDocument();
+    expect(menu.queryByText("Video")).not.toBeInTheDocument();
+    expect(menu.queryByText("Thumbnail")).not.toBeInTheDocument();
+    expect(menu.queryByText("Audio")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^csv/i }));
+
+    expect(onDownloadArtifact).toHaveBeenCalledWith(csv, "csv");
   });
 
   it("shows default download artifact choices from the video card", async () => {
@@ -261,7 +370,10 @@ describe("FinderView", () => {
     await openDropdownMenu(/download artifacts for architecture walkthrough/i);
     fireEvent.click(screen.getByRole("menuitem", { name: /^video/i }));
 
-    expect(onDownloadArtifact).toHaveBeenCalledWith(videoWithThumbnail, "video");
+    expect(onDownloadArtifact).toHaveBeenCalledWith(
+      videoWithThumbnail,
+      "video",
+    );
   });
 
   it("adds summary to download choices when a saved summary exists", async () => {
@@ -276,7 +388,8 @@ describe("FinderView", () => {
             markdown: "# Summary",
             provider: "openai",
             sourceSegmentCount: 1,
-            artifactPath: "videos/video-thumb/summary/summary-video-thumb/summary.md",
+            artifactPath:
+              "videos/video-thumb/summary/summary-video-thumb/summary.md",
             createdAtIso: "2026-05-21T00:00:00.000Z",
           },
         }}
@@ -344,7 +457,9 @@ describe("FinderView", () => {
         "https://www.youtube.com/watch?v=abc123",
       ),
     );
-    await waitFor(() => expect(copyItem).toHaveAttribute("data-copied", "true"));
+    await waitFor(() =>
+      expect(copyItem).toHaveAttribute("data-copied", "true"),
+    );
   });
 
   it("opens the original provider URL from the video action menu for remote imports", async () => {
@@ -390,10 +505,16 @@ describe("FinderView", () => {
   it("hides provider link actions for desktop imports", async () => {
     render(<FinderView videos={[video]} {...defaultProps} />);
 
-    const menu = await openDropdownMenu(/video actions for architecture walkthrough/i);
+    const menu = await openDropdownMenu(
+      /video actions for architecture walkthrough/i,
+    );
 
-    expect(menu.queryByRole("menuitem", { name: /open youtube/i })).not.toBeInTheDocument();
-    expect(menu.queryByRole("menuitem", { name: /copy link/i })).not.toBeInTheDocument();
+    expect(
+      menu.queryByRole("menuitem", { name: /open youtube/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      menu.queryByRole("menuitem", { name: /copy link/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens a delete confirmation dialog from the video action menu", async () => {
@@ -425,8 +546,9 @@ describe("FinderView", () => {
     await openDropdownMenu(/audio actions for interview audio/i);
     fireEvent.click(screen.getByRole("menuitem", { name: /^delete$/i }));
 
-    expect(screen.getByRole("dialog", { name: /delete audio/i }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /delete audio/i }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
 
     await openDropdownMenu(/pdf actions for research paper/i);
@@ -537,11 +659,11 @@ describe("FinderView", () => {
 
     function ControlledFinder() {
       const [query, setQuery] = useState<VideoLibraryQuery>({
-          searchText: "component boundaries",
-          sourceKind: "all",
-          transcriptStatus: "all",
-          summaryStatus: "all",
-          podcastStatus: "all",
+        searchText: "component boundaries",
+        sourceKind: "all",
+        transcriptStatus: "all",
+        summaryStatus: "all",
+        podcastStatus: "all",
       });
 
       return (
@@ -603,24 +725,39 @@ describe("FinderView", () => {
     );
 
     await chooseSelectOption(/sort videos/i, /longest/i);
-    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(["Medium Long", "Large Medium", "Small Short"]);
+    expect(
+      screen
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Medium Long", "Large Medium", "Small Short"]);
 
     await chooseSelectOption(/sort videos/i, /shortest/i);
-    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(["Small Short", "Large Medium", "Medium Long"]);
+    expect(
+      screen
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Small Short", "Large Medium", "Medium Long"]);
 
     await chooseSelectOption(/sort videos/i, /largest/i);
-    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(["Large Medium", "Medium Long", "Small Short"]);
+    expect(
+      screen
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Large Medium", "Medium Long", "Small Short"]);
 
     await chooseSelectOption(/sort videos/i, /smallest/i);
-    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(["Small Short", "Medium Long", "Large Medium"]);
+    expect(
+      screen
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Small Short", "Medium Long", "Large Medium"]);
 
     await chooseSelectOption(/sort videos/i, /oldest/i);
-    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(["Small Short", "Large Medium", "Medium Long"]);
+    expect(
+      screen
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Small Short", "Large Medium", "Medium Long"]);
   });
 
   it("paginates finder results at 24 videos per page", () => {
@@ -647,7 +784,9 @@ describe("FinderView", () => {
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
     expect(screen.getByLabelText(/finder page/i)).toHaveTextContent("2/2");
-    expect(screen.getByRole("button", { name: /previous/i })).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /previous/i }),
+    ).not.toBeDisabled();
     expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
     expect(screen.getByText("Video 01")).toBeInTheDocument();
     expect(screen.queryByText("Video 25")).not.toBeInTheDocument();
@@ -672,7 +811,9 @@ describe("FinderView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /select from computer/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /select from computer/i }),
+    );
 
     await waitFor(() => {
       expect(fileDialogService.selectVideoFile).toHaveBeenCalled();
@@ -686,7 +827,9 @@ describe("FinderView", () => {
     fireEvent.click(screen.getByRole("button", { name: /add/i }));
 
     await waitFor(() => {
-      expect(onImportYoutubeUrl).toHaveBeenCalledWith("https://youtu.be/example");
+      expect(onImportYoutubeUrl).toHaveBeenCalledWith(
+        "https://youtu.be/example",
+      );
     });
   });
 
@@ -731,7 +874,9 @@ describe("FinderView", () => {
     expect(screen.getAllByText("youtube").length).toBeGreaterThan(0);
     expect(screen.getByText("failed")).toBeInTheDocument();
     expect(
-      screen.getByText("Playlist, channel, profile, and collection imports are not supported in v1"),
+      screen.getByText(
+        "Playlist, channel, profile, and collection imports are not supported in v1",
+      ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /use cookies/i }));
     expect(onDownloadRecoveryAction).toHaveBeenCalledWith(
@@ -750,12 +895,16 @@ describe("FinderView", () => {
       expect(copyButton).toHaveAttribute("data-copied", "true"),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /retry failed download/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /retry failed download/i }),
+    );
     expect(onImportYoutubeUrl).toHaveBeenCalledWith(
       "https://www.youtube.com/watch?v=ocFailId01",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /remove failed import/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /remove failed import/i }),
+    );
 
     expect(onRemoveFailedIngestJob).toHaveBeenCalledWith("job-1");
   });
@@ -813,13 +962,18 @@ describe("FinderView", () => {
     );
 
     expect(screen.getByText("42%")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /cancel youtube download/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /cancel youtube download/i }),
+    );
 
     expect(onCancelIngestJob).toHaveBeenCalledWith("job-1");
   });
 
   it.each([
-    ["TikTok", "https://www.tiktok.com/@samplecreator/video/7320000000000000000"],
+    [
+      "TikTok",
+      "https://www.tiktok.com/@samplecreator/video/7320000000000000000",
+    ],
     ["Twitch", "https://www.twitch.tv/videos/123456789"],
     ["Vimeo", "https://vimeo.com/123456789"],
   ])("shows a %s provider badge below the URL form", (label, url) => {

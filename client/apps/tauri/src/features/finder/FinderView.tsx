@@ -1,3 +1,36 @@
+import type { DownloadRecoveryActionKind } from "@/domain/download-error";
+import type {
+  IngestJob,
+  MediaSourceType,
+  SummaryDocument,
+  TranscriptSegment,
+  VideoAsset,
+  VideoLibraryQuery,
+  VideoLibrarySortKey,
+} from "@/domain/media-library";
+import type { PodcastDocument } from "@/domain/podcast";
+import type { TranslationKey } from "@/i18n";
+import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
+import type { LocalFileDialogService } from "@/services/localFileDialogService";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
+import {
+  CopyActionButton,
+  CopyDropdownMenuItem,
+} from "@/components/CopyAction";
+import { MediaThumbnailFrame } from "@/components/media/MediaThumbnailFrame";
+import { VideoDownloadMenuButton } from "@/components/video/VideoDownloadMenu";
+import {
+  filterVideoLibrary,
+  mediaSourceTypeForAsset,
+} from "@/domain/media-library";
+import { AddVideoForm } from "@/features/finder/AddVideoForm";
+import { useI18n } from "@/i18n";
+import {
+  isOpenableWebUrl,
+  openExternalWebUrl,
+  providerLabelForWebUrl,
+} from "@/services/externalUrlService";
 import {
   ChevronLeft,
   ChevronRight,
@@ -6,18 +39,14 @@ import {
   HardDrive,
   Link,
   MoreVertical,
+  Notebook,
   Plus,
   RotateCcw,
   Subtitles,
   X,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+
 import { Badge } from "@acme/ui/badge";
-import {
-  CopyActionButton,
-  CopyDropdownMenuItem,
-} from "@/components/CopyAction";
-import { MediaThumbnailFrame } from "@/components/media/MediaThumbnailFrame";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
 import {
@@ -44,36 +73,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@acme/ui/select";
+import { Textarea } from "@acme/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@acme/ui/tooltip";
-import { Textarea } from "@acme/ui/textarea";
-import { VideoDownloadMenuButton } from "@/components/video/VideoDownloadMenu";
-import type { DownloadRecoveryActionKind } from "@/domain/download-error";
-import type { PodcastDocument } from "@/domain/podcast";
-import {
-  filterVideoLibrary,
-  type IngestJob,
-  type MediaSourceType,
-  type SummaryDocument,
-  type TranscriptSegment,
-  type VideoAsset,
-  type VideoLibraryQuery,
-  type VideoLibrarySortKey,
-} from "@/domain/media-library";
-import { mediaSourceTypeForAsset } from "@/domain/media-library";
-import type { LocalFileDialogService } from "@/services/localFileDialogService";
-import type { VideoArtifactDownloadKind } from "@/services/artifactExportService";
-import {
-  isOpenableWebUrl,
-  openExternalWebUrl,
-  providerLabelForWebUrl,
-} from "@/services/externalUrlService";
-import { useI18n, type TranslationKey } from "@/i18n";
-import { AddVideoForm } from "@/features/finder/AddVideoForm";
 
 type FinderViewProps = {
   videos: VideoAsset[];
@@ -149,9 +155,18 @@ export function FinderView({
         podcastsByVideoId,
         query: activeQuery,
       }),
-    [activeQuery, podcastsByVideoId, summariesByVideoId, transcriptsByVideoId, videos],
+    [
+      activeQuery,
+      podcastsByVideoId,
+      summariesByVideoId,
+      transcriptsByVideoId,
+      videos,
+    ],
   );
-  const pageCount = Math.max(1, Math.ceil(visibleVideos.length / finderPageSize));
+  const pageCount = Math.max(
+    1,
+    Math.ceil(visibleVideos.length / finderPageSize),
+  );
   const currentPage = clampPage(activeQuery.page, pageCount);
   const pageStartIndex = (currentPage - 1) * finderPageSize;
   const pagedVideos = visibleVideos.slice(
@@ -235,9 +250,9 @@ function VideoLibraryControls({
   }
 
   return (
-    <div className="rounded-md border border-border bg-card px-3 py-2">
+    <div className="border-border bg-card rounded-md border px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">
+        <span className="text-muted-foreground text-xs font-medium">
           {t("finder.filter.shortLabel")}
         </span>
         <FilterChip
@@ -315,7 +330,7 @@ function VideoLibraryControls({
           {t("finder.filter.podcast.without")}
         </FilterChip>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">
+          <span className="text-muted-foreground text-xs font-medium">
             {t("finder.sort.shortLabel")}
           </span>
           <FinderSelect
@@ -332,7 +347,10 @@ function VideoLibraryControls({
                 label: t("finder.sort.group.date"),
                 options: [
                   { value: "created_at", label: t("finder.sort.createdAt") },
-                  { value: "created_at_asc", label: t("finder.sort.createdAtAsc") },
+                  {
+                    value: "created_at_asc",
+                    label: t("finder.sort.createdAtAsc"),
+                  },
                 ],
               },
               {
@@ -363,7 +381,7 @@ function VideoLibraryControls({
               <TooltipTrigger asChild>
                 <span
                   aria-label={t("finder.pagination.status")}
-                  className="min-w-9 cursor-default text-center text-sm text-muted-foreground"
+                  className="text-muted-foreground min-w-9 cursor-default text-center text-sm"
                 >
                   {currentPage}/{pageCount}
                 </span>
@@ -484,7 +502,10 @@ function IngestControls({
   onOpenTutorial,
 }: Pick<
   FinderViewProps,
-  "onImportLocalFile" | "onImportYoutubeUrl" | "fileDialogService" | "onOpenTutorial"
+  | "onImportLocalFile"
+  | "onImportYoutubeUrl"
+  | "fileDialogService"
+  | "onOpenTutorial"
 >) {
   const { t } = useI18n();
 
@@ -493,7 +514,7 @@ function IngestControls({
       <Card>
         <CardHeader>
           <CardTitle>{t("finder.import.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t("finder.import.description")}
           </p>
         </CardHeader>
@@ -509,12 +530,12 @@ function IngestControls({
       <Card>
         <CardHeader>
           <CardTitle>{t("finder.howTo.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t("finder.howTo.description")}
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <ol className="space-y-2 text-sm text-muted-foreground">
+          <ol className="text-muted-foreground space-y-2 text-sm">
             <li>{t("finder.howTo.step.download")}</li>
             <li>{t("finder.howTo.step.transcript")}</li>
             <li>{t("finder.howTo.step.summary")}</li>
@@ -594,13 +615,15 @@ function IngestJobItem({
   const sourceUrl = ingestJobSourceUrl(job);
 
   return (
-    <div className="rounded-md border border-border bg-card px-3 py-2 text-xs">
+    <div className="border-border bg-card rounded-md border px-3 py-2 text-xs">
       <div className="flex items-center justify-between gap-3">
         <span className="min-w-0 truncate font-medium">
           {job.title ?? job.originalUri ?? job.sourceKind}
         </span>
         <div className="flex shrink-0 items-center gap-2">
-          <span className={job.status === "failed" ? "text-destructive" : undefined}>
+          <span
+            className={job.status === "failed" ? "text-destructive" : undefined}
+          >
             {t(jobStatusKey(job.status))}
           </span>
           {onCancelIngestJob && ["queued", "running"].includes(job.status) ? (
@@ -631,19 +654,21 @@ function IngestJobItem({
           ) : null}
         </div>
       </div>
-      <div className="mt-1 flex items-center justify-between gap-3 text-muted-foreground">
+      <div className="text-muted-foreground mt-1 flex items-center justify-between gap-3">
         <span>{job.sourceKind}</span>
         <span>{Math.round(job.progressPercent)}%</span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+      <div className="bg-muted mt-2 h-1.5 overflow-hidden rounded-full">
         <div
-          className="h-full bg-primary"
+          className="bg-primary h-full"
           style={{ width: `${job.progressPercent}%` }}
         />
       </div>
       {job.errorMessage ? (
-        <p className="mt-2 text-muted-foreground">
-          {job.errorKind ? t(downloadErrorKey(job.errorKind)) : job.errorMessage}
+        <p className="text-muted-foreground mt-2">
+          {job.errorKind
+            ? t(downloadErrorKey(job.errorKind))
+            : job.errorMessage}
         </p>
       ) : null}
       {job.status === "failed" && sourceUrl ? (
@@ -720,7 +745,9 @@ function jobStatusKey(status: IngestJob["status"]): TranslationKey {
   }
 }
 
-function downloadErrorKey(errorKind: NonNullable<IngestJob["errorKind"]>): TranslationKey {
+function downloadErrorKey(
+  errorKind: NonNullable<IngestJob["errorKind"]>,
+): TranslationKey {
   switch (errorKind) {
     case "yt-dlp-outdated":
       return "download.error.yt-dlp-outdated";
@@ -728,6 +755,8 @@ function downloadErrorKey(errorKind: NonNullable<IngestJob["errorKind"]>): Trans
       return "download.error.youtube-sabr-forbidden";
     case "rate-limited":
       return "download.error.rate-limited";
+    case "network-offline":
+      return "download.error.network-offline";
     case "private-video":
       return "download.error.private-video";
     case "cookies-required":
@@ -765,10 +794,8 @@ function FinderEmptyState({ onAddVideo }: { onAddVideo?(): void }) {
   const { t } = useI18n();
 
   return (
-    <div className="flex h-full min-h-80 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-6 text-center">
-      <p className="text-sm text-muted-foreground">
-        {t("finder.empty")}
-      </p>
+    <div className="border-border bg-card flex h-full min-h-80 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
+      <p className="text-muted-foreground text-sm">{t("finder.empty")}</p>
       {onAddVideo ? (
         <Button type="button" variant="outline" onClick={onAddVideo}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -783,10 +810,8 @@ function FinderNoMatches({ onAddVideo }: { onAddVideo?(): void }) {
   const { t } = useI18n();
 
   return (
-    <div className="flex min-h-80 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card">
-      <p className="text-sm text-muted-foreground">
-        {t("finder.noMatches")}
-      </p>
+    <div className="border-border bg-card flex min-h-80 flex-col items-center justify-center gap-3 rounded-lg border border-dashed">
+      <p className="text-muted-foreground text-sm">{t("finder.noMatches")}</p>
       {onAddVideo ? (
         <Button type="button" variant="outline" onClick={onAddVideo}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -822,8 +847,13 @@ function VideoGrid({
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {videos.map((video) => {
-        const hasTranscript = (transcriptsByVideoId?.[video.id]?.length ?? 0) > 0;
+        const sourceType = mediaSourceTypeForAsset(video);
+        const hasTranscript =
+          (transcriptsByVideoId?.[video.id]?.length ?? 0) > 0;
         const hasSummary = Boolean(summariesByVideoId?.[video.id]);
+        const canOpenInNote = sourceType === "pdf" || sourceType === "csv";
+        const canHaveTranscript =
+          sourceType === "video" || sourceType === "audio";
 
         return (
           <Card key={video.id}>
@@ -837,7 +867,7 @@ function VideoGrid({
             <CardContent className="space-y-3 pt-4">
               <div>
                 <div className="flex items-start gap-2">
-                  <h2 className="min-w-0 flex-1 line-clamp-2 text-sm font-semibold">
+                  <h2 className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold">
                     {video.title}
                   </h2>
                   <VideoTitleActions
@@ -846,19 +876,37 @@ function VideoGrid({
                     onDeleteVideo={onDeleteVideo}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {mediaSourceTypeLabel(mediaSourceTypeForAsset(video), t)} ·{" "}
-                  {video.importStatus}
-                </p>
+                <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
+                  <span className="min-w-0 truncate">
+                    {mediaSourceTypeLabel(sourceType, t)} · {video.importStatus}
+                  </span>
+                  {canOpenInNote ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto shrink-0 px-0 py-0 text-xs"
+                      aria-label={t("finder.openInNote", {
+                        title: video.title,
+                      })}
+                      onClick={() => onOpenVideo(video.id)}
+                    >
+                      <Notebook className="h-3 w-3" aria-hidden="true" />
+                      {t("finder.open")}
+                    </Button>
+                  ) : null}
+                </div>
                 <VideoAuthorLink video={video} />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <FinderStatusPill active={hasTranscript}>
-                  <Subtitles className="h-3 w-3" aria-hidden="true" />
-                  {hasTranscript
-                    ? t("finder.badge.transcript")
-                    : t("finder.badge.noTranscript")}
-                </FinderStatusPill>
+                {canHaveTranscript ? (
+                  <FinderStatusPill active={hasTranscript}>
+                    <Subtitles className="h-3 w-3" aria-hidden="true" />
+                    {hasTranscript
+                      ? t("finder.badge.transcript")
+                      : t("finder.badge.noTranscript")}
+                  </FinderStatusPill>
+                ) : null}
                 <FinderStatusPill active={hasSummary}>
                   <FileText className="h-3 w-3" aria-hidden="true" />
                   {hasSummary
@@ -866,7 +914,7 @@ function VideoGrid({
                     : t("finder.badge.noSummary")}
                 </FinderStatusPill>
               </div>
-              <dl className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <dl className="text-muted-foreground grid grid-cols-2 gap-2 text-xs">
                 <div className="flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   <dt className="sr-only">{t("finder.meta.length")}</dt>
@@ -930,7 +978,7 @@ function FinderStatusPill({
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
       {children}
     </span>
   );
@@ -948,7 +996,7 @@ function VideoAuthorLink({ video }: { video: VideoAsset }) {
     return (
       <button
         type="button"
-        className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-xs text-muted-foreground hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground mt-1 inline-flex max-w-full items-center gap-1 truncate text-xs"
         onClick={(event) => {
           event.stopPropagation();
           void openExternalWebUrl(authorUrl);
@@ -962,7 +1010,7 @@ function VideoAuthorLink({ video }: { video: VideoAsset }) {
   }
 
   return (
-    <p className="mt-1 truncate text-xs text-muted-foreground">
+    <p className="text-muted-foreground mt-1 truncate text-xs">
       <span className="sr-only">{t("finder.meta.author")}</span>
       {authorName}
     </p>
@@ -993,7 +1041,7 @@ function VideoTitleActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="-mr-2 -mt-2 h-8 w-8 shrink-0"
+            className="-mt-2 -mr-2 h-8 w-8 shrink-0"
             aria-label={t("finder.actions.open", {
               kind: actionKindLabel,
               title: video.title,
@@ -1097,7 +1145,10 @@ function EditVideoTitleDialog({
         </>
       }
     >
-      <label className="text-sm font-medium" htmlFor={`video-title-${video.id}`}>
+      <label
+        className="text-sm font-medium"
+        htmlFor={`video-title-${video.id}`}
+      >
         {t("finder.editTitle.label")}
       </label>
       <Textarea
@@ -1150,22 +1201,32 @@ function mediaKindLabelKey(video: VideoAsset): TranslationKey {
   switch (sourceType) {
     case "audio":
       return "finder.media.audio";
+    case "csv":
+      return "finder.media.csv";
     case "pdf":
       return "finder.media.pdf";
     case "video":
       return "finder.media.video";
   }
+
+  return assertNeverMediaSourceType(sourceType);
 }
 
-function deleteTitleKey(sourceType: ReturnType<typeof mediaSourceTypeForAsset>): TranslationKey {
+function deleteTitleKey(
+  sourceType: ReturnType<typeof mediaSourceTypeForAsset>,
+): TranslationKey {
   switch (sourceType) {
     case "audio":
       return "finder.delete.title.audio";
+    case "csv":
+      return "finder.delete.title.csv";
     case "pdf":
       return "finder.delete.title.pdf";
     case "video":
       return "finder.delete.title.video";
   }
+
+  return assertNeverMediaSourceType(sourceType);
 }
 
 function deleteDescriptionKey(
@@ -1174,11 +1235,19 @@ function deleteDescriptionKey(
   switch (sourceType) {
     case "audio":
       return "finder.delete.description.audio";
+    case "csv":
+      return "finder.delete.description.csv";
     case "pdf":
       return "finder.delete.description.pdf";
     case "video":
       return "finder.delete.description.video";
   }
+
+  return assertNeverMediaSourceType(sourceType);
+}
+
+function assertNeverMediaSourceType(sourceType: never): never {
+  throw new Error(`Unhandled media source type: ${sourceType}`);
 }
 
 function FinderDialog({
@@ -1195,9 +1264,12 @@ function FinderDialog({
   onClose(): void;
 }) {
   return (
-    <Dialog open onOpenChange={(open) => {
-      if (!open) onClose();
-    }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -1244,6 +1316,8 @@ function mediaSourceTypeLabel(
   switch (sourceType) {
     case "audio":
       return t("finder.mediaType.audio");
+    case "csv":
+      return t("finder.mediaType.csv");
     case "pdf":
       return t("finder.mediaType.pdf");
     case "video":

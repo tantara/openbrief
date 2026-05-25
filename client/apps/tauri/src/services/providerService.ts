@@ -442,6 +442,10 @@ function createMockCompletionText(request: ProviderCompletionRequest) {
     return createMockQuiz();
   }
 
+  if (request.operation === "video_agent_plan") {
+    return createMockEditorAgentPlan(request.userPrompt);
+  }
+
   return createMockChatReply(request.userPrompt);
 }
 
@@ -515,6 +519,57 @@ function createMockQuiz() {
         explanation: "Quiz generation is constrained to the provided source.",
       },
     ],
+  });
+}
+
+function createMockEditorAgentPlan(prompt: string) {
+  const isTranscriptEdit = prompt.includes("Requested plan kind: transcript-edit");
+
+  return JSON.stringify({
+    kind: isTranscriptEdit ? "transcript-edit" : "composition",
+    summary: isTranscriptEdit
+      ? "Drafted a native transcript edit plan."
+      : "Drafted a native HyperFrames composition plan.",
+    scenario: "summary-to-video",
+    direction: isTranscriptEdit
+      ? "Remove low-signal filler segments, keep cuts on transcript timing boundaries, and render through OpenBrief."
+      : "Create a concise short-form briefing with kinetic captions and a clear final takeaway.",
+    componentNames: isTranscriptEdit ? [] : ["caption-clip-wipe"],
+    storyboard: [
+      {
+        title: "Hook",
+        narration: "Open with the strongest summary claim.",
+        startSeconds: 0,
+        durationSeconds: 8,
+      },
+      {
+        title: "Context",
+        narration: "Use the transcript to support the key point.",
+        startSeconds: 8,
+        durationSeconds: 24,
+      },
+      {
+        title: "Takeaway",
+        narration: "Close with one viewer action or takeaway.",
+        startSeconds: 32,
+        durationSeconds: 13,
+      },
+    ],
+    transcriptEdit: {
+      cuts: isTranscriptEdit
+        ? [
+            {
+              startSeconds: 1,
+              endSeconds: 2,
+              reason: "Remove a low-signal filler phrase.",
+            },
+          ]
+        : [],
+      renderNotes: [
+        "Keep captions last in the render chain.",
+        "Use the native OpenBrief preview before rendering MP4.",
+      ],
+    },
   });
 }
 

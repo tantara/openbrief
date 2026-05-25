@@ -6,7 +6,8 @@ export type ProviderOperation =
   | "podcast_script"
   | "quiz"
   | "transcript_review"
-  | "transcript_translate";
+  | "transcript_translate"
+  | "video_agent_plan";
 
 export type ProviderRequestPlan = {
   provider: ProviderKind;
@@ -89,6 +90,7 @@ export const defaultGenerationParamsByOperation: Record<
   quiz: { temperature: 0.35, topP: 0.9, maxTokens: 4096 },
   transcript_review: { temperature: 0.1, topP: 0.9, maxTokens: 4096 },
   transcript_translate: { temperature: 0.1, topP: 0.9, maxTokens: 4096 },
+  video_agent_plan: { temperature: 0.25, topP: 0.9, maxTokens: 4096 },
 };
 
 const forbiddenSecretKeyFragments = [
@@ -274,7 +276,9 @@ function createProviderBody({
         temperature: generationParams.temperature,
         top_p: generationParams.topP,
         max_tokens: generationParams.maxTokens,
-        ...(streamingMode ? { stream: true } : {}),
+        ...(streamingMode
+          ? { stream: true, stream_options: { include_usage: true } }
+          : {}),
         messages: createOpenAiCompatibleMessages(
           systemPrompt,
           userPrompt,

@@ -84,6 +84,54 @@ describe("AppLayout", () => {
     ).toHaveClass("shrink-0");
   });
 
+  it("keeps the window from becoming a second scroll container", () => {
+    render(
+      <AppLayout
+        activeView="finder"
+        pageTitle="Library"
+        onActiveViewChange={() => {}}
+      >
+        <div>Current page</div>
+      </AppLayout>,
+    );
+
+    const main = screen.getByRole("main");
+    expect(main).toHaveClass(
+      "h-full",
+      "overflow-y-auto",
+      "overscroll-contain",
+      "pt-16",
+    );
+    expect(main.parentElement).toHaveClass("h-full", "pl-20");
+    expect(main.parentElement?.parentElement).toHaveClass(
+      "h-screen",
+      "overflow-hidden",
+      "overscroll-none",
+    );
+  });
+
+  it("uses a fixed full-height workspace for the editor", () => {
+    render(
+      <AppLayout
+        activeView="editor"
+        pageTitle="Editor"
+        onActiveViewChange={() => {}}
+      >
+        <div>Editor page</div>
+      </AppLayout>,
+    );
+
+    const main = screen.getByRole("main");
+    expect(main).toHaveClass(
+      "h-full",
+      "overflow-hidden",
+      "overscroll-none",
+      "pt-16",
+    );
+    expect(main).not.toHaveClass("overflow-y-auto", "overscroll-contain");
+    expect(main.firstElementChild).toHaveClass("h-full", "min-h-0", "p-0");
+  });
+
   it("shows shortcut tooltips when hovering sidebar menu items", async () => {
     render(
       <AppLayout

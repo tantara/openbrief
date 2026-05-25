@@ -18,6 +18,7 @@ import {
 import { readActiveWorkspaceId } from "@/services/workspaceStorage";
 import {
   Check,
+  Clapperboard,
   FolderPlus,
   LayoutGrid,
   ListVideo,
@@ -155,7 +156,7 @@ export function AppLayout({
   }, [onActiveViewChange, onAddVideoShortcut, onSearchShortcut]);
 
   return (
-    <div className="bg-background text-foreground min-h-screen">
+    <div className="bg-background text-foreground h-screen overflow-hidden overscroll-none">
       <aside className="border-border bg-card fixed inset-y-0 left-0 z-50 flex w-20 flex-col items-center border-r px-3 py-5">
         <ContextMenu>
           {/* Workspace switching is intentionally hidden behind the logo while experimental. */}
@@ -221,7 +222,7 @@ export function AppLayout({
         </TooltipProvider>
       </aside>
 
-      <div className="min-h-screen pl-20">
+      <div className="h-full pl-20">
         <header className="border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 fixed top-0 right-0 left-20 z-40 flex h-16 items-center justify-between gap-6 border-b px-6 backdrop-blur">
           <h1
             className={cn(
@@ -242,8 +243,21 @@ export function AppLayout({
             </div>
           ) : null}
         </header>
-        <main className="h-screen overflow-y-auto pt-16">
-          <section className="min-h-full p-6">{children}</section>
+        <main
+          className={cn(
+            "h-full pt-16",
+            activeView === "editor"
+              ? "overflow-hidden overscroll-none"
+              : "overflow-y-auto overscroll-contain",
+          )}
+        >
+          <section
+            className={cn(
+              activeView === "editor" ? "h-full min-h-0 p-0" : "min-h-full p-6",
+            )}
+          >
+            {children}
+          </section>
         </main>
       </div>
     </div>
@@ -309,6 +323,8 @@ function iconForShortcut(id: string) {
       return <ListVideo className="h-4 w-4" aria-hidden="true" />;
     case "voices":
       return <Volume2 className="h-4 w-4" aria-hidden="true" />;
+    case "editor":
+      return <Clapperboard className="h-4 w-4" aria-hidden="true" />;
     case "settings":
       return <Settings className="h-4 w-4" aria-hidden="true" />;
     default:

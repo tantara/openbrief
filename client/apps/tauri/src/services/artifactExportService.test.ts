@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import type { VideoAsset } from "@/domain/media-library";
+import type { TauriInvoke } from "@/services/tauriHelperClient";
 import { createArtifactExportService } from "@/services/artifactExportService";
 import { FakeHelperClient } from "@/services/fakeHelperClient";
-import type { TauriInvoke } from "@/services/tauriHelperClient";
-import type { VideoAsset } from "@/domain/media-library";
+import { describe, expect, it, vi } from "vitest";
 
 describe("artifactExportService", () => {
   it("exports an arbitrary library artifact to the selected save path", async () => {
@@ -72,6 +72,68 @@ describe("artifactExportService", () => {
     });
   });
 
+  it("exports a PDF artifact with a PDF save filter", async () => {
+    const invokeCommand = vi.fn().mockResolvedValue({
+      targetPath: "/exports/research.pdf",
+      sourceRelativePath: "pdfs/pdf-1/research.pdf",
+      bytesWritten: 10,
+    });
+    const fileDialogService = {
+      selectVideoFile: vi.fn(),
+      selectImageFile: vi.fn(),
+      selectSavePath: vi.fn().mockResolvedValue("/exports/Research copy.pdf"),
+    };
+    const service = createArtifactExportService({
+      invokeCommand,
+      helperClient: new FakeHelperClient(),
+      fileDialogService,
+    });
+
+    await service.exportVideoArtifact({ video: pdf, kind: "pdf" });
+
+    expect(fileDialogService.selectSavePath).toHaveBeenCalledWith({
+      title: "Export PDF",
+      defaultPath: "research.pdf",
+      filters: [{ name: "PDF", extensions: ["pdf"] }],
+    });
+    expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
+      sourceRelativePath: "pdfs/pdf-1/research.pdf",
+      outputDirectory: "/exports",
+      fileName: "Research copy.pdf",
+    });
+  });
+
+  it("exports a CSV artifact with a CSV save filter", async () => {
+    const invokeCommand = vi.fn().mockResolvedValue({
+      targetPath: "/exports/metrics.csv",
+      sourceRelativePath: "csvs/csv-1/metrics.csv",
+      bytesWritten: 10,
+    });
+    const fileDialogService = {
+      selectVideoFile: vi.fn(),
+      selectImageFile: vi.fn(),
+      selectSavePath: vi.fn().mockResolvedValue("/exports/Metrics copy.csv"),
+    };
+    const service = createArtifactExportService({
+      invokeCommand,
+      helperClient: new FakeHelperClient(),
+      fileDialogService,
+    });
+
+    await service.exportVideoArtifact({ video: csv, kind: "csv" });
+
+    expect(fileDialogService.selectSavePath).toHaveBeenCalledWith({
+      title: "Export CSV",
+      defaultPath: "metrics.csv",
+      filters: [{ name: "CSV", extensions: ["csv"] }],
+    });
+    expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
+      sourceRelativePath: "csvs/csv-1/metrics.csv",
+      outputDirectory: "/exports",
+      fileName: "Metrics copy.csv",
+    });
+  });
+
   it("extracts audio before exporting it to the selected save path", async () => {
     const invokeCommand = vi.fn(async (command: string) => {
       if (command === "resolve_library_file_path") {
@@ -97,7 +159,9 @@ describe("artifactExportService", () => {
 
     await service.exportVideoArtifact({ video, kind: "audio" });
 
-    expect(helperClient.eventsForJob("export-audio-video-1").length).toBeGreaterThan(0);
+    expect(
+      helperClient.eventsForJob("export-audio-video-1").length,
+    ).toBeGreaterThan(0);
     expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
       sourceRelativePath: "videos/video-1/audio/Workbench-sample-audio.wav",
       outputDirectory: "/exports",
@@ -175,7 +239,8 @@ describe("artifactExportService", () => {
   it("generates a missing thumbnail before exporting it", async () => {
     const invokeCommand = vi.fn().mockResolvedValue({
       targetPath: "/exports/poster.jpg",
-      sourceRelativePath: "videos/video-1/thumbnail/Workbench-sample-thumbnail.jpg",
+      sourceRelativePath:
+        "videos/video-1/thumbnail/Workbench-sample-thumbnail.jpg",
       bytesWritten: 10,
     });
     const helperClient = new FakeHelperClient();
@@ -194,10 +259,12 @@ describe("artifactExportService", () => {
       kind: "thumbnail",
     });
 
-    expect(helperClient.eventsForJob("export-thumbnail-video-1").length)
-      .toBeGreaterThan(0);
+    expect(
+      helperClient.eventsForJob("export-thumbnail-video-1").length,
+    ).toBeGreaterThan(0);
     expect(invokeCommand).toHaveBeenCalledWith("export_library_artifact", {
-      sourceRelativePath: "videos/video-1/thumbnail/Workbench-sample-thumbnail.jpg",
+      sourceRelativePath:
+        "videos/video-1/thumbnail/Workbench-sample-thumbnail.jpg",
       outputDirectory: "/exports",
       fileName: "custom-poster.jpg",
     });
@@ -209,7 +276,9 @@ describe("artifactExportService", () => {
       sourceRelativePath: "videos/video-1/summary/summary-video-1/summary.md",
       bytesWritten: 10,
     });
-    const selectSavePath = vi.fn().mockResolvedValue("/exports/custom-summary.md");
+    const selectSavePath = vi
+      .fn()
+      .mockResolvedValue("/exports/custom-summary.md");
     const service = createArtifactExportService({
       invokeCommand,
       helperClient: new FakeHelperClient(),
@@ -243,17 +312,22 @@ describe("artifactExportService", () => {
       relativePath: "videos/video-1/summary/summary-video-1/summary.md",
       text: "# Summary",
     });
-    expect(invokeCommand).toHaveBeenNthCalledWith(2, "export_library_artifact", {
-      sourceRelativePath: "videos/video-1/summary/summary-video-1/summary.md",
-      outputDirectory: "/exports",
-      fileName: "custom-summary.md",
-    });
+    expect(invokeCommand).toHaveBeenNthCalledWith(
+      2,
+      "export_library_artifact",
+      {
+        sourceRelativePath: "videos/video-1/summary/summary-video-1/summary.md",
+        outputDirectory: "/exports",
+        fileName: "custom-summary.md",
+      },
+    );
   });
 
   it("writes current transcript text before exporting transcription", async () => {
     const invokeCommand = vi.fn().mockResolvedValue({
       targetPath: "/exports/transcript.txt",
-      sourceRelativePath: "videos/video-1/transcript/Workbench-sample_transcription.txt",
+      sourceRelativePath:
+        "videos/video-1/transcript/Workbench-sample_transcription.txt",
       bytesWritten: 10,
     });
     const service = createArtifactExportService({
@@ -286,14 +360,20 @@ describe("artifactExportService", () => {
     });
 
     expect(invokeCommand).toHaveBeenNthCalledWith(1, "write_text_artifact", {
-      relativePath: "videos/video-1/transcript/Workbench-sample_transcription.txt",
+      relativePath:
+        "videos/video-1/transcript/Workbench-sample_transcription.txt",
       text: "0:00\tOpening segment\n1:05\tSecond segment",
     });
-    expect(invokeCommand).toHaveBeenNthCalledWith(2, "export_library_artifact", {
-      sourceRelativePath: "videos/video-1/transcript/Workbench-sample_transcription.txt",
-      outputDirectory: "/exports",
-      fileName: "transcript.txt",
-    });
+    expect(invokeCommand).toHaveBeenNthCalledWith(
+      2,
+      "export_library_artifact",
+      {
+        sourceRelativePath:
+          "videos/video-1/transcript/Workbench-sample_transcription.txt",
+        outputDirectory: "/exports",
+        fileName: "transcript.txt",
+      },
+    );
   });
 
   it("rejects transcription export when no transcript is available", async () => {
@@ -358,7 +438,9 @@ describe("artifactExportService", () => {
       fileDialogService: {
         selectVideoFile: vi.fn(),
         selectImageFile: vi.fn(),
-        selectSavePath: vi.fn().mockResolvedValue("C:\\Exports\\Renamed video.mp4"),
+        selectSavePath: vi
+          .fn()
+          .mockResolvedValue("C:\\Exports\\Renamed video.mp4"),
       },
     });
 
@@ -381,4 +463,29 @@ const video: VideoAsset = {
   thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
   importStatus: "ready",
   createdAtIso: "2026-05-21T00:00:00.000Z",
+};
+
+const pdf: VideoAsset = {
+  ...video,
+  id: "pdf-1",
+  title: "Research paper",
+  sourceKind: "local-file",
+  sourceType: "pdf",
+  originalUri: "file:///tmp/research.pdf",
+  libraryPath: "pdfs/pdf-1/research.pdf",
+  thumbnailPath: undefined,
+  durationSeconds: undefined,
+  pageCount: 12,
+};
+
+const csv: VideoAsset = {
+  ...video,
+  id: "csv-1",
+  title: "Metrics",
+  sourceKind: "local-file",
+  sourceType: "csv",
+  originalUri: "file:///tmp/metrics.csv",
+  libraryPath: "csvs/csv-1/metrics.csv",
+  thumbnailPath: undefined,
+  durationSeconds: undefined,
 };

@@ -49,10 +49,10 @@ jobs:
         id: matrix
         shell: bash
         run: |
-          macos_arm64='{"name":"macos-arm64","os":"macos-latest","rust_target":"aarch64-apple-darwin","tauri_args":"--target aarch64-apple-darwin","artifact_glob":"client/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.dmg\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz.sig"}'
-          macos_intel='{"name":"macos-intel","os":"macos-15-intel","rust_target":"x86_64-apple-darwin","tauri_args":"--target x86_64-apple-darwin","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.dmg\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz.sig"}'
+          macos_arm64='{"name":"macos-arm64","os":"macos-latest","rust_target":"aarch64-apple-darwin","tauri_args":"--target aarch64-apple-darwin","artifact_glob":"client/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.dmg\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz.sig\nclient/apps/tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/latest.json"}'
+          macos_intel='{"name":"macos-intel","os":"macos-15-intel","rust_target":"x86_64-apple-darwin","tauri_args":"--target x86_64-apple-darwin","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.dmg\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz.sig\nclient/apps/tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/latest.json"}'
           windows_x64='{"name":"windows-x64","os":"windows-latest","rust_target":"x86_64-pc-windows-msvc","tauri_args":"--target x86_64-pc-windows-msvc --bundles nsis","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.msi\nclient/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.exe\nclient/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.zip\nclient/apps/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.sig"}'
-          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04","rust_target":"x86_64-unknown-linux-gnu","tauri_args":"--target x86_64-unknown-linux-gnu --bundles deb --verbose","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.deb"}'
+          linux_x64='{"name":"linux-x64","os":"ubuntu-22.04","rust_target":"x86_64-unknown-linux-gnu","tauri_args":"--target x86_64-unknown-linux-gnu --bundles deb --verbose","artifact_glob":"client/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.deb\nclient/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.deb.sig\nclient/apps/tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/latest.json"}'
 
           case "${{ inputs.platform }}" in
             all)
@@ -222,6 +222,28 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Tauri updater signing secrets
+        if: inputs.upload_release == true
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in \
+            TAURI_SIGNING_PRIVATE_KEY \
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+          do
+            if [[ -z "${!name}" ]]; then
+              missing+=("$name")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required updater signing secret(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
       - name: Require notarization for published macOS releases
         if: runner.os == 'macOS' && inputs.upload_release == true && inputs.notarize_macos != true
         shell: bash
@@ -342,15 +364,20 @@ jobs:
         shell: bash
         env:
           NODE_OPTIONS: "--max-old-space-size=8192"
+          CREATE_UPDATER_ARTIFACTS: ${{ inputs.upload_release }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          build_config='{"bundle":{"createUpdaterArtifacts":false}}'
+          build_config="$(
+            node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:process.env.CREATE_UPDATER_ARTIFACTS==="true"}}))'
+          )"
           if [[ "${{ runner.os }}" == "Linux" ]]; then
             build_config="$(
-              node -e 'const fs=require("node:fs"); const config=JSON.parse(fs.readFileSync("src-tauri/tauri.linux.conf.json","utf8")); config.bundle={...config.bundle,createUpdaterArtifacts:false}; process.stdout.write(JSON.stringify(config))'
+              node -e 'const fs=require("node:fs"); const config=JSON.parse(fs.readFileSync("src-tauri/tauri.linux.conf.json","utf8")); config.bundle={...config.bundle,createUpdaterArtifacts:process.env.CREATE_UPDATER_ARTIFACTS==="true"}; process.stdout.write(JSON.stringify(config))'
             )"
           elif [[ "${{ runner.os }}" == "macOS" && "${{ inputs.notarize_macos }}" == "true" ]]; then
             build_config="$(
-              node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:false,macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY,hardenedRuntime:true,entitlements:"entitlements/macos-pyinstaller-sidecars.plist"}}}))'
+              node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:process.env.CREATE_UPDATER_ARTIFACTS==="true",macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY,hardenedRuntime:true,entitlements:"entitlements/macos-pyinstaller-sidecars.plist"}}}))'
             )"
           fi
 
@@ -421,7 +448,99 @@ jobs:
         with:
           pattern: openbrief-*
           path: release-artifacts
-          merge-multiple: true
+
+      - name: Prepare updater metadata
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import shutil
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("release-artifacts")
+          updater_root = root / "updater-assets"
+          updater_root.mkdir(exist_ok=True)
+          for generated_latest in root.rglob("latest.json"):
+            generated_latest.unlink()
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          tag = os.environ["RELEASE_TAG"]
+          version = tag[1:] if tag.startswith("v") else tag
+          pub_date = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+          platforms = {}
+
+          def platform_for(path: Path) -> tuple[str, str] | None:
+            normalized = "/".join(part.lower() for part in path.parts)
+            name = path.name.lower()
+            if "windows-x64" in normalized or "x86_64-pc-windows-msvc" in normalized:
+              return ("windows-x86_64", "x64")
+            if "linux-x64" in normalized or "x86_64-unknown-linux-gnu" in normalized:
+              return ("linux-x86_64", "amd64")
+            if "macos-arm64" in normalized or "aarch64-apple-darwin" in normalized or "aarch64" in name:
+              return ("darwin-aarch64", "aarch64")
+            if "macos-intel" in normalized or "x86_64-apple-darwin" in normalized or "_x64" in name:
+              return ("darwin-x86_64", "x64")
+            return None
+
+          def release_url(asset_name: str) -> str:
+            return f"https://github.com/{repository}/releases/download/{tag}/{asset_name}"
+
+          def register(bundle: Path, signature: Path) -> None:
+            platform = platform_for(bundle)
+            if platform is None:
+              raise SystemExit(f"Cannot determine updater platform for {bundle}")
+
+            platform_key, suffix = platform
+            if bundle.name == "OpenBrief.app.tar.gz":
+              asset_name = f"OpenBrief_{version}_{suffix}.app.tar.gz"
+            else:
+              asset_name = bundle.name
+
+            asset_path = updater_root / asset_name
+            signature_path = updater_root / f"{asset_name}.sig"
+            if bundle.resolve() != asset_path.resolve():
+              shutil.move(str(bundle), asset_path)
+            if signature.resolve() != signature_path.resolve():
+              shutil.move(str(signature), signature_path)
+
+            platforms[platform_key] = {
+              "signature": signature_path.read_text(encoding="utf-8").strip(),
+              "url": release_url(asset_name),
+            }
+
+          for bundle in sorted(root.rglob("*.app.tar.gz")):
+            signature = bundle.with_name(f"{bundle.name}.sig")
+            if not signature.exists():
+              raise SystemExit(f"Missing updater signature for {bundle}")
+            register(bundle, signature)
+
+          for pattern in ("*.nsis.zip", "*-setup.exe"):
+            for bundle in sorted(root.rglob(pattern)):
+              signature = bundle.with_name(f"{bundle.name}.sig")
+              if not signature.exists():
+                raise SystemExit(f"Missing updater signature for {bundle}")
+              register(bundle, signature)
+
+          for bundle in sorted(root.rglob("*.deb")):
+            signature = bundle.with_name(f"{bundle.name}.sig")
+            if signature.exists():
+              register(bundle, signature)
+
+          if not platforms:
+            raise SystemExit("No signed updater artifacts found; refusing to publish latest.json.")
+
+          latest = {
+            "version": version,
+            "notes": f"OpenBrief {tag} release.",
+            "pub_date": pub_date,
+            "platforms": platforms,
+          }
+          (root / "latest.json").write_text(json.dumps(latest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
 
       - name: Upload installers to GitHub release
         shell: bash
@@ -465,8 +584,11 @@ jobs:
               -name '*.deb' -o \
               -name '*.dmg' -o \
               -name '*.exe' -o \
+              -name '*.json' -o \
               -name '*.msi' -o \
               -name '*.rpm' -o \
+              -name '*.tar.gz' -o \
+              -name '*.zip' -o \
               -name '*.sig' \
             \) -print0 > "$artifact_list"
 

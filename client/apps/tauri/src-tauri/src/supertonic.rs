@@ -191,9 +191,9 @@ pub async fn generate_supertonic_podcast_tts(
 
 #[tauri::command]
 pub fn tts_voice_catalog(app: AppHandle) -> Result<Vec<TtsVoiceCatalogModel>, String> {
-    let app_data = crate::workspace::workspace_root_for_app(&app)?;
+    let models_root = crate::workspace::models_dir_for_app(&app)?;
 
-    Ok(tts_voice_catalog_from_app_data(&app_data))
+    Ok(tts_voice_catalog_from_models_root(&models_root))
 }
 
 #[tauri::command]
@@ -261,7 +261,7 @@ fn generate_supertonic_chat_tts_blocking(
     }
 
     let library_root = app_library_root(&app)?;
-    let app_data = crate::workspace::workspace_root_for_app(&app)?;
+    let shared_models_root = crate::workspace::models_dir_for_app(&app)?;
     let generation_id = create_generation_id(&request.chat_message_id, text);
     let output_relative_path = chat_tts_audio_relative_path(
         &request.asset_library_path,
@@ -287,7 +287,7 @@ fn generate_supertonic_chat_tts_blocking(
         let preset_voice = sanitize_qwen_preset_voice_id(
             request.qwen_preset_voice_id.as_deref().unwrap_or("default"),
         )?;
-        let models_root = app_data.join("models").join("localai");
+        let models_root = shared_models_root.join("localai");
         fs::create_dir_all(models_root.join("hf"))
             .map_err(|error| format!("localai_model_dir_create_failed:{error}"))?;
         let args = qwen_tts_read_args(
@@ -306,8 +306,8 @@ fn generate_supertonic_chat_tts_blocking(
                 .as_deref()
                 .unwrap_or(DEFAULT_VOICE_STYLE_ID),
         )?;
-        let supertonic_root = app_data.join("supertonic");
-        let models_root = app_data.join("models").join("supertonic");
+        let models_root = shared_models_root.join("supertonic");
+        let supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
         fs::create_dir_all(models_root.join("hf"))
             .map_err(|error| format!("supertonic_model_dir_create_failed:{error}"))?;
         let args =
@@ -363,8 +363,9 @@ fn generate_tts_preview_blocking(
         return Err("tts_preview_text_empty".to_string());
     }
 
-    let app_data = crate::workspace::workspace_root_for_app(&app)?;
-    let preview_dir = app_data.join("tts-previews");
+    let workspace_root = crate::workspace::workspace_root_for_app(&app)?;
+    let shared_models_root = crate::workspace::models_dir_for_app(&app)?;
+    let preview_dir = workspace_root.join("tts-previews");
     fs::create_dir_all(&preview_dir)
         .map_err(|error| format!("tts_preview_dir_create_failed:{error}"))?;
     let preview_id = create_generation_id("tts-preview", text);
@@ -382,7 +383,7 @@ fn generate_tts_preview_blocking(
         let preset_voice = sanitize_qwen_preset_voice_id(
             request.qwen_preset_voice_id.as_deref().unwrap_or("default"),
         )?;
-        let models_root = app_data.join("models").join("localai");
+        let models_root = shared_models_root.join("localai");
         fs::create_dir_all(models_root.join("hf"))
             .map_err(|error| format!("localai_model_dir_create_failed:{error}"))?;
         let args = qwen_tts_read_args(
@@ -403,8 +404,8 @@ fn generate_tts_preview_blocking(
                 .as_deref()
                 .unwrap_or(DEFAULT_VOICE_STYLE_ID),
         )?;
-        let supertonic_root = app_data.join("supertonic");
-        let models_root = app_data.join("models").join("supertonic");
+        let models_root = shared_models_root.join("supertonic");
+        let supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
         fs::create_dir_all(models_root.join("hf"))
             .map_err(|error| format!("supertonic_model_dir_create_failed:{error}"))?;
         let args =
@@ -456,7 +457,7 @@ fn generate_supertonic_podcast_tts_blocking(
     }
 
     let library_root = app_library_root(&app)?;
-    let app_data = crate::workspace::workspace_root_for_app(&app)?;
+    let shared_models_root = crate::workspace::models_dir_for_app(&app)?;
     let model_id = sanitize_tts_model_id(request.model_id.as_deref().unwrap_or(MODEL_REPO_ID))?;
     if is_qwen_tts_model(&model_id) {
         return Err("supertonic_podcast_qwen_tts_unsupported".to_string());
@@ -479,8 +480,8 @@ fn generate_supertonic_podcast_tts_blocking(
         fs::write(&script_path, script_markdown)
             .map_err(|error| format!("supertonic_podcast_script_write_failed:{error}"))?;
     }
-    let models_root = app_data.join("models").join("supertonic");
-    let supertonic_root = app_data.join("supertonic");
+    let models_root = shared_models_root.join("supertonic");
+    let supertonic_root = crate::workspace::supertonic_dir_for_app(&app)?;
     fs::create_dir_all(models_root.join("hf"))
         .map_err(|error| format!("supertonic_model_dir_create_failed:{error}"))?;
 
@@ -1252,7 +1253,7 @@ fn asset_directory_from_library_path(relative_path: &str) -> Result<String, Stri
         .ok_or_else(|| "supertonic_asset_path_missing_asset_id".to_string())?;
 
     match directory.as_str() {
-        "videos" | "audios" | "pdfs" => Ok(format!("{directory}/{asset_id}")),
+        "videos" | "audios" | "pdfs" | "csvs" => Ok(format!("{directory}/{asset_id}")),
         _ => Err("supertonic_asset_path_unsupported_directory".to_string()),
     }
 }
@@ -1433,17 +1434,17 @@ fn latest_voice_message_audio_path(
     Ok(generation_dir.join("audio.wav"))
 }
 
-fn tts_voice_catalog_from_app_data(app_data: &Path) -> Vec<TtsVoiceCatalogModel> {
-    tts_voice_catalog_from_app_data_for_target(app_data, std::env::consts::OS)
+fn tts_voice_catalog_from_models_root(models_root: &Path) -> Vec<TtsVoiceCatalogModel> {
+    tts_voice_catalog_from_models_root_for_target(models_root, std::env::consts::OS)
 }
 
-fn tts_voice_catalog_from_app_data_for_target(
-    app_data: &Path,
+fn tts_voice_catalog_from_models_root_for_target(
+    models_root: &Path,
     target_os: &str,
 ) -> Vec<TtsVoiceCatalogModel> {
-    let supertonic_downloaded = tts_model_downloaded(app_data, MODEL_REPO_ID);
-    let qwen_06b_downloaded = tts_model_downloaded(app_data, QWEN_TTS_06B_MODEL_ID);
-    let qwen_17b_downloaded = tts_model_downloaded(app_data, QWEN_TTS_17B_MODEL_ID);
+    let supertonic_downloaded = tts_model_downloaded(models_root, MODEL_REPO_ID);
+    let qwen_06b_downloaded = tts_model_downloaded(models_root, QWEN_TTS_06B_MODEL_ID);
+    let qwen_17b_downloaded = tts_model_downloaded(models_root, QWEN_TTS_17B_MODEL_ID);
 
     let mut catalog = vec![TtsVoiceCatalogModel {
         id: MODEL_REPO_ID.to_string(),
@@ -1505,20 +1506,20 @@ fn qwen_voice_catalog(downloaded: bool) -> Vec<TtsVoiceCatalogVoice> {
     }]
 }
 
-fn tts_model_downloaded(app_data: &Path, model_id: &str) -> bool {
+fn tts_model_downloaded(models_dir: &Path, model_id: &str) -> bool {
     match model_id {
         MODEL_REPO_ID => {
-            let models_root = app_data.join("models").join("supertonic");
+            let models_root = models_dir.join("supertonic");
             hf_repo_cache_exists(&models_root, "Supertone/supertonic-3")
                 || non_empty_dir(&models_root.join("cache"))
         }
         QWEN_TTS_06B_MODEL_ID => {
-            let models_root = app_data.join("models").join("localai");
+            let models_root = models_dir.join("localai");
             hf_repo_cache_exists(&models_root, "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16")
                 || hf_repo_cache_exists(&models_root, "Qwen/Qwen3-TTS-12Hz-0.6B-Base")
         }
         QWEN_TTS_17B_MODEL_ID => {
-            let models_root = app_data.join("models").join("localai");
+            let models_root = models_dir.join("localai");
             hf_repo_cache_exists(&models_root, "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16")
                 || hf_repo_cache_exists(&models_root, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
         }
@@ -1579,6 +1580,14 @@ mod tests {
         assert_eq!(
             paths.turn_audio_directory,
             "pdfs/pdf-1/podcast/podcast-2026-05-24/audio/turns"
+        );
+
+        let csv_paths =
+            podcast_relative_paths("csvs/csv-1/source.csv", "podcast-2026-05-24").unwrap();
+
+        assert_eq!(
+            csv_paths.manifest_path,
+            "csvs/csv-1/podcast/podcast-2026-05-24/podcast.json"
         );
     }
 
@@ -1720,24 +1729,23 @@ mod tests {
 
     #[test]
     fn marks_cached_tts_models_as_downloaded() {
-        let app_data = std::env::temp_dir().join(format!(
+        let models_root = std::env::temp_dir().join(format!(
             "openbrief-tts-catalog-test-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
-        let supertonic_snapshot = app_data
-            .join("models/supertonic/hf/hub/models--Supertone--supertonic-3/snapshots/revision");
-        let qwen_snapshot = app_data.join(
-            "models/localai/hf/hub/models--Qwen--Qwen3-TTS-12Hz-0.6B-Base/snapshots/revision",
-        );
+        let supertonic_snapshot = models_root
+            .join("supertonic/hf/hub/models--Supertone--supertonic-3/snapshots/revision");
+        let qwen_snapshot = models_root
+            .join("localai/hf/hub/models--Qwen--Qwen3-TTS-12Hz-0.6B-Base/snapshots/revision");
         fs::create_dir_all(&supertonic_snapshot).unwrap();
         fs::write(supertonic_snapshot.join("model.bin"), b"model").unwrap();
         fs::create_dir_all(&qwen_snapshot).unwrap();
         fs::write(qwen_snapshot.join("model.bin"), b"model").unwrap();
 
-        let catalog = tts_voice_catalog_from_app_data_for_target(&app_data, "macos");
+        let catalog = tts_voice_catalog_from_models_root_for_target(&models_root, "macos");
 
         assert_eq!(catalog[0].id, MODEL_REPO_ID);
         assert!(catalog[0].downloaded);
@@ -1745,26 +1753,26 @@ mod tests {
         assert!(catalog[1].downloaded);
         assert!(!catalog[2].downloaded);
 
-        fs::remove_dir_all(app_data).unwrap();
+        fs::remove_dir_all(models_root).unwrap();
     }
 
     #[test]
     fn linux_tts_catalog_excludes_qwen_models() {
-        let app_data = std::env::temp_dir().join(format!(
+        let models_root = std::env::temp_dir().join(format!(
             "openbrief-tts-linux-catalog-test-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
         ));
-        fs::create_dir_all(&app_data).unwrap();
+        fs::create_dir_all(&models_root).unwrap();
 
-        let catalog = tts_voice_catalog_from_app_data_for_target(&app_data, "linux");
+        let catalog = tts_voice_catalog_from_models_root_for_target(&models_root, "linux");
 
         assert_eq!(catalog.len(), 1);
         assert_eq!(catalog[0].id, MODEL_REPO_ID);
 
-        fs::remove_dir_all(app_data).unwrap();
+        fs::remove_dir_all(models_root).unwrap();
     }
 
     #[test]

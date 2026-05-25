@@ -196,7 +196,8 @@ Use `pnpm --filter <workspace> <script>` or `pnpm -F <workspace> <script>` for a
 ## Roadmap
 
 - [x] Improve audio file support for transcription, summaries, playback, and exports.
-- [ ] Support more document and web source types, including PDFs, HTML pages, and other document formats.
+- [ ] Build a video editor with HyperFrames.
+- [ ] Support more document and web source types, including CSV files, PDFs, HTML pages, and other document formats.
 - [x] Support Parakeet ASR.
 - [x] Support Qwen3-ASR and Qwen3-ForcedAligner.
 - [x] Support Supertonic 3 TTS.
@@ -213,8 +214,7 @@ OpenBrief builds on and takes inspiration from several projects:
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) for video download support.
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp) and [transcribe-rs](https://github.com/cjpais/transcribe-rs) for local speech-to-text.
 - [FluidAudio](https://github.com/FluidInference/FluidAudio) for local Apple-platform audio AI inspiration.
-- [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) for speech recognition model support.
-- [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) for text-to-speech model support.
+- [mlx-audio](https://github.com/Blaizzy/mlx-audio), [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR), and [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) for local speech recognition and text-to-speech model support.
 - [Supertonic](https://github.com/supertone-inc/supertonic/) for Supertonic 3 TTS support.
 - [tweakcn](https://tweakcn.com/themes/cmlhfpjhw000004l4f4ax3m7z) for the shadcn theme.
 - [Voicebox](https://github.com/jamiepine/voicebox) and [Anarlog](https://github.com/fastrepl/anarlog) for product and implementation inspiration.

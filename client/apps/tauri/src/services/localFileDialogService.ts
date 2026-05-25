@@ -1,9 +1,10 @@
-import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   supportedAudioFileExtensions,
+  supportedCsvFileExtensions,
   supportedPdfFileExtensions,
   supportedVideoFileExtensions,
 } from "@/domain/ingest";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 export type SaveFileDialogRequest = {
   title?: string;
@@ -34,6 +35,7 @@ export function createLocalFileDialogService(): LocalFileDialogService {
               ...supportedVideoFileExtensions,
               ...supportedAudioFileExtensions,
               ...supportedPdfFileExtensions,
+              ...supportedCsvFileExtensions,
             ],
           },
         ],

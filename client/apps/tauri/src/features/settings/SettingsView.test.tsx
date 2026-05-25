@@ -428,7 +428,7 @@ describe("SettingsView", () => {
     expect(onConfigureProvider).toHaveBeenCalledWith("anthropic");
   });
 
-  it("updates summary and chat provider preferences from settings", () => {
+  it("updates workflow provider preferences from settings", () => {
     const onAiProviderPreferencesChange = vi.fn();
 
     render(
@@ -450,6 +450,9 @@ describe("SettingsView", () => {
     );
     fireEvent.change(screen.getByLabelText("Chat provider Provider"), {
       target: { value: "gemini" },
+    });
+    fireEvent.change(screen.getByLabelText("Editor agent provider Provider"), {
+      target: { value: "openrouter" },
     });
 
     expect(onAiProviderPreferencesChange).toHaveBeenNthCalledWith(1, {
@@ -473,6 +476,14 @@ describe("SettingsView", () => {
       chat: {
         provider: "gemini",
         model: "gemini-3.1-flash-lite",
+        streamingMode: false,
+      },
+    });
+    expect(onAiProviderPreferencesChange).toHaveBeenNthCalledWith(4, {
+      ...defaultAiProviderPreferences,
+      editorAgent: {
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
         streamingMode: false,
       },
     });

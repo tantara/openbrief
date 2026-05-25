@@ -1,5 +1,8 @@
 import type { ChatContextMode } from "@/domain/chat";
-import type { DownloadRecoveryActionKind } from "@/domain/download-error";
+import type {
+  DownloadErrorKind,
+  DownloadRecoveryActionKind,
+} from "@/domain/download-error";
 import type { CaptionLanguage } from "@/domain/helper-protocol";
 import type {
   ChatMessage,
@@ -28,6 +31,7 @@ import type {
   VideoSummaryTemplateId,
 } from "@/domain/summary";
 import type { TranscriptLanguageOption } from "@/domain/transcript-actions";
+import type { VideoGenerationComposition } from "@/domain/video-generation";
 import type { SetupDialogMode } from "@/features/setup/SetupDialog";
 import type { TranslationKey } from "@/i18n";
 import type {
@@ -63,6 +67,8 @@ import {
   selectPreferredSttModel,
 } from "@/domain/settings";
 import { formatTimestamp } from "@/domain/summary";
+import { classifyAiRequestError } from "@/domain/user-facing-error";
+import { EditorView } from "@/features/editor/EditorView";
 import { FaqView } from "@/features/faq/FaqView";
 import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
 import { FinderView } from "@/features/finder/FinderView";
@@ -350,6 +356,8 @@ export function AppShell() {
     deleteVideo,
     updateTranscriptSegment,
     updateSummaryMarkdown,
+    saveVideoGenerationComposition,
+    saveVideoGenerationRender,
     createPlaylist,
     renamePlaylist,
     setPlaylistCover,
@@ -637,6 +645,14 @@ export function AppShell() {
         .filter((video): video is VideoAsset => Boolean(video)),
     [openWorkbenchVideoIds, state.videos],
   );
+  const generatedEditorCompositions = useMemo(
+    () =>
+      collectGeneratedEditorCompositions(
+        state.videoGenerationsBySourceId,
+        state.videoGenerationHistoryBySourceId,
+      ),
+    [state.videoGenerationsBySourceId, state.videoGenerationHistoryBySourceId],
+  );
   const activeSummaryId = selectedVideo
     ? activeSummaryIdsByVideoId[selectedVideo.id]
     : undefined;
@@ -727,6 +743,7 @@ export function AppShell() {
     state.activeView,
     selectedVideo?.title,
     t("page.video"),
+    t("page.editor"),
     t("page.playlists"),
     t("page.settings"),
     t("page.voices"),
@@ -823,6 +840,14 @@ export function AppShell() {
         (previousStatus === "queued" || previousStatus === "running")
       );
     });
+    const failedJob = state.ingestJobs.find((job) => {
+      const previousStatus = previousStatuses.get(job.id);
+
+      return (
+        job.status === "failed" &&
+        (previousStatus === "queued" || previousStatus === "running")
+      );
+    });
 
     ingestJobStatusesRef.current = new Map(
       state.ingestJobs.map((job) => [job.id, job.status]),
@@ -836,6 +861,12 @@ export function AppShell() {
           onOpenMedia: openVideoDetail,
           onDismiss: () => setAppNotice(undefined),
         }),
+      );
+    } else if (failedJob?.errorMessage) {
+      setAppNotice(
+        failedJob.errorKind
+          ? t(downloadErrorNoticeKey(failedJob.errorKind))
+          : failedJob.errorMessage,
       );
     }
   }, [state.ingestJobs, t]);
@@ -1209,15 +1240,20 @@ export function AppShell() {
       return;
     }
 
-    const summary = await generateSummary(videoId, provider, model, {
-      templateId,
-      lengthMode,
-      outputLanguage,
-      streamingMode,
-      transcript,
-    });
-    setActiveSummaryTab(videoId, summary.id);
-    return summary;
+    try {
+      const summary = await generateSummary(videoId, provider, model, {
+        templateId,
+        lengthMode,
+        outputLanguage,
+        streamingMode,
+        transcript,
+      });
+      setActiveSummaryTab(videoId, summary.id);
+      return summary;
+    } catch (error) {
+      showAiRequestFailureNotice(error);
+      throw error;
+    }
   }
 
   async function sendChatWithSetup(request: {
@@ -1241,7 +1277,13 @@ export function AppShell() {
   }
 
   async function sendChatAndNotify(request: Parameters<typeof sendChat>[0]) {
-    const messages = await sendChat(request);
+    let messages: Awaited<ReturnType<typeof sendChat>>;
+    try {
+      messages = await sendChat(request);
+    } catch (error) {
+      showAiRequestFailureNotice(error);
+      throw error;
+    }
     const hasAssistantResponse = messages.some(
       (message) => message.role === "assistant",
     );
@@ -1270,6 +1312,16 @@ export function AppShell() {
     return messages;
   }
 
+  function showAiRequestFailureNotice(error: unknown) {
+    setAppNotice(
+      t(
+        classifyAiRequestError(error) === "offline"
+          ? "notice.ai.offline"
+          : "notice.ai.failed",
+      ),
+    );
+  }
+
   async function reviewTranscriptWithSetup(
     videoId: string,
     provider: ProviderKind,
@@ -1282,7 +1334,12 @@ export function AppShell() {
       return;
     }
 
-    return reviewTranscript(videoId, provider, model);
+    try {
+      return await reviewTranscript(videoId, provider, model);
+    } catch (error) {
+      showAiRequestFailureNotice(error);
+      throw error;
+    }
   }
 
   async function translateTranscriptWithSetup(request: {
@@ -1298,12 +1355,17 @@ export function AppShell() {
       return;
     }
 
-    const variant = await translateTranscript(request);
-    setActiveTranscriptVariantIdsByVideoId((current) => ({
-      ...current,
-      [request.videoId]: variant.id,
-    }));
-    return variant;
+    try {
+      const variant = await translateTranscript(request);
+      setActiveTranscriptVariantIdsByVideoId((current) => ({
+        ...current,
+        [request.videoId]: variant.id,
+      }));
+      return variant;
+    } catch (error) {
+      showAiRequestFailureNotice(error);
+      throw error;
+    }
   }
 
   async function continuePendingAction() {
@@ -1328,19 +1390,24 @@ export function AppShell() {
     }
 
     if (action.mode === "summary") {
-      const summary = await generateSummary(
-        action.videoId,
-        setupProvider,
-        setupProviderModel,
-        {
-          templateId: action.templateId,
-          lengthMode: action.lengthMode,
-          outputLanguage: action.outputLanguage,
-          streamingMode: action.streamingMode,
-          transcript: action.transcript,
-        },
-      );
-      setActiveSummaryTab(action.videoId, summary.id);
+      try {
+        const summary = await generateSummary(
+          action.videoId,
+          setupProvider,
+          setupProviderModel,
+          {
+            templateId: action.templateId,
+            lengthMode: action.lengthMode,
+            outputLanguage: action.outputLanguage,
+            streamingMode: action.streamingMode,
+            transcript: action.transcript,
+          },
+        );
+        setActiveSummaryTab(action.videoId, summary.id);
+      } catch (error) {
+        showAiRequestFailureNotice(error);
+        throw error;
+      }
       return;
     }
 
@@ -1349,21 +1416,35 @@ export function AppShell() {
     }
 
     if (action.mode === "transcript-review") {
-      await reviewTranscript(action.videoId, setupProvider, setupProviderModel);
+      try {
+        await reviewTranscript(
+          action.videoId,
+          setupProvider,
+          setupProviderModel,
+        );
+      } catch (error) {
+        showAiRequestFailureNotice(error);
+        throw error;
+      }
       return;
     }
 
     if (action.mode === "transcript-translation") {
-      const variant = await translateTranscript({
-        videoId: action.videoId,
-        provider: setupProvider,
-        model: setupProviderModel,
-        language: action.language,
-      });
-      setActiveTranscriptVariantIdsByVideoId((current) => ({
-        ...current,
-        [action.videoId]: variant.id,
-      }));
+      try {
+        const variant = await translateTranscript({
+          videoId: action.videoId,
+          provider: setupProvider,
+          model: setupProviderModel,
+          language: action.language,
+        });
+        setActiveTranscriptVariantIdsByVideoId((current) => ({
+          ...current,
+          [action.videoId]: variant.id,
+        }));
+      } catch (error) {
+        showAiRequestFailureNotice(error);
+        throw error;
+      }
       return;
     }
 
@@ -2130,7 +2211,7 @@ export function AppShell() {
     syncPathForView("finder");
 
     const importedNonVideo = supported.find(
-      (file) => file.sourceType === "audio" || file.sourceType === "pdf",
+      (file) => file.sourceType !== "video",
     );
     if (importedNonVideo) {
       setAppNotice(
@@ -2228,6 +2309,39 @@ export function AppShell() {
             playVideo(videoId);
           }}
           onOpenVideo={openVideoDetail}
+        />
+      </div>
+      <div
+        className={cn(
+          "h-full",
+          state.activeView === "editor" ? "block" : "hidden",
+        )}
+      >
+        <EditorView
+          videos={state.videos}
+          selectedVideoId={state.selectedVideoId}
+          selectedVideo={selectedVideo}
+          selectedSummary={activeSummary}
+          selectedTranscript={selectedTranscript}
+          latestComposition={
+            selectedVideo
+              ? state.videoGenerationsBySourceId[selectedVideo.id]
+              : undefined
+          }
+          compositionHistory={
+            selectedVideo
+              ? (state.videoGenerationHistoryBySourceId[selectedVideo.id] ?? [])
+              : []
+          }
+          generatedCompositions={generatedEditorCompositions}
+          rendersByCompositionId={state.videoGenerationRendersByCompositionId}
+          onSelectVideo={setSelectedVideoId}
+          onSaveComposition={saveVideoGenerationComposition}
+          onSaveRender={saveVideoGenerationRender}
+          editorAgentProviderConfig={aiProviderPreferences.editorAgent}
+          onEditorAgentProviderConfigChange={(config) =>
+            saveAiProviderWorkflowPreference("editorAgent", config)
+          }
         />
       </div>
       <div
@@ -2865,6 +2979,7 @@ function pageTitleForView(
   activeView: string,
   selectedVideoTitle: string | undefined,
   videoTitle: string,
+  editorTitle: string,
   playlistsTitle: string,
   settingsTitle: string,
   voicesTitle: string,
@@ -2877,6 +2992,7 @@ function pageTitleForView(
   if (activeView === "tutorial") return tutorialTitle;
   if (activeView === "settings") return settingsTitle;
   if (activeView === "voices") return voicesTitle;
+  if (activeView === "editor") return editorTitle;
   if (activeView === "workbench") return selectedVideoTitle ?? videoTitle;
   if (activeView === "playlists") return playlistsTitle;
   return videoTitle;
@@ -2889,6 +3005,8 @@ function mediaSourceTypeLabel(
   switch (sourceType) {
     case "audio":
       return t("finder.mediaType.audio");
+    case "csv":
+      return t("finder.mediaType.csv");
     case "pdf":
       return t("finder.mediaType.pdf");
     case "video":
@@ -3404,6 +3522,27 @@ function viewForPath(path: string) {
   return "finder";
 }
 
+function collectGeneratedEditorCompositions(
+  latestBySourceId: Record<string, VideoGenerationComposition>,
+  historyBySourceId: Record<string, VideoGenerationComposition[]>,
+) {
+  const byId = new Map<string, VideoGenerationComposition>();
+
+  for (const composition of Object.values(latestBySourceId)) {
+    byId.set(composition.id, composition);
+  }
+
+  for (const compositions of Object.values(historyBySourceId)) {
+    for (const composition of compositions) {
+      byId.set(composition.id, composition);
+    }
+  }
+
+  return [...byId.values()].sort((left, right) =>
+    right.updatedAtIso.localeCompare(left.updatedAtIso),
+  );
+}
+
 function videoIdFromImportResult(result: unknown) {
   if (!isRecord(result)) return undefined;
 
@@ -3431,6 +3570,37 @@ function jobIdFromImportResult(result: unknown) {
   }
 
   return undefined;
+}
+
+function downloadErrorNoticeKey(errorKind: DownloadErrorKind): TranslationKey {
+  switch (errorKind) {
+    case "yt-dlp-outdated":
+      return "download.error.yt-dlp-outdated";
+    case "youtube-sabr-forbidden":
+      return "download.error.youtube-sabr-forbidden";
+    case "rate-limited":
+      return "download.error.rate-limited";
+    case "network-offline":
+      return "download.error.network-offline";
+    case "private-video":
+      return "download.error.private-video";
+    case "cookies-required":
+      return "download.error.cookies-required";
+    case "credentials-required":
+      return "download.error.credentials-required";
+    case "video-password-required":
+      return "download.error.video-password-required";
+    case "geo-restricted":
+      return "download.error.geo-restricted";
+    case "not-found":
+      return "download.error.not-found";
+    case "forbidden":
+      return "download.error.forbidden";
+    case "helper-unavailable":
+      return "download.error.helper-unavailable";
+    case "unknown":
+      return "download.error.unknown";
+  }
 }
 
 function findSegmentContextForTime<

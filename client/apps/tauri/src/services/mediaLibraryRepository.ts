@@ -13,6 +13,10 @@ import type {
 } from "@/domain/podcast";
 import type { QuizDocument, QuizGenerationJob } from "@/domain/quiz";
 import type { TranscriptVariant } from "@/domain/transcript-actions";
+import type {
+  VideoGenerationComposition,
+  VideoGenerationRender,
+} from "@/domain/video-generation";
 import { invoke } from "@tauri-apps/api/core";
 import { canUseTauriRuntime, type TauriInvoke } from "@/services/tauriHelperClient";
 
@@ -31,6 +35,9 @@ export type MediaLibrarySnapshot = {
   quizzesByVideoId: Record<string, QuizDocument>;
   quizHistoryByVideoId: Record<string, QuizDocument[]>;
   quizJobsByVideoId: Record<string, QuizGenerationJob>;
+  videoGenerationsBySourceId: Record<string, VideoGenerationComposition>;
+  videoGenerationHistoryBySourceId: Record<string, VideoGenerationComposition[]>;
+  videoGenerationRendersByCompositionId: Record<string, VideoGenerationRender[]>;
   playlists: VideoPlaylist[];
 };
 
@@ -70,6 +77,9 @@ export function createEmptyMediaLibrarySnapshot(): MediaLibrarySnapshot {
     quizzesByVideoId: {},
     quizHistoryByVideoId: {},
     quizJobsByVideoId: {},
+    videoGenerationsBySourceId: {},
+    videoGenerationHistoryBySourceId: {},
+    videoGenerationRendersByCompositionId: {},
     playlists: [],
   };
 }
@@ -271,6 +281,13 @@ function normalizeSnapshot(value: unknown): MediaLibrarySnapshot {
     value.quizHistoryByVideoId,
     quizzesByVideoId,
   );
+  const videoGenerationsBySourceId = getRecord<VideoGenerationComposition>(
+    value.videoGenerationsBySourceId,
+  );
+  const videoGenerationHistoryBySourceId = normalizeVideoGenerationHistory(
+    value.videoGenerationHistoryBySourceId,
+    videoGenerationsBySourceId,
+  );
 
   return {
     videos: getArray<VideoAsset>(value.videos),
@@ -295,6 +312,11 @@ function normalizeSnapshot(value: unknown): MediaLibrarySnapshot {
     quizzesByVideoId,
     quizHistoryByVideoId,
     quizJobsByVideoId: getRecord<QuizGenerationJob>(value.quizJobsByVideoId),
+    videoGenerationsBySourceId,
+    videoGenerationHistoryBySourceId,
+    videoGenerationRendersByCompositionId: getArrayRecord<VideoGenerationRender>(
+      value.videoGenerationRendersByCompositionId,
+    ),
     playlists: getArray<VideoPlaylist>(value.playlists),
   };
 }
@@ -382,6 +404,28 @@ function normalizeQuizHistory(
   );
 }
 
+function normalizeVideoGenerationHistory(
+  value: unknown,
+  latestCompositions: Record<string, VideoGenerationComposition>,
+) {
+  const history = getArrayRecord<VideoGenerationComposition>(value);
+
+  for (const [sourceId, latestComposition] of Object.entries(latestCompositions)) {
+    const compositions = history[sourceId] ?? [];
+
+    if (!compositions.some((composition) => composition.id === latestComposition.id)) {
+      history[sourceId] = [...compositions, latestComposition];
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(history).map(([sourceId, compositions]) => [
+      sourceId,
+      [...compositions].sort(compareUpdatedAtDesc),
+    ]),
+  );
+}
+
 function latestSummaryForVideo(
   snapshot: MediaLibrarySnapshot,
   videoId: string,
@@ -403,6 +447,16 @@ function compareCreatedAtDesc(
   return (
     (Date.parse(right.createdAtIso ?? "") || 0) -
     (Date.parse(left.createdAtIso ?? "") || 0)
+  );
+}
+
+function compareUpdatedAtDesc(
+  left: { updatedAtIso?: string; createdAtIso?: string },
+  right: { updatedAtIso?: string; createdAtIso?: string },
+) {
+  return (
+    (Date.parse(right.updatedAtIso ?? right.createdAtIso ?? "") || 0) -
+    (Date.parse(left.updatedAtIso ?? left.createdAtIso ?? "") || 0)
   );
 }
 

@@ -116,6 +116,7 @@ const podcastDirectoryBySourceType = {
   video: "videos",
   audio: "audios",
   pdf: "pdfs",
+  csv: "csvs",
 } as const;
 
 const lengthGuidance: Record<PodcastLengthMode, string> = {

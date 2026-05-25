@@ -59,6 +59,21 @@ describe("provider domain", () => {
     expect(JSON.stringify(plan.headers)).toContain("[TAURI_SECRET:api-key]");
   });
 
+  it("requests usage details for OpenAI-compatible streaming responses", () => {
+    const plan = createProviderRequestPlan({
+      provider: "openai",
+      operation: "chat",
+      systemPrompt: "Answer.",
+      userPrompt: "Question",
+      streamingMode: true,
+    });
+
+    expect(plan.body).toMatchObject({
+      stream: true,
+      stream_options: { include_usage: true },
+    });
+  });
+
   it("redacts nested provider diagnostics", () => {
     const redacted = redactProviderDiagnostic({
       message: "failed",

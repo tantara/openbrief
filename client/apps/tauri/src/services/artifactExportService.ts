@@ -1,20 +1,15 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { HelperClient } from "@/services/fakeHelperClient";
-import { TauriHelperClient, type TauriInvoke } from "@/services/tauriHelperClient";
-import {
-  createLocalFileDialogService,
-  type LocalFileDialogService,
-  type SaveFileDialogRequest,
-} from "@/services/localFileDialogService";
-import {
-  createTranscriptArtifactPath,
-  formatTranscriptText,
-} from "@/domain/transcript-actions";
 import type {
   SummaryDocument,
   TranscriptSegment,
   VideoAsset,
 } from "@/domain/media-library";
+import type { HelperClient } from "@/services/fakeHelperClient";
+import type {
+  LocalFileDialogService,
+  SaveFileDialogRequest,
+} from "@/services/localFileDialogService";
+import type { TauriInvoke } from "@/services/tauriHelperClient";
+import { helperProtocolVersion } from "@/domain/helper-protocol";
 import {
   createLibraryAssetDirectory,
   createMediaAssetFilePrefix,
@@ -23,14 +18,19 @@ import {
   mediaSourceTypeForAsset,
   sanitizePathSegment,
 } from "@/domain/media-library";
-import { helperProtocolVersion } from "@/domain/helper-protocol";
 import {
-  logRuntimeError,
-  logRuntimeInfo,
-} from "@/services/runtimeLogger";
+  createTranscriptArtifactPath,
+  formatTranscriptText,
+} from "@/domain/transcript-actions";
+import { createLocalFileDialogService } from "@/services/localFileDialogService";
+import { logRuntimeError, logRuntimeInfo } from "@/services/runtimeLogger";
+import { TauriHelperClient } from "@/services/tauriHelperClient";
+import { invoke } from "@tauri-apps/api/core";
 
 export type VideoArtifactDownloadKind =
   | "video"
+  | "pdf"
+  | "csv"
   | "thumbnail"
   | "audio"
   | "transcription"
@@ -128,7 +128,10 @@ export function createArtifactExportService({
     },
 
     async exportVideoArtifact({ video, transcript, summary, kind }) {
-      if (kind === "transcription" && (!transcript || transcript.length === 0)) {
+      if (
+        kind === "transcription" &&
+        (!transcript || transcript.length === 0)
+      ) {
         throw new Error("transcription_export_unavailable");
       }
       if (kind === "summary" && !summary?.artifactPath) {
@@ -225,6 +228,22 @@ async function sourceRelativePathForArtifact(
   invokeCommand: TauriInvoke,
 ) {
   if (kind === "video") {
+    return video.libraryPath;
+  }
+
+  if (kind === "pdf") {
+    if (mediaSourceTypeForAsset(video) !== "pdf") {
+      throw new Error("pdf_export_unavailable");
+    }
+
+    return video.libraryPath;
+  }
+
+  if (kind === "csv") {
+    if (mediaSourceTypeForAsset(video) !== "csv") {
+      throw new Error("csv_export_unavailable");
+    }
+
     return video.libraryPath;
   }
 
@@ -360,6 +379,10 @@ function artifactKindLabel(kind: VideoArtifactDownloadKind) {
   switch (kind) {
     case "video":
       return "video";
+    case "pdf":
+      return "PDF";
+    case "csv":
+      return "CSV";
     case "thumbnail":
       return "thumbnail";
     case "audio":
@@ -380,7 +403,23 @@ function artifactFileFilter(
   if (kind === "video") {
     return {
       name: "Video",
-      extensions: extension ? [extension] : ["mp4", "m4v", "mov", "webm", "mkv"],
+      extensions: extension
+        ? [extension]
+        : ["mp4", "m4v", "mov", "webm", "mkv"],
+    };
+  }
+
+  if (kind === "pdf") {
+    return {
+      name: "PDF",
+      extensions: extension ? [extension] : ["pdf"],
+    };
+  }
+
+  if (kind === "csv") {
+    return {
+      name: "CSV",
+      extensions: extension ? [extension] : ["csv"],
     };
   }
 
