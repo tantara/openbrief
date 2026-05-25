@@ -1,4 +1,4 @@
-import type { HelperCommandResult } from "@/domain/helper-protocol";
+import type { HelperCommandResult, HelperEvent } from "@/domain/helper-protocol";
 import type {
   SummaryDocument,
   TranscriptSegment,
@@ -32,6 +32,7 @@ export type GenerateVideoCompositionRequest = {
 
 export type RenderVideoCompositionRequest = {
   composition: VideoGenerationComposition;
+  onEvent?: (event: HelperEvent) => void;
 };
 
 export type VideoGenerationService = {
@@ -83,7 +84,7 @@ export function createVideoGenerationService({
       return composition;
     },
 
-    async renderComposition({ composition }) {
+    async renderComposition({ composition, onEvent }) {
       const result = await helperClient.run({
         protocolVersion: 1,
         command: "render_html_composition",
@@ -91,6 +92,8 @@ export function createVideoGenerationService({
         inputPath: composition.entryPath,
         outputPath: composition.renderPath,
         tempDir: composition.renderPath.replace(/\/[^/]+$/, "/tmp"),
+      }, {
+        onEvent,
       });
 
       if (result.command !== "render_html_composition") {

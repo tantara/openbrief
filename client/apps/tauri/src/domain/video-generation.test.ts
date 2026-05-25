@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createSummaryVideoGenerationComposition,
   createVideoGenerationArtifactPaths,
+  dimensionsForVideoGenerationAspectRatio,
 } from "@/domain/video-generation";
 
 describe("video generation domain", () => {
@@ -65,5 +66,20 @@ describe("video generation domain", () => {
     expect(composition.html).toContain('data-width="1920"');
     expect(composition.html).toContain('data-height="1080"');
     expect(composition.html).toContain("Strategy Review");
+  });
+
+  it("resolves deterministic preview and render dimensions from aspect ratio", () => {
+    expect(dimensionsForVideoGenerationAspectRatio("16:9")).toEqual({
+      width: 1920,
+      height: 1080,
+    });
+    expect(dimensionsForVideoGenerationAspectRatio("9:16")).toEqual({
+      width: 1080,
+      height: 1920,
+    });
+    expect(dimensionsForVideoGenerationAspectRatio("1:1")).toEqual({
+      width: 1080,
+      height: 1080,
+    });
   });
 });

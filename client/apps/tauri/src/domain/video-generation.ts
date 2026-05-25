@@ -19,6 +19,10 @@ export type VideoGenerationScenario =
   | "pdf-to-video"
   | "csv-to-video";
 export type VideoGenerationAspectRatio = "16:9" | "9:16" | "1:1";
+export type VideoGenerationDimensions = {
+  width: number;
+  height: number;
+};
 
 export type VideoGenerationComposition = {
   id: string;
@@ -195,7 +199,7 @@ function createHyperframesCompositionHtml({
 }) {
   const aspectClass =
     aspectRatio === "9:16" ? "portrait" : aspectRatio === "1:1" ? "square" : "landscape";
-  const dimensions = dimensionsForAspectRatio(aspectRatio);
+  const dimensions = dimensionsForVideoGenerationAspectRatio(aspectRatio);
   const words = content.split(/\s+/).filter(Boolean).slice(0, 34);
   const caption = words.join(" ");
 
@@ -260,7 +264,9 @@ function createHyperframesCompositionHtml({
 `;
 }
 
-function dimensionsForAspectRatio(aspectRatio: VideoGenerationAspectRatio) {
+export function dimensionsForVideoGenerationAspectRatio(
+  aspectRatio: VideoGenerationAspectRatio,
+): VideoGenerationDimensions {
   if (aspectRatio === "9:16") return { width: 1080, height: 1920 };
   if (aspectRatio === "1:1") return { width: 1080, height: 1080 };
 

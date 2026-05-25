@@ -5,6 +5,9 @@ import type {
 } from "@/domain/video-generation";
 import { mediaSourceTypeForAsset } from "@/domain/media-library";
 import {
+  dimensionsForVideoGenerationAspectRatio,
+} from "@/domain/video-generation";
+import {
   createVideoGenerationService,
   type VideoGenerationRuntimeStatus,
 } from "@/services/videoGenerationService";
@@ -63,12 +66,18 @@ export function EditorView({
   const [activeCompositionId, setActiveCompositionId] = useState<string>();
   const [prompt, setPrompt] = useState("");
   const [renderUrl, setRenderUrl] = useState<string>();
+  const [renderProgress, setRenderProgress] = useState<number>();
+  const [renderStatus, setRenderStatus] = useState<string>();
+  const [actionError, setActionError] = useState<string>();
 
   const activeComposition =
     compositionHistory.find((composition) => composition.id === activeCompositionId) ??
     latestComposition;
   const latestRender = activeComposition
     ? rendersByCompositionId[activeComposition.id]?.[0]
+    : undefined;
+  const previewDimensions = activeComposition
+    ? dimensionsForVideoGenerationAspectRatio(activeComposition.aspectRatio)
     : undefined;
 
   useEffect(() => {
@@ -102,19 +111,30 @@ export function EditorView({
     setIsInspecting(true);
     setRuntimeError(undefined);
     try {
-      setRuntimeStatus(await service.inspectRuntime());
+      return await inspectRuntimeStatus();
     } catch (error) {
       setRuntimeStatus(undefined);
       setRuntimeError(error instanceof Error ? error.message : String(error));
+      return undefined;
     } finally {
       setIsInspecting(false);
     }
+  }
+
+  async function inspectRuntimeStatus() {
+    const status = await service.inspectRuntime();
+
+    setRuntimeStatus(status);
+    setRuntimeError(undefined);
+
+    return status;
   }
 
   async function generateComposition() {
     if (!selectedVideo) return;
 
     setIsGenerating(true);
+    setActionError(undefined);
     try {
       const composition = await service.generateComposition({
         asset: selectedVideo,
@@ -124,18 +144,51 @@ export function EditorView({
       });
       onSaveComposition(composition);
       setActiveCompositionId(composition.id);
+      setRenderProgress(undefined);
+      setRenderStatus(undefined);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsGenerating(false);
     }
   }
 
   async function renderComposition() {
-    if (!activeComposition || !runtimeStatus?.available) return;
+    if (!activeComposition) return;
 
     setIsRendering(true);
+    setActionError(undefined);
+    setRenderProgress(0);
+    setRenderStatus(undefined);
     try {
-      const render = await service.renderComposition({ composition: activeComposition });
+      const status = runtimeStatus?.available ? runtimeStatus : await inspectRuntimeStatus();
+
+      if (!status.available) {
+        setRuntimeError(status.message);
+        setRenderProgress(undefined);
+        return;
+      }
+
+      const render = await service.renderComposition({
+        composition: activeComposition,
+        onEvent(event) {
+          if (event.type === "job_progress") {
+            setRenderProgress(event.progressPercent);
+            setRenderStatus(event.message);
+          }
+          if (event.type === "job_started") {
+            setRenderStatus(undefined);
+          }
+          if (event.type === "job_failed") {
+            setActionError(event.message);
+          }
+        },
+      });
       onSaveRender(render);
+      setRenderProgress(100);
+      setRenderStatus(render.outputPath);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsRendering(false);
     }
@@ -229,7 +282,7 @@ export function EditorView({
               variant="outline"
               className="w-full justify-start"
               onClick={renderComposition}
-              disabled={!activeComposition || !runtimeStatus?.available || isRendering}
+              disabled={!activeComposition || isInspecting || isRendering}
             >
               {isRendering ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
@@ -282,14 +335,8 @@ export function EditorView({
             <hyperframes-player
               className="block h-full w-full bg-black"
               srcdoc={activeComposition.html}
-              width={activeComposition.aspectRatio === "9:16" ? 1080 : 1920}
-              height={
-                activeComposition.aspectRatio === "9:16"
-                  ? 1920
-                  : activeComposition.aspectRatio === "1:1"
-                    ? 1080
-                    : 1080
-              }
+              width={previewDimensions?.width}
+              height={previewDimensions?.height}
               controls
               muted
               aria-label={t("editor.preview")}
@@ -305,9 +352,15 @@ export function EditorView({
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold">{t("editor.rendered")}</h3>
               {latestRender ? <Badge variant="secondary">MP4</Badge> : null}
+              {isRendering ? (
+                <Badge variant="outline">{renderProgress ?? 0}%</Badge>
+              ) : null}
             </div>
             <p className="text-muted-foreground mt-2 truncate text-sm">
-              {latestRender?.outputPath ?? t("editor.rendered.empty")}
+              {actionError ??
+                renderStatus ??
+                latestRender?.outputPath ??
+                t("editor.rendered.empty")}
             </p>
           </div>
           <div className="bg-muted/40 min-h-0 overflow-hidden rounded-md">
