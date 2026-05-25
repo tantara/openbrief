@@ -2324,6 +2324,10 @@ export function AppShell() {
           onSelectVideo={setSelectedVideoId}
           onSaveComposition={saveVideoGenerationComposition}
           onSaveRender={saveVideoGenerationRender}
+          editorAgentProviderConfig={aiProviderPreferences.editorAgent}
+          onEditorAgentProviderConfigChange={(config) =>
+            saveAiProviderWorkflowPreference("editorAgent", config)
+          }
         />
       </div>
       <div

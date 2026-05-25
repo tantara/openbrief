@@ -53,7 +53,7 @@ export function createEditorAgentService(
     async draftPlan(request) {
       const kind = request.kind ?? "composition";
       const scenario = scenarioForVideoGenerationAsset(request.asset);
-      const providerPreferences = getProviderPreferences().chat;
+      const providerPreferences = getProviderPreferences().editorAgent;
       const generationSettings = getGenerationSettings();
       const prompt = createEditorAgentPrompt({
         asset: request.asset,

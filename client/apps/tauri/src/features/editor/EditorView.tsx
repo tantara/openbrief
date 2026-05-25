@@ -25,6 +25,10 @@ import {
   createEditorAgentService,
   type EditorAgentService,
 } from "@/services/editorAgentService";
+import {
+  defaultAiProviderPreferences,
+  type AiWorkflowProviderConfig,
+} from "@/services/aiProviderPreferencesService";
 import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
 import { useI18n } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
@@ -60,6 +64,8 @@ export type EditorViewProps = {
   onSelectVideo(videoId: string): void;
   onSaveComposition(composition: VideoGenerationComposition): void;
   onSaveRender(render: VideoGenerationRender): void;
+  editorAgentProviderConfig?: AiWorkflowProviderConfig;
+  onEditorAgentProviderConfigChange?(config: AiWorkflowProviderConfig): void;
   editorAgentService?: EditorAgentService;
 };
 
@@ -75,6 +81,8 @@ export function EditorView({
   onSelectVideo,
   onSaveComposition,
   onSaveRender,
+  editorAgentProviderConfig,
+  onEditorAgentProviderConfigChange,
   editorAgentService,
 }: EditorViewProps) {
   const { t } = useI18n();
@@ -101,6 +109,8 @@ export function EditorView({
   const [activeAgentPlan, setActiveAgentPlan] = useState<EditorAgentPlan>();
   const [aspectRatio, setAspectRatio] =
     useState<VideoGenerationAspectRatio>("16:9");
+  const [localEditorAgentProviderConfig, setLocalEditorAgentProviderConfig] =
+    useState<AiWorkflowProviderConfig>(defaultAiProviderPreferences.editorAgent);
 
   const activeComposition =
     compositionHistory.find((composition) => composition.id === activeCompositionId) ??
@@ -112,6 +122,8 @@ export function EditorView({
     ? dimensionsForVideoGenerationAspectRatio(activeComposition.aspectRatio)
     : undefined;
   const previewAspectRatio = activeComposition?.aspectRatio ?? aspectRatio;
+  const agentProviderConfig =
+    editorAgentProviderConfig ?? localEditorAgentProviderConfig;
 
   useEffect(() => {
     if (!activeCompositionId && latestComposition) {
@@ -220,6 +232,9 @@ export function EditorView({
         transcript: selectedTranscript,
         instruction: instruction || userMessage.content,
         kind,
+        provider: agentProviderConfig.provider,
+        model: agentProviderConfig.model,
+        streamingMode: agentProviderConfig.streamingMode,
       });
       const assistantMessage = createEditorAgentMessage({
         role: "assistant",
@@ -549,8 +564,17 @@ export function EditorView({
           disabled={!selectedVideo}
           isDrafting={isAgentDrafting}
           activePlan={activeAgentPlan}
+          providerConfig={agentProviderConfig}
           onInputChange={setAgentInput}
           onSubmit={draftEditorAgentPlan}
+          onProviderConfigChange={(config) => {
+            if (onEditorAgentProviderConfigChange) {
+              onEditorAgentProviderConfigChange(config);
+              return;
+            }
+
+            setLocalEditorAgentProviderConfig(config);
+          }}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

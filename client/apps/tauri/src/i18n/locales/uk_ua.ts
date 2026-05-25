@@ -79,6 +79,7 @@ export const uk_ua = {
   "settings.providers.title": "Постачальники ШІ",
   "settings.providers.summaryProvider": "Постачальник резюме",
   "settings.providers.chatProvider": "Постачальник чату",
+  "settings.providers.editorAgentProvider": "Editor agent provider",
   "page.video": "Бібліотека",
   "page.editor": "Editor",
   "page.settings": "Налаштування",
@@ -214,6 +215,9 @@ export const uk_ua = {
   "editor.subtitle": "Generate HTML compositions from summaries and render them with HyperFrames.",
   "editor.agent.title": "Editor agent",
   "editor.agent.subtitle": "Plan native HyperFrames scenes and transcript edits.",
+  "editor.agent.provider": "Editor agent provider",
+  "editor.agent.providerDescription":
+    "Choose the provider, model, and response mode for editor-agent requests.",
   "editor.agent.empty": "Ask for a composition plan or transcript edit.",
   "editor.agent.noSource": "Select a source before using the editor agent.",
   "editor.agent.user": "You",
@@ -231,6 +235,8 @@ export const uk_ua = {
   "editor.agent.defaultVideo": "Draft a native summary-to-video plan.",
   "editor.agent.defaultCuts": "Draft conservative transcript cuts.",
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
+  "editor.agent.streamingDescription":
+    "Stream editor-agent plan text while the selected provider responds.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
   "editor.aspect": "Aspect ratio",

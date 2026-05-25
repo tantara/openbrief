@@ -59,11 +59,21 @@ describe("EditorView", () => {
         onSelectVideo={vi.fn()}
         onSaveComposition={onSaveComposition}
         onSaveRender={vi.fn()}
+        editorAgentProviderConfig={{
+          provider: "openrouter",
+          model: "deepseek/deepseek-v4-flash",
+          streamingMode: true,
+        }}
         editorAgentService={editorAgentService}
       />,
     );
 
     expect(screen.getByText("Editor agent")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /Editor agent provider/,
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Wipe captions" }));
 
@@ -72,6 +82,9 @@ describe("EditorView", () => {
         expect.objectContaining({
           instruction: "Add high-energy TikTok-style wipe captions.",
           kind: "composition",
+          provider: "openrouter",
+          model: "deepseek/deepseek-v4-flash",
+          streamingMode: true,
         }),
       ),
     );

@@ -18,6 +18,7 @@ export type AiWorkflowProviderConfig = {
 export type AiProviderPreferences = {
   summary: AiWorkflowProviderConfig;
   chat: AiWorkflowProviderConfig;
+  editorAgent: AiWorkflowProviderConfig;
 };
 
 export const defaultAiProviderPreferences: AiProviderPreferences = {
@@ -27,6 +28,11 @@ export const defaultAiProviderPreferences: AiProviderPreferences = {
     streamingMode: false,
   },
   chat: {
+    provider: "openai",
+    model: defaultProviderModels.openai,
+    streamingMode: false,
+  },
+  editorAgent: {
     provider: "openai",
     model: defaultProviderModels.openai,
     streamingMode: false,
@@ -73,6 +79,10 @@ function normalizeAiProviderPreferences(value: unknown): AiProviderPreferences {
     chat: normalizeWorkflowConfig(
       candidate.chat,
       defaultAiProviderPreferences.chat,
+    ),
+    editorAgent: normalizeWorkflowConfig(
+      candidate.editorAgent,
+      defaultAiProviderPreferences.editorAgent,
     ),
   };
 }

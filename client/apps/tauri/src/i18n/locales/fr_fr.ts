@@ -79,6 +79,7 @@ export const fr_fr = {
   "settings.providers.title": "Fournisseurs IA",
   "settings.providers.summaryProvider": "Fournisseur de résumé",
   "settings.providers.chatProvider": "Fournisseur de chat",
+  "settings.providers.editorAgentProvider": "Editor agent provider",
   "page.video": "Bibliothèque",
   "page.editor": "Editor",
   "page.settings": "Réglages",
@@ -214,6 +215,9 @@ export const fr_fr = {
   "editor.subtitle": "Generate HTML compositions from summaries and render them with HyperFrames.",
   "editor.agent.title": "Editor agent",
   "editor.agent.subtitle": "Plan native HyperFrames scenes and transcript edits.",
+  "editor.agent.provider": "Editor agent provider",
+  "editor.agent.providerDescription":
+    "Choose the provider, model, and response mode for editor-agent requests.",
   "editor.agent.empty": "Ask for a composition plan or transcript edit.",
   "editor.agent.noSource": "Select a source before using the editor agent.",
   "editor.agent.user": "You",
@@ -231,6 +235,8 @@ export const fr_fr = {
   "editor.agent.defaultVideo": "Draft a native summary-to-video plan.",
   "editor.agent.defaultCuts": "Draft conservative transcript cuts.",
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
+  "editor.agent.streamingDescription":
+    "Stream editor-agent plan text while the selected provider responds.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
   "editor.aspect": "Aspect ratio",

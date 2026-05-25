@@ -32,7 +32,7 @@ describe("aiProviderPreferencesService", () => {
     );
   });
 
-  it("persists separate summary and chat provider preferences", () => {
+  it("persists separate workflow provider preferences", () => {
     const storage = createMemoryStorage();
 
     const saved = saveAiProviderPreferences(
@@ -46,6 +46,11 @@ describe("aiProviderPreferencesService", () => {
           provider: "gemini",
           model: "gemini-3.5-flash",
           streamingMode: false,
+        },
+        editorAgent: {
+          provider: "openrouter",
+          model: "deepseek/deepseek-v4-flash",
+          streamingMode: true,
         },
       },
       storage,
@@ -67,6 +72,11 @@ describe("aiProviderPreferencesService", () => {
           model: "missing",
           streamingMode: "yes",
         },
+        editorAgent: {
+          provider: "openrouter",
+          model: "missing",
+          streamingMode: true,
+        },
       }),
     );
 
@@ -77,6 +87,11 @@ describe("aiProviderPreferencesService", () => {
         streamingMode: true,
       },
       chat: defaultAiProviderPreferences.chat,
+      editorAgent: {
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-flash",
+        streamingMode: true,
+      },
     });
   });
 });

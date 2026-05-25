@@ -1078,6 +1078,21 @@ export function SettingsView({
                             updateAiProviderPreference("chat", config)
                           }
                         />
+                        <ProviderPreferenceCard
+                          id="editor-agent-provider-preference"
+                          title={t("settings.providers.editorAgentProvider")}
+                          config={aiProviderPreferences.editorAgent}
+                          streamingLabel={t("workbench.chat.streaming")}
+                          streamingModeLabel={t("workbench.chat.streamingMode")}
+                          streamingOnLabel={t("workbench.chat.streamingOn")}
+                          streamingOffLabel={t("workbench.chat.streamingOff")}
+                          streamingDescription={t(
+                            "editor.agent.streamingDescription",
+                          )}
+                          onChange={(config) =>
+                            updateAiProviderPreference("editorAgent", config)
+                          }
+                        />
                       </div>
                       <div className="grid [grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))] gap-2">
                         {settings.llm.accounts.map((account) => (

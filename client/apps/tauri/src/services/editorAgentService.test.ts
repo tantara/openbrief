@@ -66,6 +66,11 @@ describe("editor agent service", () => {
           model: "gemini-3.1-flash-lite",
           streamingMode: true,
         },
+        editorAgent: {
+          provider: "gemini",
+          model: "gemini-3.1-flash-lite",
+          streamingMode: true,
+        },
       }),
       () => ({
         summary: { temperature: 0.3, topP: 0.9, maxTokens: 4096 },

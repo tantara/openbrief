@@ -3,11 +3,35 @@ import type {
   EditorAgentPlan,
   EditorAgentPlanKind,
 } from "@/domain/editor-agent";
+import type { ProviderKind } from "@/domain/media-library";
 import type { TranslationKey } from "@/i18n";
+import type { ReactNode } from "react";
+import type { AiWorkflowProviderConfig } from "@/services/aiProviderPreferencesService";
+import { ProviderIcon } from "@/components/provider/ProviderIcon";
+import {
+  defaultProviderModels,
+  providerLabels,
+  providerModelOptions,
+  providerOptions,
+} from "@/domain/provider";
 import { useI18n } from "@/i18n";
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@acme/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@acme/ui/select";
 import { Textarea } from "@acme/ui/textarea";
 import { Bot, Loader2, Scissors, Send } from "lucide-react";
 
@@ -17,8 +41,10 @@ export type EditorAgentPanelProps = {
   disabled?: boolean;
   isDrafting?: boolean;
   activePlan?: EditorAgentPlan;
+  providerConfig: AiWorkflowProviderConfig;
   onInputChange(value: string): void;
   onSubmit(kind: EditorAgentPlanKind, instruction?: string): void;
+  onProviderConfigChange(config: AiWorkflowProviderConfig): void;
 };
 
 const quickPrompts: Array<{
@@ -49,8 +75,10 @@ export function EditorAgentPanel({
   disabled,
   isDrafting,
   activePlan,
+  providerConfig,
   onInputChange,
   onSubmit,
+  onProviderConfigChange,
 }: EditorAgentPanelProps) {
   const { t } = useI18n();
 
@@ -64,6 +92,10 @@ export function EditorAgentPanel({
         <p className="text-muted-foreground text-sm">{t("editor.agent.subtitle")}</p>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+        <EditorAgentProviderDialog
+          config={providerConfig}
+          onChange={onProviderConfigChange}
+        />
         <div className="flex flex-wrap gap-2">
           {quickPrompts.map((prompt) => (
             <Button
@@ -193,4 +225,176 @@ function EditorAgentPlanCard({
       ) : null}
     </div>
   );
+}
+
+function EditorAgentProviderDialog({
+  config,
+  onChange,
+}: {
+  config: AiWorkflowProviderConfig;
+  onChange(config: AiWorkflowProviderConfig): void;
+}) {
+  const { t } = useI18n();
+  const label = `${t("editor.agent.provider")} / ${t("setup.provider.model")}`;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 w-fit max-w-full justify-start gap-2 px-3 text-left"
+          aria-label={label}
+        >
+          <ProviderIcon provider={config.provider} size={16} decorative />
+          <span className="text-muted-foreground min-w-0 truncate text-xs">
+            {providerLabels[config.provider]} ·{" "}
+            {shortProviderModelName(config.model)}
+          </span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{label}</DialogTitle>
+          <DialogDescription>
+            {t("editor.agent.providerDescription")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="grid gap-2 text-sm">
+            <span className="font-medium">{t("setup.provider.provider")}</span>
+            <ProviderSelect
+              value={config.provider}
+              onChange={(provider) =>
+                onChange({
+                  provider,
+                  model: defaultProviderModels[provider],
+                  streamingMode: config.streamingMode,
+                })
+              }
+            />
+          </div>
+          <div className="grid gap-2 text-sm">
+            <span className="font-medium">{t("setup.provider.model")}</span>
+            <ProviderModelSelect
+              provider={config.provider}
+              value={config.model}
+              onChange={(model) => onChange({ ...config, model })}
+            />
+          </div>
+          <div className="grid gap-2 text-sm">
+            <span className="font-medium">{t("workbench.chat.streaming")}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={config.streamingMode}
+              className={`flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors ${
+                config.streamingMode
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted"
+              }`}
+              onClick={() =>
+                onChange({
+                  ...config,
+                  streamingMode: !config.streamingMode,
+                })
+              }
+            >
+              <span>{t("workbench.chat.streamingMode")}</span>
+              <span className="text-xs">
+                {config.streamingMode
+                  ? t("workbench.chat.streamingOn")
+                  : t("workbench.chat.streamingOff")}
+              </span>
+            </button>
+            <p className="text-muted-foreground text-xs">
+              {t("editor.agent.streamingDescription")}
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProviderSelect({
+  value,
+  onChange,
+}: {
+  value: ProviderKind;
+  onChange(value: ProviderKind): void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <Select value={value} onValueChange={(value) => onChange(value as ProviderKind)}>
+      <SelectTrigger aria-label={t("setup.provider.provider")} className="w-full">
+        <SelectTriggerContent
+          icon={<ProviderIcon provider={value} size={18} decorative />}
+          label={providerLabels[value]}
+        />
+      </SelectTrigger>
+      <SelectContent>
+        {providerOptions.map((provider) => (
+          <SelectItem
+            key={provider}
+            value={provider}
+            textValue={providerLabels[provider]}
+          >
+            <SelectTriggerContent
+              icon={<ProviderIcon provider={provider} size={18} decorative />}
+              label={providerLabels[provider]}
+            />
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ProviderModelSelect({
+  provider,
+  value,
+  onChange,
+}: {
+  provider: ProviderKind;
+  value: string;
+  onChange(value: string): void;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={t("setup.provider.model")} className="w-full">
+        <SelectTriggerContent label={value} />
+      </SelectTrigger>
+      <SelectContent>
+        {providerModelOptions[provider].map((model) => (
+          <SelectItem key={model} value={model}>
+            {model}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function SelectTriggerContent({
+  icon,
+  label,
+}: {
+  icon?: ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      {icon ? <span className="shrink-0">{icon}</span> : null}
+      <span className="min-w-0 truncate">{label}</span>
+    </div>
+  );
+}
+
+function shortProviderModelName(model: string) {
+  const chunks = model.split(/[/:]/).filter(Boolean);
+  return chunks[chunks.length - 1] ?? model;
 }
