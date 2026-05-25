@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { HelperClient } from "@/services/fakeHelperClient";
+import type { TauriInvoke } from "@/services/tauriHelperClient";
 import { createVideoGenerationService } from "@/services/videoGenerationService";
 
 describe("video generation service", () => {
@@ -119,5 +120,37 @@ describe("video generation service", () => {
     expect(render.outputPath).toBe(
       "videos/video-1/generated-video/composition-1/render.mp4",
     );
+  });
+
+  it("installs the native Deno runtime through the trusted command", async () => {
+    const invokeCommandCalls: string[] = [];
+    const invokeCommand: TauriInvoke = async <T>(command: string): Promise<T> => {
+      invokeCommandCalls.push(command);
+
+      if (command === "install_deno_runtime") {
+        return {
+          tool: "deno",
+          version: "deno 2.8.0",
+          activePath: "runtime-tools/aarch64-apple-darwin/deno",
+          source: "downloaded",
+        } as T;
+      }
+
+      throw new Error(`unexpected command:${command}`);
+    };
+    const service = createVideoGenerationService({
+      invokeCommand,
+      useTauriRuntime: true,
+    });
+
+    const result = await service.installRuntime();
+
+    expect(invokeCommandCalls).toEqual(["install_deno_runtime"]);
+    expect(result).toEqual({
+      tool: "deno",
+      version: "deno 2.8.0",
+      activePath: "runtime-tools/aarch64-apple-darwin/deno",
+      source: "downloaded",
+    });
   });
 });

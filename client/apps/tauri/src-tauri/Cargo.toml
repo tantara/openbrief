@@ -42,6 +42,7 @@ log = "0.4"
 hound = "3.5"
 transcribe-rs = { version = "0.3.8", features = ["whisper-cpp"] }
 subtp = "0.2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-cli = "2"

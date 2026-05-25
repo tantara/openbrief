@@ -95,7 +95,7 @@ export type VideoGenerationSourceInput = {
 };
 
 const compositionCsp =
-  "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: blob: asset:; media-src 'self' data: blob: asset:; font-src 'self' data:; connect-src 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src 'self' data: blob: asset:; media-src 'self' data: blob: asset:; font-src 'self' data:; connect-src 'none'";
 
 export function scenarioForVideoGenerationAsset(
   asset: VideoAsset,
@@ -251,6 +251,7 @@ function createHyperframesCompositionHtml({
   );
   const caption = createCaptionHtml(words, hasCaptionClipWipe);
   const sceneCards = createStoryboardSceneHtml(storyboard);
+  const compositionIdJson = JSON.stringify(compositionId);
 
   return `<!doctype html>
 <html lang="en">
@@ -260,7 +261,7 @@ function createHyperframesCompositionHtml({
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(title)}</title>
     <style>
-      html, body { margin: 0; width: 100%; height: 100%; background: #0c0f14; color: #f8fafc; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      html, body { margin: 0; width: 100%; height: 100%; background: #0c0f14; color: #f8fafc; font-family: Inter, sans-serif; }
       .scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; display: grid; place-items: center; background:
         radial-gradient(circle at 18% 22%, rgba(20, 184, 166, 0.24), transparent 28%),
         radial-gradient(circle at 82% 78%, rgba(245, 158, 11, 0.18), transparent 30%),
@@ -270,31 +271,24 @@ function createHyperframesCompositionHtml({
       h1 { margin: 14px 0 0; max-width: 980px; font-size: clamp(48px, 7vw, 96px); line-height: 0.96; letter-spacing: 0; }
       .caption { max-width: 900px; font-size: clamp(22px, 3vw, 36px); line-height: 1.22; color: #e2e8f0; }
       .caption-word { display: inline-block; }
-      .caption-clip-wipe .caption-word { clip-path: inset(0 100% 0 0); color: #ffffff; animation: clipWipe 420ms ease forwards, captionSettle 240ms ease forwards; animation-delay: calc(var(--word-index) * 70ms), calc((var(--word-index) * 70ms) + 720ms); will-change: clip-path, color; }
+      .caption-clip-wipe .caption-word { clip-path: inset(0 100% 0 0); color: #ffffff; will-change: clip-path, color; }
       .storyboard { display: grid; grid-template-columns: repeat(${Math.min(storyboard.length, 3)}, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
-      .scene-card { min-width: 0; border: 1px solid rgba(148, 163, 184, 0.28); background: rgba(15, 23, 42, 0.62); border-radius: 8px; padding: 16px; animation: reveal 720ms ease both; animation-delay: calc(var(--scene-index) * 180ms + 360ms); }
+      .scene-card { min-width: 0; border: 1px solid rgba(148, 163, 184, 0.28); background: rgba(15, 23, 42, 0.62); border-radius: 8px; padding: 16px; opacity: 0; }
       .scene-card h2 { margin: 0 0 8px; color: #f8fafc; font-size: clamp(18px, 2vw, 28px); line-height: 1.05; letter-spacing: 0; }
       .scene-card p { margin: 0; color: #cbd5e1; font-size: clamp(14px, 1.45vw, 18px); line-height: 1.3; }
       .scene-time { display: block; margin-top: 12px; color: #5eead4; font-size: 13px; font-weight: 700; }
       .meta { display: flex; justify-content: space-between; gap: 24px; color: #cbd5e1; font-size: 18px; }
-      .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: #14b8a6; animation: progress ${durationSeconds}s linear forwards; transform-origin: left center; }
+      .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: #14b8a6; transform: scaleX(0); transform-origin: left center; }
       .frame.landscape { max-height: 86vh; }
       .frame.portrait { max-width: 56vh; }
       .frame.square { max-width: 82vh; }
-      @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-      @keyframes reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
-      @keyframes clipWipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
-      @keyframes captionSettle { to { color: #cbd5e1; } }
-      .kicker, h1, .caption, .meta { animation: reveal 720ms ease both; }
-      h1 { animation-delay: 120ms; }
-      .caption { animation-delay: 260ms; }
-      .meta { animation-delay: 420ms; }
+      .kicker, h1, .caption, .meta { opacity: 0; }
     </style>
   </head>
   <body>
     <main
       id="stage"
-      class="scene"
+      class="scene clip"
       data-composition-id="${escapeHtml(compositionId)}"
       data-start="0"
       data-duration="${durationSeconds}"
@@ -320,6 +314,26 @@ function createHyperframesCompositionHtml({
       </section>
       <div class="bar" aria-hidden="true"></div>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const compositionId = ${compositionIdJson};
+      const tl = gsap.timeline({ paused: true });
+      tl.to(".bar", { scaleX: 1, duration: ${durationSeconds}, ease: "none" }, 0);
+      tl.fromTo(".kicker", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 0);
+      tl.fromTo("h1", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.65, ease: "power3.out" }, 0.12);
+      tl.fromTo(".caption", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 0.28);
+      tl.fromTo(".meta", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.44);
+      tl.fromTo(".scene-card", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out", stagger: 0.18 }, 0.62);
+      tl.to(".caption-clip-wipe .caption-word", {
+        clipPath: "inset(0 0% 0 0)",
+        color: "#cbd5e1",
+        duration: 0.42,
+        ease: "power2.out",
+        stagger: 0.07
+      }, 0.36);
+      window.__timelines[compositionId] = tl;
+    </script>
   </body>
 </html>
 `;

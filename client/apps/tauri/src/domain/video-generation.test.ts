@@ -30,7 +30,7 @@ describe("video generation domain", () => {
     });
   });
 
-  it("creates sandboxable HyperFrames HTML with a strict CSP", () => {
+  it("creates renderable HyperFrames HTML with a timeline contract", () => {
     const composition = createSummaryVideoGenerationComposition({
       asset: {
         id: "video-1",
@@ -57,14 +57,18 @@ describe("video generation domain", () => {
       "videos/video-1/generated-video/video-1-20260525000200/index.html",
     );
     expect(composition.html).toContain("Content-Security-Policy");
-    expect(composition.html).toContain("script-src 'none'");
-    expect(composition.html).not.toContain("script-src 'unsafe-inline'");
+    expect(composition.html).toContain(
+      "script-src 'unsafe-inline' https://cdn.jsdelivr.net",
+    );
     expect(composition.html).toContain("connect-src 'none'");
     expect(composition.html).toContain(
       'data-composition-id="video-1-20260525000200"',
     );
+    expect(composition.html).toContain('class="scene clip"');
     expect(composition.html).toContain('data-width="1920"');
     expect(composition.html).toContain('data-height="1080"');
+    expect(composition.html).toContain("window.__timelines");
+    expect(composition.html).toContain("gsap.timeline({ paused: true })");
     expect(composition.html).toContain("Strategy Review");
   });
 
@@ -101,7 +105,7 @@ describe("video generation domain", () => {
       'data-openbrief-component="caption-clip-wipe"',
     );
     expect(composition.html).toContain("caption-clip-wipe .caption-word");
-    expect(composition.html).toContain("script-src 'none'");
+    expect(composition.html).toContain('clipPath: "inset(0 0% 0 0)"');
   });
 
   it("uses editor-agent storyboard scenes as composition structure and duration", () => {

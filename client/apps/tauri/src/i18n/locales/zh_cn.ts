@@ -254,6 +254,7 @@ export const zh_cn = {
   "editor.runtime": "Runtime",
   "editor.runtime.ready": "Ready: Deno + hyperframes@0.6.42",
   "editor.runtime.pending": "Inspect Deno and HyperFrames before rendering.",
+  "editor.runtime.installingDeno": "Installing Deno runtime...",
   "editor.compositions": "Compositions",
   "editor.preview": "Composition preview",
   "editor.preview.empty": "Generate a composition to preview it here.",

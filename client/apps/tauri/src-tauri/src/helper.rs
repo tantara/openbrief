@@ -230,7 +230,7 @@ pub async fn run_helper_command<R: Runtime>(
     if let Some(ytdlp_path) = crate::media_tools::updated_ytdlp_path_for_app(&app) {
         sidecar = sidecar.env(YTDLP_PATH_ENV, ytdlp_path);
     }
-    if let Ok(deno_path) = std::env::var(DENO_PATH_ENV) {
+    if let Some(deno_path) = crate::runtime_tools::active_deno_path_for_app(&app) {
         sidecar = sidecar.env(DENO_PATH_ENV, deno_path);
     }
 

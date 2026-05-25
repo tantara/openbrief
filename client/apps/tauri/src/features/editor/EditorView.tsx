@@ -283,9 +283,13 @@ export function EditorView({
     setRenderStatus(undefined);
     try {
       const status = runtimeStatus?.available ? runtimeStatus : await inspectRuntimeStatus();
+      const readyStatus =
+        !status.available && status.missing.includes("deno")
+          ? await installMissingDenoRuntime()
+          : status;
 
-      if (!status.available) {
-        setRuntimeError(status.message);
+      if (!readyStatus.available) {
+        setRuntimeError(readyStatus.message);
         setRenderProgress(undefined);
         return;
       }
@@ -313,6 +317,13 @@ export function EditorView({
     } finally {
       setIsRendering(false);
     }
+  }
+
+  async function installMissingDenoRuntime() {
+    setRenderStatus(t("editor.runtime.installingDeno"));
+    setRuntimeError(undefined);
+    await service.installRuntime();
+    return await inspectRuntimeStatus();
   }
 
   const scenarioLabel =

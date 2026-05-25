@@ -25,6 +25,13 @@ export type VideoGenerationRuntimeStatus = Extract<
   { command: "inspect_video_generation_runtime" }
 >;
 
+export type DenoRuntimeInstallResult = {
+  tool: "deno";
+  version?: string;
+  activePath: string;
+  source: "existing" | "downloaded";
+};
+
 export type GenerateVideoCompositionRequest = {
   asset: VideoAsset;
   summary?: SummaryDocument;
@@ -42,6 +49,7 @@ export type RenderVideoCompositionRequest = {
 
 export type VideoGenerationService = {
   inspectRuntime(): Promise<VideoGenerationRuntimeStatus>;
+  installRuntime(): Promise<DenoRuntimeInstallResult>;
   generateComposition(
     request: GenerateVideoCompositionRequest,
   ): Promise<VideoGenerationComposition>;
@@ -61,9 +69,11 @@ export function createVideoGenerationService({
     ? new TauriHelperClient()
     : new FakeHelperClient(),
   invokeCommand = invoke,
+  useTauriRuntime = canUseTauriRuntime(),
 }: {
   helperClient?: HelperClient;
   invokeCommand?: TauriInvoke;
+  useTauriRuntime?: boolean;
 } = {}): VideoGenerationService {
   return {
     async inspectRuntime() {
@@ -74,10 +84,23 @@ export function createVideoGenerationService({
       }) as VideoGenerationRuntimeStatus;
     },
 
+    async installRuntime() {
+      if (!useTauriRuntime) {
+        return {
+          tool: "deno",
+          version: "deno fake",
+          activePath: "deno",
+          source: "existing",
+        };
+      }
+
+      return await invokeCommand<DenoRuntimeInstallResult>("install_deno_runtime");
+    },
+
     async generateComposition(request) {
       const composition = createSummaryVideoGenerationComposition(request);
 
-      if (canUseTauriRuntime()) {
+      if (useTauriRuntime) {
         await writeTextArtifact(invokeCommand, composition.entryPath, composition.html);
         await writeTextArtifact(
           invokeCommand,
