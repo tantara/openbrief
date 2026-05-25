@@ -3,3 +3,5 @@
 .env.release
 __pycache__
 assets/
+!docs/assets/
+!docs/assets/**
