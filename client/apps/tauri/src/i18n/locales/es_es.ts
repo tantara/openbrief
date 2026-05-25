@@ -18,6 +18,8 @@ export const es_es = {
   "download.error.yt-dlp-outdated": "yt-dlp está desactualizado. Actualiza yt-dlp en Ajustes e inténtalo de nuevo.",
   "download.error.youtube-sabr-forbidden": "YouTube rechazó esta descarga. Actualiza primero yt-dlp; si sigue fallando, usa cookies de una sesión de navegador iniciada.",
   "download.error.rate-limited": "El sitio del video está limitando esta descarga. Inténtalo más tarde o usa cookies de una sesión de navegador iniciada.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "Este video es privado o restringido. Usa cookies de una cuenta que pueda verlo.",
   "download.error.cookies-required": "Esta descarga necesita cookies de una sesión de navegador con acceso al video.",
   "download.error.credentials-required": "Esta descarga requiere una cuenta. Añade credenciales o usa cookies de una sesión de navegador iniciada.",
@@ -231,6 +233,10 @@ export const es_es = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const es_es = {
   "notice.downloadAccess.cookiesFile": "La configuración de cookies.txt para {target} aún no está habilitada en esta compilación. Las pruebas fuera de línea solo verifican el contrato de cookies planificado; no se selecciona ni almacena ningún archivo.",
   "notice.downloadAccess.poToken": "La configuración del token PO de YouTube está planificada para el flujo de configuración confiable de Rust. El renderizador solo mostrará el estado configurado, nunca el valor del token.",
   "notice.downloadAccess.extractorArgs": "La configuración de Extractor args está planificada para el flujo de configuración confiable de Rust. OpenBrief los validará y los pasará a yt-dlp como argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Respuesta de chat lista para {title}",
   "notice.supertonic.failed": "No se pudo leer el mensaje de chat: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

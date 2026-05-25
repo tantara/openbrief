@@ -72,6 +72,7 @@ import { createPodcastDocument, createPodcastId } from "@/domain/podcast";
 import { normalizeQuestionCount } from "@/domain/quiz";
 import { createTranscriptJobId } from "@/domain/transcript";
 import { createTranscriptSourceVariant } from "@/domain/transcript-actions";
+import { userFacingAiRequestErrorMessage } from "@/domain/user-facing-error";
 import { FakeHelperClient } from "@/services/fakeHelperClient";
 import {
   createMockIngestService,
@@ -537,8 +538,7 @@ export function useMediaLibrary(
         status: "failed",
         provider,
         model,
-        errorMessage:
-          error instanceof Error ? error.message : "summary_generation_failed",
+        errorMessage: userFacingAiRequestErrorMessage(error),
       });
       throw error;
     } finally {
@@ -626,7 +626,7 @@ export function useMediaLibrary(
         status: "failed",
         provider,
         model,
-        errorMessage: error instanceof Error ? error.message : "chat_failed",
+        errorMessage: userFacingAiRequestErrorMessage(error),
       });
       throw error;
     }

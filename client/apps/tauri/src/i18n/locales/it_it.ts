@@ -18,6 +18,8 @@ export const it_it = {
   "download.error.yt-dlp-outdated": "yt-dlp è obsoleto. Aggiorna yt-dlp nelle impostazioni e riprova.",
   "download.error.youtube-sabr-forbidden": "YouTube ha rifiutato questo download. Aggiorna prima yt-dlp; se fallisce ancora, usa i cookie di una sessione del browser con accesso.",
   "download.error.rate-limited": "Il sito del video sta limitando questo download. Riprova più tardi o usa i cookie di una sessione del browser con accesso.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "Questo video è privato o limitato. Usa i cookie di un account che può guardarlo.",
   "download.error.cookies-required": "Questo download richiede i cookie di una sessione del browser che può accedere al video.",
   "download.error.credentials-required": "Questo download richiede un account. Aggiungi credenziali o usa i cookie di una sessione del browser con accesso.",
@@ -231,6 +233,10 @@ export const it_it = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const it_it = {
   "notice.downloadAccess.cookiesFile": "La configurazione di cookies.txt per {target} non è ancora abilitata in questa build. I test offline verificano solo il contratto --cookies pianificato; nessun file è selezionato o memorizzato.",
   "notice.downloadAccess.poToken": "La configurazione del token PO di YouTube è pianificata per il flusso delle impostazioni Rust attendibili. Il renderer mostrerà solo lo stato configurato, mai il valore del token.",
   "notice.downloadAccess.extractorArgs": "La configurazione degli argomenti dell'estrattore è pianificata per il flusso delle impostazioni Rust attendibili. OpenBrief li convaliderà e li passerà a yt-dlp come argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Risposta chat pronta per {title}",
   "notice.supertonic.failed": "Impossibile leggere il messaggio di chat: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

@@ -9,6 +9,7 @@ import type {
   VideoAsset,
 } from "@/domain/media-library";
 import type {
+  VideoGenerationAspectRatio,
   VideoGenerationComposition,
   VideoGenerationRender,
 } from "@/domain/video-generation";
@@ -98,6 +99,8 @@ export function EditorView({
   const [agentInput, setAgentInput] = useState("");
   const [isAgentDrafting, setIsAgentDrafting] = useState(false);
   const [activeAgentPlan, setActiveAgentPlan] = useState<EditorAgentPlan>();
+  const [aspectRatio, setAspectRatio] =
+    useState<VideoGenerationAspectRatio>("16:9");
 
   const activeComposition =
     compositionHistory.find((composition) => composition.id === activeCompositionId) ??
@@ -108,6 +111,7 @@ export function EditorView({
   const previewDimensions = activeComposition
     ? dimensionsForVideoGenerationAspectRatio(activeComposition.aspectRatio)
     : undefined;
+  const previewAspectRatio = activeComposition?.aspectRatio ?? aspectRatio;
 
   useEffect(() => {
     if (!activeCompositionId && latestComposition) {
@@ -174,6 +178,7 @@ export function EditorView({
         summary: selectedSummary,
         transcript: selectedTranscript,
         prompt: overrides.prompt ?? prompt,
+        aspectRatio,
         componentNames: overrides.componentNames,
         storyboard: overrides.storyboard,
       });
@@ -343,6 +348,33 @@ export function EditorView({
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="editor-aspect">
+                  {t("editor.aspect")}
+                </label>
+                <Select
+                  value={aspectRatio}
+                  onValueChange={(value) =>
+                    setAspectRatio(value as VideoGenerationAspectRatio)
+                  }
+                >
+                  <SelectTrigger id="editor-aspect">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="16:9">
+                      {t("editor.aspect.landscape")}
+                    </SelectItem>
+                    <SelectItem value="9:16">
+                      {t("editor.aspect.portrait")}
+                    </SelectItem>
+                    <SelectItem value="1:1">
+                      {t("editor.aspect.square")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="editor-prompt">
                   {t("editor.prompt")}
                 </label>
@@ -454,17 +486,23 @@ export function EditorView({
 
       <ResizablePanel id="editor-preview" defaultSize="50%" minSize="360px">
         <section className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_220px] gap-4">
-          <div className="border-border bg-card/40 min-h-0 overflow-hidden rounded-md border">
+          <div className="border-border bg-black min-h-0 overflow-hidden rounded-md border p-4">
             {activeComposition ? (
-              <hyperframes-player
-                className="block h-full w-full bg-black"
-                srcdoc={activeComposition.html}
-                width={previewDimensions?.width}
-                height={previewDimensions?.height}
-                controls
-                muted
-                aria-label={t("editor.preview")}
-              />
+              <div
+                className={`mx-auto flex max-h-full max-w-full items-center justify-center overflow-hidden bg-black ${previewFrameClassName(previewAspectRatio)}`}
+                data-testid="editor-preview-frame"
+                data-preview-aspect={previewAspectRatio}
+              >
+                <hyperframes-player
+                  className="block h-full w-full bg-black"
+                  srcdoc={activeComposition.html}
+                  width={previewDimensions?.width}
+                  height={previewDimensions?.height}
+                  controls
+                  muted
+                  aria-label={t("editor.preview")}
+                />
+              </div>
             ) : (
               <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
                 {t("editor.preview.empty")}
@@ -518,6 +556,17 @@ export function EditorView({
       </ResizablePanel>
     </ResizablePanelGroup>
   );
+}
+
+function previewFrameClassName(aspectRatio: VideoGenerationAspectRatio) {
+  switch (aspectRatio) {
+    case "9:16":
+      return "aspect-[9/16] h-full";
+    case "1:1":
+      return "aspect-square h-full";
+    case "16:9":
+      return "aspect-video w-full";
+  }
 }
 
 function ScenarioPill({

@@ -18,6 +18,8 @@ export const fr_fr = {
   "download.error.yt-dlp-outdated": "yt-dlp est obsolète. Mettez yt-dlp à jour dans les paramètres et réessayez.",
   "download.error.youtube-sabr-forbidden": "YouTube a refusé ce téléchargement. Mettez d'abord yt-dlp à jour ; si l'échec persiste, utilisez les cookies d'une session de navigateur connectée.",
   "download.error.rate-limited": "L'hébergeur limite ce téléchargement. Réessayez plus tard ou utilisez les cookies d'une session de navigateur connectée.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "Cette vidéo est privée ou restreinte. Utilisez les cookies d'un compte autorisé à la regarder.",
   "download.error.cookies-required": "Ce téléchargement nécessite les cookies d'une session de navigateur ayant accès à la vidéo.",
   "download.error.credentials-required": "Ce téléchargement nécessite un compte. Ajoutez des identifiants ou utilisez les cookies d'une session de navigateur connectée.",
@@ -231,6 +233,10 @@ export const fr_fr = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const fr_fr = {
   "notice.downloadAccess.cookiesFile": "La configuration cookies.txt pour {target} n'est pas encore activée dans cette version. Les tests hors ligne vérifient uniquement le contrat --cookies prévu ; aucun fichier n'est sélectionné ou stocké.",
   "notice.downloadAccess.poToken": "La configuration du jeton PO YouTube est prévue pour le flux de paramètres Rust de confiance. Le moteur de rendu affichera uniquement l'état configuré, jamais la valeur du jeton.",
   "notice.downloadAccess.extractorArgs": "La configuration des arguments de l’extracteur est prévue pour le flux de paramètres Rust approuvés. OpenBrief les validera et les transmettra à yt-dlp en tant qu'argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Réponse par chat prête pour {title}",
   "notice.supertonic.failed": "Impossible de lire le message de discussion : {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

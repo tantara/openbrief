@@ -18,6 +18,8 @@ export const ja_jp = {
   "download.error.yt-dlp-outdated": "yt-dlp が古くなっています。設定で yt-dlp を更新してから再試行してください。",
   "download.error.youtube-sabr-forbidden": "YouTube がこのダウンロードを拒否しました。まず yt-dlp を更新し、それでも失敗する場合はログイン済みブラウザの Cookie を使用してください。",
   "download.error.rate-limited": "動画サイトがこのダウンロードを制限しています。後でもう一度試すか、ログイン済みブラウザの Cookie を使用してください。",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "この動画は非公開または制限付きです。視聴できるアカウントの Cookie を使用してください。",
   "download.error.cookies-required": "このダウンロードには、動画へアクセスできるブラウザセッションの Cookie が必要です。",
   "download.error.credentials-required": "このダウンロードにはアカウントが必要です。認証情報を追加するか、ログイン済みブラウザの Cookie を使用してください。",
@@ -231,6 +233,10 @@ export const ja_jp = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const ja_jp = {
   "notice.downloadAccess.cookiesFile": "{target} の cookies.txt セットアップは、このビルドではまだ有効になっていません。オフライン テストでは、計画された --cookies コントラクトのみが検証されます。ファイルが選択または保存されていません。",
   "notice.downloadAccess.poToken": "YouTube PO トークンのセットアップは、信頼できる Rust 設定フローで計画されています。レンダラは構成されたステータスのみを表示し、トークン値は表示しません。",
   "notice.downloadAccess.extractorArgs": "Extractor args のセットアップは、信頼できる Rust 設定フロー用に計画されています。 OpenBrief はそれらを検証し、argv として yt-dlp に渡します。",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "{title}のチャット応答準備完了",
   "notice.supertonic.failed": "チャット メッセージを読み取れませんでした: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

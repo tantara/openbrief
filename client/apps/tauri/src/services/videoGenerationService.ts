@@ -7,6 +7,7 @@ import type {
 import {
   createSummaryVideoGenerationComposition,
   createVideoGenerationManifest,
+  type VideoGenerationAspectRatio,
   type VideoGenerationComposition,
   type VideoGenerationRender,
   type VideoGenerationStoryboardScene,
@@ -29,6 +30,7 @@ export type GenerateVideoCompositionRequest = {
   summary?: SummaryDocument;
   transcript?: TranscriptSegment[];
   prompt?: string;
+  aspectRatio?: VideoGenerationAspectRatio;
   componentNames?: string[];
   storyboard?: VideoGenerationStoryboardScene[];
 };

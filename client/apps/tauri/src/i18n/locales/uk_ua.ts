@@ -18,6 +18,8 @@ export const uk_ua = {
   "download.error.yt-dlp-outdated": "yt-dlp застарів. Оновіть yt-dlp у налаштуваннях і повторіть спробу.",
   "download.error.youtube-sabr-forbidden": "YouTube відхилив це завантаження. Спочатку оновіть yt-dlp; якщо помилка лишиться, використайте cookies з авторизованої сесії браузера.",
   "download.error.rate-limited": "Відеохост обмежує це завантаження. Спробуйте пізніше або використайте cookies з авторизованої сесії браузера.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "Це відео приватне або обмежене. Використайте cookies облікового запису з доступом до перегляду.",
   "download.error.cookies-required": "Для цього завантаження потрібні cookies із сесії браузера з доступом до відео.",
   "download.error.credentials-required": "Для цього завантаження потрібен обліковий запис. Додайте облікові дані або використайте cookies з авторизованої сесії браузера.",
@@ -231,6 +233,10 @@ export const uk_ua = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const uk_ua = {
   "notice.downloadAccess.cookiesFile": "Налаштування cookies.txt для {target} ще не ввімкнено в цій збірці. Офлайн-тести перевіряють лише запланований контракт --cookies; жоден файл не вибрано і не збережено.",
   "notice.downloadAccess.poToken": "Налаштування маркера YouTube PO планується для довіреного потоку налаштувань Rust. Програма візуалізації відображатиме лише налаштований статус, а не значення маркера.",
   "notice.downloadAccess.extractorArgs": "Налаштування аргументів Extractor заплановано для довіреного потоку налаштувань Rust. OpenBrief перевірить і передасть їх у yt-dlp як argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Готова відповідь у чаті для {title}",
   "notice.supertonic.failed": "Не вдалося прочитати повідомлення чату: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

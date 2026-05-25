@@ -134,4 +134,43 @@ describe("EditorView", () => {
     expect(screen.getByRole("button", { name: "Apply plan" })).toBeDisabled();
     expect(onSaveComposition).not.toHaveBeenCalled();
   });
+
+  it("frames vertical compositions without stretching the preview", () => {
+    render(
+      <EditorView
+        videos={[video]}
+        selectedVideoId={video.id}
+        selectedVideo={video}
+        selectedTranscript={transcript}
+        latestComposition={{
+          id: "composition-vertical",
+          sourceId: video.id,
+          sourceType: "video",
+          scenario: "summary-to-video",
+          adapter: "deno-hyperframes",
+          title: "Vertical Short",
+          prompt: "Portrait preview",
+          html: "<html><body>Vertical</body></html>",
+          entryPath: "videos/video-1/generated-video/composition-vertical/index.html",
+          manifestPath:
+            "videos/video-1/generated-video/composition-vertical/composition.json",
+          renderPath:
+            "videos/video-1/generated-video/composition-vertical/render.mp4",
+          durationSeconds: 10,
+          aspectRatio: "9:16",
+          createdAtIso: "2026-05-25T00:00:00.000Z",
+          updatedAtIso: "2026-05-25T00:00:00.000Z",
+        }}
+        compositionHistory={[]}
+        rendersByCompositionId={{}}
+        onSelectVideo={vi.fn()}
+        onSaveComposition={vi.fn()}
+        onSaveRender={vi.fn()}
+      />,
+    );
+
+    const frame = screen.getByTestId("editor-preview-frame");
+    expect(frame).toHaveAttribute("data-preview-aspect", "9:16");
+    expect(frame).toHaveClass("aspect-[9/16]");
+  });
 });

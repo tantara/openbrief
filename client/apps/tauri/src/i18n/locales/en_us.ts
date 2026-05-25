@@ -95,6 +95,10 @@ export const en_us = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -145,6 +149,8 @@ export const en_us = {
     "YouTube denied this download. Update yt-dlp first; if it still fails, use cookies from a signed-in browser session.",
   "download.error.rate-limited":
     "The video host is rate limiting this download. Try again later or use cookies from a signed-in browser session.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video":
     "This video is private or restricted. Use cookies from an account that can watch it.",
   "download.error.cookies-required":
@@ -602,6 +608,10 @@ export const en_us = {
     "YouTube PO token setup is planned for the trusted Rust settings flow. The renderer will only show configured status, never the token value.",
   "notice.downloadAccess.extractorArgs":
     "Extractor args setup is planned for the trusted Rust settings flow. OpenBrief will validate and pass them to yt-dlp as argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Chat response ready for {title}",
   "notice.artifactExport.success": "Exported to {path}",
   "notice.artifactExport.failed": "Export failed: {message}",

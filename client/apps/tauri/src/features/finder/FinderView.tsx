@@ -728,6 +728,8 @@ function downloadErrorKey(errorKind: NonNullable<IngestJob["errorKind"]>): Trans
       return "download.error.youtube-sabr-forbidden";
     case "rate-limited":
       return "download.error.rate-limited";
+    case "network-offline":
+      return "download.error.network-offline";
     case "private-video":
       return "download.error.private-video";
     case "cookies-required":

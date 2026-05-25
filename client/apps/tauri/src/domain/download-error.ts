@@ -2,6 +2,7 @@ export type DownloadErrorKind =
   | "yt-dlp-outdated"
   | "youtube-sabr-forbidden"
   | "rate-limited"
+  | "network-offline"
   | "private-video"
   | "cookies-required"
   | "credentials-required"
@@ -97,6 +98,33 @@ export function classifyDownloadError(error: unknown): ClassifiedDownloadError {
         recoveryActions.provideCookies,
         recoveryActions.openWebviewCookies,
       ],
+    };
+  }
+
+  if (
+    normalized.includes("failed to fetch") ||
+    normalized.includes("network offline") ||
+    normalized.includes("network is unreachable") ||
+    normalized.includes("could not resolve host") ||
+    normalized.includes("could not resolve hostname") ||
+    normalized.includes("temporary failure in name resolution") ||
+    normalized.includes("name or service not known") ||
+    normalized.includes("no route to host") ||
+    normalized.includes("connection refused") ||
+    normalized.includes("connection reset") ||
+    normalized.includes("connection timed out") ||
+    normalized.includes("operation timed out") ||
+    normalized.includes("dns error") ||
+    normalized.includes("enotfound") ||
+    normalized.includes("eai_again") ||
+    normalized.includes("err_internet_disconnected")
+  ) {
+    return {
+      kind: "network-offline",
+      userMessage:
+        "OpenBrief is offline. Check your internet connection and try the download again.",
+      diagnosticMessage,
+      recoveryActions: [recoveryActions.changeNetwork, recoveryActions.retryLater],
     };
   }
 

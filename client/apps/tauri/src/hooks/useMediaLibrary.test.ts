@@ -1007,6 +1007,62 @@ describe("useMediaLibrary", () => {
     });
   });
 
+  it("stores friendly AI request errors instead of provider sentinels", async () => {
+    const video: VideoAsset = {
+      id: "video-1",
+      title: "Design Review",
+      sourceKind: "youtube",
+      originalUri: "https://youtu.be/example",
+      libraryPath: "videos/video-1/video.mp4",
+      importStatus: "ready",
+      createdAtIso: "2026-05-21T00:00:00.000Z",
+    };
+    const summaryChatService: SummaryChatService = {
+      generateSummary: vi
+        .fn()
+        .mockRejectedValue(new Error("provider_request_failed")),
+      generatePodcastScript: vi.fn(),
+      generateQuiz: vi.fn(),
+      sendChat: vi.fn().mockRejectedValue(new Error("Failed to fetch")),
+      reviewTranscript: vi.fn().mockResolvedValue([]),
+      translateTranscript: vi.fn(),
+      createMarkdownSave: vi.fn(() => ({
+        suggestedFileName: "design-review.md",
+        markdown: "# Summary",
+      })),
+    };
+    const { result } = renderHook(() =>
+      useMediaLibrary([video], undefined, undefined, summaryChatService),
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.generateSummary("video-1", "openai"),
+      ).rejects.toThrow("provider_request_failed");
+    });
+    expect(result.current.state.summaryJobsByVideoId["video-1"]).toMatchObject({
+      status: "failed",
+      errorMessage:
+        "The AI request failed. Check your connection or provider settings and try again.",
+    });
+
+    await act(async () => {
+      await expect(
+        result.current.sendChat({
+          videoId: "video-1",
+          question: "What mattered?",
+          contextMode: "summary",
+          provider: "openai",
+        }),
+      ).rejects.toThrow("Failed to fetch");
+    });
+    expect(result.current.state.chatJobsByVideoId["video-1"]).toMatchObject({
+      status: "failed",
+      errorMessage:
+        "OpenBrief is offline. Check your internet connection and try the AI request again.",
+    });
+  });
+
   it("coalesces rapid streaming summary drafts", async () => {
     vi.useFakeTimers();
     try {

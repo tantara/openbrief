@@ -18,6 +18,8 @@ export const pl_pl = {
   "download.error.yt-dlp-outdated": "yt-dlp jest nieaktualny. Zaktualizuj yt-dlp w Ustawieniach i spróbuj ponownie.",
   "download.error.youtube-sabr-forbidden": "YouTube odmówił tego pobrania. Najpierw zaktualizuj yt-dlp; jeśli nadal się nie uda, użyj plików cookie z zalogowanej sesji przeglądarki.",
   "download.error.rate-limited": "Host wideo ogranicza to pobieranie. Spróbuj później albo użyj plików cookie z zalogowanej sesji przeglądarki.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "To wideo jest prywatne lub ograniczone. Użyj plików cookie z konta, które może je oglądać.",
   "download.error.cookies-required": "To pobranie wymaga plików cookie z sesji przeglądarki mającej dostęp do wideo.",
   "download.error.credentials-required": "To pobranie wymaga konta. Dodaj dane logowania albo użyj plików cookie z zalogowanej sesji przeglądarki.",
@@ -231,6 +233,10 @@ export const pl_pl = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const pl_pl = {
   "notice.downloadAccess.cookiesFile": "Konfiguracja pliku cookies.txt dla {target} nie jest jeszcze włączona w tej kompilacji. Testy offline weryfikują jedynie planowaną umowę --cookies; nie wybrano ani nie zapisano żadnego pliku.",
   "notice.downloadAccess.poToken": "Konfiguracja tokena YouTube PO jest planowana dla zaufanego przepływu ustawień Rust. Moduł renderujący pokaże tylko skonfigurowany stan, nigdy wartość tokena.",
   "notice.downloadAccess.extractorArgs": "Konfiguracja ekstraktora argumentów jest planowana dla zaufanego przepływu ustawień Rusta. OpenBrief sprawdzi poprawność i przekaże je do yt-dlp jako argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Odpowiedź na czacie gotowa dla {title}",
   "notice.supertonic.failed": "Nie można odczytać wiadomości na czacie: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

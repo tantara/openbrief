@@ -18,6 +18,8 @@ export const zh_tw = {
   "download.error.yt-dlp-outdated": "yt-dlp 已過期。請在設定中更新 yt-dlp 後重試。",
   "download.error.youtube-sabr-forbidden": "YouTube 拒絕了此下載。請先更新 yt-dlp；若仍失敗，請使用已登入瀏覽器工作階段的 Cookie。",
   "download.error.rate-limited": "影片網站正在限制此下載。請稍後重試，或使用已登入瀏覽器工作階段的 Cookie。",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "此影片為私人或受限制內容。請使用可觀看帳號的 Cookie。",
   "download.error.cookies-required": "此下載需要可存取該影片的瀏覽器工作階段 Cookie。",
   "download.error.credentials-required": "此下載需要帳號。請新增憑證，或使用已登入瀏覽器工作階段的 Cookie。",
@@ -231,6 +233,10 @@ export const zh_tw = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const zh_tw = {
   "notice.downloadAccess.cookiesFile": "此版本中尚未啟用 {target} 的 cookies.txt 設定。離線測試僅驗證計畫中的--cookies合約；未選擇或儲存任何檔案。",
   "notice.downloadAccess.poToken": "YouTube PO 令牌設定計畫用於受信任的 Rust 設定流程。渲染器將僅顯示配置狀態，而不會顯示令牌值。",
   "notice.downloadAccess.extractorArgs": "提取器參數設定計劃用於受信任的 Rust 設定流程。 OpenBrief 將驗證它們並將其作為 argv 傳遞給 yt-dlp。",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "{title} 的聊天回應已準備就緒",
   "notice.supertonic.failed": "無法讀取聊天訊息：{message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

@@ -18,6 +18,8 @@ export const el_gr = {
   "download.error.yt-dlp-outdated": "Το yt-dlp είναι παλιό. Ενημερώστε το yt-dlp στις Ρυθμίσεις και δοκιμάστε ξανά.",
   "download.error.youtube-sabr-forbidden": "Το YouTube αρνήθηκε αυτή τη λήψη. Ενημερώστε πρώτα το yt-dlp· αν συνεχίσει να αποτυγχάνει, χρησιμοποιήστε cookies από συνδεδεμένη συνεδρία προγράμματος περιήγησης.",
   "download.error.rate-limited": "Ο πάροχος βίντεο περιορίζει αυτή τη λήψη. Δοκιμάστε αργότερα ή χρησιμοποιήστε cookies από συνδεδεμένη συνεδρία προγράμματος περιήγησης.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "Αυτό το βίντεο είναι ιδιωτικό ή περιορισμένο. Χρησιμοποιήστε cookies από λογαριασμό που μπορεί να το δει.",
   "download.error.cookies-required": "Αυτή η λήψη χρειάζεται cookies από συνεδρία προγράμματος περιήγησης με πρόσβαση στο βίντεο.",
   "download.error.credentials-required": "Αυτή η λήψη απαιτεί λογαριασμό. Προσθέστε διαπιστευτήρια ή χρησιμοποιήστε cookies από συνδεδεμένη συνεδρία προγράμματος περιήγησης.",
@@ -231,6 +233,10 @@ export const el_gr = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const el_gr = {
   "notice.downloadAccess.cookiesFile": "Η ρύθμιση cookies.txt για το {target} δεν είναι ακόμα ενεργοποιημένη σε αυτήν την έκδοση. Οι δοκιμές εκτός σύνδεσης επαληθεύουν μόνο το προγραμματισμένο συμβόλαιο --cookies. κανένα αρχείο δεν επιλέγεται ή αποθηκεύεται.",
   "notice.downloadAccess.poToken": "Η ρύθμιση του διακριτικού YouTube PO έχει προγραμματιστεί για την αξιόπιστη ροή ρυθμίσεων Rust. Ο αποδέκτης θα εμφανίσει μόνο τη διαμορφωμένη κατάσταση, ποτέ την τιμή διακριτικού.",
   "notice.downloadAccess.extractorArgs": "Η ρύθμιση args του Extractor έχει προγραμματιστεί για την αξιόπιστη ροή ρυθμίσεων Rust. Το OpenBrief θα επικυρώσει και θα τα μεταβιβάσει στο yt-dlp ως argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Έτοιμη η απάντηση συνομιλίας για το {title}",
   "notice.supertonic.failed": "Δεν ήταν δυνατή η ανάγνωση του μηνύματος συνομιλίας: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

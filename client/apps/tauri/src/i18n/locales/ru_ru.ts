@@ -18,6 +18,8 @@ export const ru_ru = {
   "download.error.yt-dlp-outdated": "yt-dlp устарел. Обновите yt-dlp в настройках и повторите попытку.",
   "download.error.youtube-sabr-forbidden": "YouTube отклонил эту загрузку. Сначала обновите yt-dlp; если ошибка останется, используйте cookies из авторизованной сессии браузера.",
   "download.error.rate-limited": "Видеохост ограничивает эту загрузку. Повторите позже или используйте cookies из авторизованной сессии браузера.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "Это видео приватное или ограниченное. Используйте cookies аккаунта с доступом к просмотру.",
   "download.error.cookies-required": "Для этой загрузки нужны cookies из сессии браузера с доступом к видео.",
   "download.error.credentials-required": "Для этой загрузки нужна учетная запись. Добавьте учетные данные или используйте cookies из авторизованной сессии браузера.",
@@ -231,6 +233,10 @@ export const ru_ru = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const ru_ru = {
   "notice.downloadAccess.cookiesFile": "Настройка файла cookie.txt для {target} еще не включена в этой сборке. Автономные тесты проверяют только запланированный контракт --cookies; ни один файл не выбран и не сохранен.",
   "notice.downloadAccess.poToken": "Настройка токена YouTube PO запланирована для доверенного потока настроек Rust. Средство визуализации будет отображать только настроенный статус, а не значение токена.",
   "notice.downloadAccess.extractorArgs": "Настройка экстрактора args запланирована для доверенного потока настроек Rust. OpenBrief проверит и передаст их в yt-dlp как argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "Ответ в чате готов для {title}",
   "notice.supertonic.failed": "Не удалось прочитать сообщение чата: {message}.",
   "notice.quiz.failed": "Quiz generation failed: {message}",

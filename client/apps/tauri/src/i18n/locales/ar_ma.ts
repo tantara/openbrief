@@ -18,6 +18,8 @@ export const ar_ma = {
   "download.error.yt-dlp-outdated": "yt-dlp قديم. حدّث yt-dlp من الإعدادات ثم حاول مرة أخرى.",
   "download.error.youtube-sabr-forbidden": "رفض YouTube هذا التنزيل. حدّث yt-dlp أولاً؛ وإذا استمر الفشل فاستخدم ملفات تعريف الارتباط من جلسة متصفح مسجّلة الدخول.",
   "download.error.rate-limited": "مضيف الفيديو يقيّد هذا التنزيل. حاول لاحقاً أو استخدم ملفات تعريف الارتباط من جلسة متصفح مسجّلة الدخول.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "هذا الفيديو خاص أو مقيّد. استخدم ملفات تعريف الارتباط من حساب يمكنه مشاهدته.",
   "download.error.cookies-required": "يتطلب هذا التنزيل ملفات تعريف ارتباط من جلسة متصفح يمكنها الوصول إلى الفيديو.",
   "download.error.credentials-required": "يتطلب هذا التنزيل حساباً. أضف بيانات الاعتماد أو استخدم ملفات تعريف الارتباط من جلسة متصفح مسجّلة الدخول.",
@@ -231,6 +233,10 @@ export const ar_ma = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const ar_ma = {
   "notice.downloadAccess.cookiesFile": "لم يتم تمكين إعداد ملفات تعريف الارتباط.txt لـ {target} في هذا الإصدار حتى الآن. تتحقق الاختبارات غير المتصلة بالإنترنت فقط من عقد --cookies المخطط له؛ لم يتم تحديد أي ملف أو تخزينه.",
   "notice.downloadAccess.poToken": "تم التخطيط لإعداد الرمز المميز لـ YouTube PO لتدفق إعدادات Rust الموثوق بها. سيعرض العارض الحالة التي تم تكوينها فقط، وليس قيمة الرمز المميز أبدًا.",
   "notice.downloadAccess.extractorArgs": "تم التخطيط لإعداد وسيطات Extractor لتدفق إعدادات Rust الموثوق بها. سيقوم OpenBrief بالتحقق من صحتها وتمريرها إلى yt-dlp كـ argv.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "استجابة الدردشة جاهزة لـ {title}",
   "notice.supertonic.failed": "تعذرت قراءة رسالة الدردشة: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",

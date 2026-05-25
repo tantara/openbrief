@@ -18,6 +18,8 @@ export const ko_kr = {
   "download.error.yt-dlp-outdated": "yt-dlp가 오래되었습니다. 설정에서 yt-dlp를 업데이트한 뒤 다시 시도하세요.",
   "download.error.youtube-sabr-forbidden": "YouTube가 이 다운로드를 거부했습니다. 먼저 yt-dlp를 업데이트하고, 계속 실패하면 로그인된 브라우저 세션의 쿠키를 사용하세요.",
   "download.error.rate-limited": "비디오 호스트가 이 다운로드를 제한하고 있습니다. 나중에 다시 시도하거나 로그인된 브라우저 세션의 쿠키를 사용하세요.",
+  "download.error.network-offline":
+    "OpenBrief is offline. Check your internet connection and try the download again.",
   "download.error.private-video": "이 비디오는 비공개이거나 제한되어 있습니다. 시청 권한이 있는 계정의 쿠키를 사용하세요.",
   "download.error.cookies-required": "이 다운로드에는 비디오에 접근할 수 있는 브라우저 세션의 쿠키가 필요합니다.",
   "download.error.credentials-required": "이 다운로드에는 계정이 필요합니다. 자격 증명을 추가하거나 로그인된 브라우저 세션의 쿠키를 사용하세요.",
@@ -231,6 +233,10 @@ export const ko_kr = {
   "editor.agent.transcriptApplyBlocked": "Transcript edit plans must be reviewed before rendering.",
   "editor.source": "Source",
   "editor.source.placeholder": "Select source",
+  "editor.aspect": "Aspect ratio",
+  "editor.aspect.landscape": "Landscape 16:9",
+  "editor.aspect.portrait": "Vertical 9:16",
+  "editor.aspect.square": "Square 1:1",
   "editor.scenario.summary": "Summary to video",
   "editor.scenario.pdf": "PDF to video",
   "editor.scenario.csv": "CSV scaffolded",
@@ -537,6 +543,10 @@ export const ko_kr = {
   "notice.downloadAccess.cookiesFile": "이 빌드에서는 {target}에 대한 cookie.txt 설정이 아직 활성화되지 않았습니다. 오프라인 테스트는 계획된 --cookies 계약만 확인합니다. 파일이 선택되거나 저장되지 않았습니다.",
   "notice.downloadAccess.poToken": "YouTube PO 토큰 설정은 신뢰할 수 있는 Rust 설정 흐름을 위해 계획되었습니다. 렌더러는 구성된 상태만 표시하며 토큰 값은 표시하지 않습니다.",
   "notice.downloadAccess.extractorArgs": "Extractor args 설정은 신뢰할 수 있는 Rust 설정 흐름을 위해 계획되었습니다. OpenBrief는 이를 검증하고 argv로 yt-dlp에 전달합니다.",
+  "notice.ai.offline":
+    "OpenBrief is offline. Check your internet connection and try the AI request again.",
+  "notice.ai.failed":
+    "The AI request failed. Check your connection or provider settings and try again.",
   "notice.chat.completed": "{title}에 대한 채팅 응답 준비됨",
   "notice.supertonic.failed": "채팅 메시지를 읽을 수 없습니다: {message}",
   "notice.quiz.failed": "Quiz generation failed: {message}",
