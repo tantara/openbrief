@@ -70,6 +70,10 @@ function normalizeGenerationSettings(value: unknown): GenerationSettings {
       candidate.transcript_translate,
       "transcript_translate",
     ),
+    video_agent_plan: normalizeGenerationParams(
+      candidate.video_agent_plan,
+      "video_agent_plan",
+    ),
   };
 }
 

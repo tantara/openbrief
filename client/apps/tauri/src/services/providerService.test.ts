@@ -42,6 +42,21 @@ describe("provider service", () => {
     expect(result.ok && result.text).toContain("How does fallback work?");
   });
 
+  it("returns valid mocked editor agent plans for native video generation", async () => {
+    const service = createMockProviderService();
+
+    const result = await service.complete({
+      provider: "openai",
+      operation: "video_agent_plan",
+      systemPrompt: "Return JSON.",
+      userPrompt: "Requested plan kind: composition\nUser instruction: wipe captions",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(() => JSON.parse(result.ok ? result.text : "")).not.toThrow();
+    expect(result.ok && result.text).toContain("caption-clip-wipe");
+  });
+
   it("falls back to mocked completions when live credentials are absent", async () => {
     const httpClient = vi.fn<ProviderHttpClient>();
     const service = createLiveProviderService({

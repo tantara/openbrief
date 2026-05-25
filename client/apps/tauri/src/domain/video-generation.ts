@@ -3,11 +3,19 @@ import type {
   TranscriptSegment,
   VideoAsset,
 } from "@/domain/media-library";
+import type {
+  VideoComponentCatalogItem,
+  VideoComponentName,
+} from "@/domain/video-component-catalog";
 import {
   assetDirectoryForMediaAsset,
   mediaSourceTypeForAsset,
   sanitizePathSegment,
 } from "@/domain/media-library";
+import {
+  searchVideoComponentCatalog,
+  validateVideoComponentSelection,
+} from "@/domain/video-component-catalog";
 
 export const videoGenerationAdapter = "deno-hyperframes" as const;
 export const hyperframesNpmPackage = "hyperframes@0.6.42" as const;
@@ -22,6 +30,19 @@ export type VideoGenerationAspectRatio = "16:9" | "9:16" | "1:1";
 export type VideoGenerationDimensions = {
   width: number;
   height: number;
+};
+export type VideoGenerationComponentReference = {
+  name: VideoComponentName;
+  type: "hyperframes:component" | "hyperframes:block";
+  wiringMode: "inline-snippet" | "sub-composition";
+  targetPath: string;
+  catalogUrl: string;
+};
+export type VideoGenerationStoryboardScene = {
+  title: string;
+  narration: string;
+  startSeconds: number;
+  durationSeconds: number;
 };
 
 export type VideoGenerationComposition = {
@@ -38,6 +59,8 @@ export type VideoGenerationComposition = {
   renderPath: string;
   durationSeconds: number;
   aspectRatio: VideoGenerationAspectRatio;
+  components?: VideoGenerationComponentReference[];
+  storyboard?: VideoGenerationStoryboardScene[];
   createdAtIso: string;
   updatedAtIso: string;
 };
@@ -67,6 +90,8 @@ export type VideoGenerationSourceInput = {
   aspectRatio?: VideoGenerationAspectRatio;
   nowIso?: string;
   compositionId?: string;
+  componentNames?: string[];
+  storyboard?: VideoGenerationStoryboardScene[];
 };
 
 const compositionCsp =
@@ -103,6 +128,8 @@ export function createSummaryVideoGenerationComposition({
   aspectRatio = "16:9",
   nowIso = new Date().toISOString(),
   compositionId = createCompositionId(asset.id, nowIso),
+  componentNames,
+  storyboard,
 }: VideoGenerationSourceInput): VideoGenerationComposition {
   const sourceType = mediaSourceTypeForAsset(asset);
   const scenario = scenarioForVideoGenerationAsset(asset);
@@ -114,13 +141,22 @@ export function createSummaryVideoGenerationComposition({
     (scenario === "pdf-to-video"
       ? "Create a concise pitch video from this PDF summary."
       : "Create a concise briefing video from this summary.");
+  const components = resolveVideoGenerationComponents({
+    prompt: resolvedPrompt,
+    componentNames,
+  });
+  const resolvedStoryboard =
+    normalizeVideoGenerationStoryboard(storyboard) ??
+    createDefaultVideoGenerationStoryboard(content);
+  const durationSeconds = storyboardDurationSeconds(resolvedStoryboard);
   const html = createHyperframesCompositionHtml({
     compositionId,
     title,
-    content,
     prompt: resolvedPrompt,
-    durationSeconds: 45,
+    durationSeconds,
     aspectRatio,
+    components,
+    storyboard: resolvedStoryboard,
   });
 
   return {
@@ -135,8 +171,10 @@ export function createSummaryVideoGenerationComposition({
     entryPath: paths.entryPath,
     manifestPath: paths.manifestPath,
     renderPath: paths.renderPath,
-    durationSeconds: 45,
+    durationSeconds,
     aspectRatio,
+    components,
+    storyboard: resolvedStoryboard,
     createdAtIso: nowIso,
     updatedAtIso: nowIso,
   };
@@ -185,23 +223,34 @@ function summarizeForScript(
 function createHyperframesCompositionHtml({
   compositionId,
   title,
-  content,
   prompt,
   durationSeconds,
   aspectRatio,
+  components,
+  storyboard,
 }: {
   compositionId: string;
   title: string;
-  content: string;
   prompt: string;
   durationSeconds: number;
   aspectRatio: VideoGenerationAspectRatio;
+  components: VideoGenerationComponentReference[];
+  storyboard: VideoGenerationStoryboardScene[];
 }) {
   const aspectClass =
     aspectRatio === "9:16" ? "portrait" : aspectRatio === "1:1" ? "square" : "landscape";
   const dimensions = dimensionsForVideoGenerationAspectRatio(aspectRatio);
-  const words = content.split(/\s+/).filter(Boolean).slice(0, 34);
-  const caption = words.join(" ");
+  const words = storyboard
+    .map((scene) => scene.narration)
+    .join(" ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 34);
+  const hasCaptionClipWipe = components.some(
+    (component) => component.name === "caption-clip-wipe",
+  );
+  const caption = createCaptionHtml(words, hasCaptionClipWipe);
+  const sceneCards = createStoryboardSceneHtml(storyboard);
 
   return `<!doctype html>
 <html lang="en">
@@ -220,6 +269,13 @@ function createHyperframesCompositionHtml({
       .kicker { color: #5eead4; font-size: 22px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
       h1 { margin: 14px 0 0; max-width: 980px; font-size: clamp(48px, 7vw, 96px); line-height: 0.96; letter-spacing: 0; }
       .caption { max-width: 900px; font-size: clamp(22px, 3vw, 36px); line-height: 1.22; color: #e2e8f0; }
+      .caption-word { display: inline-block; }
+      .caption-clip-wipe .caption-word { clip-path: inset(0 100% 0 0); color: #ffffff; animation: clipWipe 420ms ease forwards, captionSettle 240ms ease forwards; animation-delay: calc(var(--word-index) * 70ms), calc((var(--word-index) * 70ms) + 720ms); will-change: clip-path, color; }
+      .storyboard { display: grid; grid-template-columns: repeat(${Math.min(storyboard.length, 3)}, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+      .scene-card { min-width: 0; border: 1px solid rgba(148, 163, 184, 0.28); background: rgba(15, 23, 42, 0.62); border-radius: 8px; padding: 16px; animation: reveal 720ms ease both; animation-delay: calc(var(--scene-index) * 180ms + 360ms); }
+      .scene-card h2 { margin: 0 0 8px; color: #f8fafc; font-size: clamp(18px, 2vw, 28px); line-height: 1.05; letter-spacing: 0; }
+      .scene-card p { margin: 0; color: #cbd5e1; font-size: clamp(14px, 1.45vw, 18px); line-height: 1.3; }
+      .scene-time { display: block; margin-top: 12px; color: #5eead4; font-size: 13px; font-weight: 700; }
       .meta { display: flex; justify-content: space-between; gap: 24px; color: #cbd5e1; font-size: 18px; }
       .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: #14b8a6; animation: progress ${durationSeconds}s linear forwards; transform-origin: left center; }
       .frame.landscape { max-height: 86vh; }
@@ -227,6 +283,8 @@ function createHyperframesCompositionHtml({
       .frame.square { max-width: 82vh; }
       @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
       @keyframes reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes clipWipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0% 0 0); } }
+      @keyframes captionSettle { to { color: #cbd5e1; } }
       .kicker, h1, .caption, .meta { animation: reveal 720ms ease both; }
       h1 { animation-delay: 120ms; }
       .caption { animation-delay: 260ms; }
@@ -250,7 +308,10 @@ function createHyperframesCompositionHtml({
           <h1>${escapeHtml(title)}</h1>
         </div>
         <div>
-          <p class="caption">${escapeHtml(caption)}</p>
+          ${caption}
+          <div class="storyboard" aria-label="Storyboard scenes">
+            ${sceneCards}
+          </div>
           <div class="meta">
             <span>${escapeHtml(prompt)}</span>
             <span>${durationSeconds}s</span>
@@ -262,6 +323,137 @@ function createHyperframesCompositionHtml({
   </body>
 </html>
 `;
+}
+
+function normalizeVideoGenerationStoryboard(
+  storyboard: VideoGenerationStoryboardScene[] | undefined,
+) {
+  if (!storyboard?.length) return undefined;
+
+  const scenes = storyboard
+    .flatMap((scene): VideoGenerationStoryboardScene[] => {
+      const title = scene.title.trim();
+      const narration = scene.narration.trim();
+
+      if (!title || !narration) return [];
+      if (scene.startSeconds < 0 || scene.durationSeconds <= 0) return [];
+
+      return [
+        {
+          title,
+          narration,
+          startSeconds: scene.startSeconds,
+          durationSeconds: scene.durationSeconds,
+        },
+      ];
+    })
+    .sort((left, right) => left.startSeconds - right.startSeconds);
+
+  return scenes.length > 0 ? scenes : undefined;
+}
+
+function createDefaultVideoGenerationStoryboard(
+  content: string,
+): VideoGenerationStoryboardScene[] {
+  const sentences = content
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  return [
+    {
+      title: "Hook",
+      narration: sentences[0] || "Open with the strongest source point.",
+      startSeconds: 0,
+      durationSeconds: 8,
+    },
+    {
+      title: "Context",
+      narration:
+        sentences.slice(1, 3).join(" ") ||
+        "Show the supporting context with concise captions.",
+      startSeconds: 8,
+      durationSeconds: 24,
+    },
+    {
+      title: "Takeaway",
+      narration:
+        sentences[3] || "Close with a clear takeaway grounded in the source.",
+      startSeconds: 32,
+      durationSeconds: 13,
+    },
+  ];
+}
+
+function storyboardDurationSeconds(storyboard: VideoGenerationStoryboardScene[]) {
+  return Math.max(
+    1,
+    ...storyboard.map((scene) => scene.startSeconds + scene.durationSeconds),
+  );
+}
+
+function createStoryboardSceneHtml(storyboard: VideoGenerationStoryboardScene[]) {
+  return storyboard
+    .slice(0, 3)
+    .map(
+      (scene, index) => `<article class="scene-card" style="--scene-index: ${index}">
+              <h2>${escapeHtml(scene.title)}</h2>
+              <p>${escapeHtml(scene.narration)}</p>
+              <span class="scene-time">${formatSeconds(scene.startSeconds)}-${formatSeconds(scene.startSeconds + scene.durationSeconds)}s</span>
+            </article>`,
+    )
+    .join("\n");
+}
+
+function resolveVideoGenerationComponents({
+  prompt,
+  componentNames,
+}: {
+  prompt: string;
+  componentNames?: string[];
+}): VideoGenerationComponentReference[] {
+  if (componentNames && componentNames.length > 0) {
+    const validation = validateVideoComponentSelection(componentNames);
+
+    if (!validation.ok) {
+      throw new Error(
+        `video_generation_unknown_components:${validation.unknownNames.join(",")}`,
+      );
+    }
+
+    return validation.selected.map(toVideoGenerationComponentReference);
+  }
+
+  return searchVideoComponentCatalog({ query: prompt }).map(
+    toVideoGenerationComponentReference,
+  );
+}
+
+function toVideoGenerationComponentReference(
+  item: VideoComponentCatalogItem,
+): VideoGenerationComponentReference {
+  return {
+    name: item.name as VideoComponentName,
+    type: item.type,
+    wiringMode: item.wiring.mode,
+    targetPath: item.install.targetPath,
+    catalogUrl: item.source.catalogUrl,
+  };
+}
+
+function createCaptionHtml(words: string[], hasCaptionClipWipe: boolean) {
+  if (!hasCaptionClipWipe) {
+    return `<p class="caption">${escapeHtml(words.join(" "))}</p>`;
+  }
+
+  const spans = words
+    .map(
+      (word, index) =>
+        `<span class="caption-word" style="--word-index: ${index}">${escapeHtml(word)}</span>`,
+    )
+    .join(" ");
+
+  return `<p class="caption caption-clip-wipe" data-openbrief-component="caption-clip-wipe">${spans}</p>`;
 }
 
 export function dimensionsForVideoGenerationAspectRatio(
@@ -279,4 +471,8 @@ function escapeHtml(value: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function formatSeconds(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }

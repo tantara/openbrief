@@ -68,6 +68,96 @@ describe("video generation domain", () => {
     expect(composition.html).toContain("Strategy Review");
   });
 
+  it("wires pinned caption components from prompt intent into safe preview HTML", () => {
+    const composition = createSummaryVideoGenerationComposition({
+      asset: {
+        id: "video-1",
+        title: "Launch Notes",
+        sourceKind: "local-file",
+        originalUri: "file:///launch.mp4",
+        libraryPath: "videos/video-1/launch.mp4",
+        importStatus: "ready",
+        createdAtIso: "2026-05-25T00:00:00.000Z",
+      },
+      summary: {
+        id: "summary-1",
+        videoId: "video-1",
+        markdown: "Ship the native preview and render flow first.",
+        provider: "openai",
+        sourceSegmentCount: 1,
+        createdAtIso: "2026-05-25T00:01:00.000Z",
+      },
+      prompt: "Make TikTok word reveal captions with a wipe.",
+      nowIso: "2026-05-25T00:02:00.000Z",
+    });
+
+    expect(composition.components).toEqual([
+      expect.objectContaining({
+        name: "caption-clip-wipe",
+        wiringMode: "inline-snippet",
+      }),
+    ]);
+    expect(composition.html).toContain(
+      'data-openbrief-component="caption-clip-wipe"',
+    );
+    expect(composition.html).toContain("caption-clip-wipe .caption-word");
+    expect(composition.html).toContain("script-src 'none'");
+  });
+
+  it("uses editor-agent storyboard scenes as composition structure and duration", () => {
+    const composition = createSummaryVideoGenerationComposition({
+      asset: {
+        id: "video-1",
+        title: "Launch Notes",
+        sourceKind: "local-file",
+        originalUri: "file:///launch.mp4",
+        libraryPath: "videos/video-1/launch.mp4",
+        importStatus: "ready",
+        createdAtIso: "2026-05-25T00:00:00.000Z",
+      },
+      prompt: "Use the editor agent storyboard.",
+      storyboard: [
+        {
+          title: "Hook",
+          narration: "Native preview comes first.",
+          startSeconds: 0,
+          durationSeconds: 6,
+        },
+        {
+          title: "Render",
+          narration: "Render with the trusted helper boundary.",
+          startSeconds: 6,
+          durationSeconds: 9,
+        },
+      ],
+    });
+
+    expect(composition.durationSeconds).toBe(15);
+    expect(composition.storyboard).toEqual([
+      expect.objectContaining({ title: "Hook" }),
+      expect.objectContaining({ title: "Render" }),
+    ]);
+    expect(composition.html).toContain("Native preview comes first.");
+    expect(composition.html).toContain("6-15s");
+  });
+
+  it("rejects unknown explicit component names before creating a composition", () => {
+    expect(() =>
+      createSummaryVideoGenerationComposition({
+        asset: {
+          id: "video-1",
+          title: "Launch Notes",
+          sourceKind: "local-file",
+          originalUri: "file:///launch.mp4",
+          libraryPath: "videos/video-1/launch.mp4",
+          importStatus: "ready",
+          createdAtIso: "2026-05-25T00:00:00.000Z",
+        },
+        componentNames: ["made-up-component"],
+      }),
+    ).toThrow("video_generation_unknown_components:made-up-component");
+  });
+
   it("resolves deterministic preview and render dimensions from aspect ratio", () => {
     expect(dimensionsForVideoGenerationAspectRatio("16:9")).toEqual({
       width: 1920,

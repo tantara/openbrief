@@ -3,6 +3,61 @@ import type { HelperClient } from "@/services/fakeHelperClient";
 import { createVideoGenerationService } from "@/services/videoGenerationService";
 
 describe("video generation service", () => {
+  it("passes explicit catalog component names into generated composition HTML", async () => {
+    const service = createVideoGenerationService();
+
+    const composition = await service.generateComposition({
+      asset: {
+        id: "video-1",
+        title: "Launch Notes",
+        sourceKind: "local-file",
+        originalUri: "file:///launch.mp4",
+        libraryPath: "videos/video-1/launch.mp4",
+        importStatus: "ready",
+        createdAtIso: "2026-05-25T00:00:00.000Z",
+      },
+      prompt: "Add caption wipe.",
+      componentNames: ["caption-clip-wipe"],
+    });
+
+    expect(composition.components?.map((component) => component.name)).toEqual([
+      "caption-clip-wipe",
+    ]);
+    expect(composition.html).toContain(
+      'data-openbrief-component="caption-clip-wipe"',
+    );
+  });
+
+  it("preserves applied editor-agent storyboard scenes", async () => {
+    const service = createVideoGenerationService();
+
+    const composition = await service.generateComposition({
+      asset: {
+        id: "video-1",
+        title: "Launch Notes",
+        sourceKind: "local-file",
+        originalUri: "file:///launch.mp4",
+        libraryPath: "videos/video-1/launch.mp4",
+        importStatus: "ready",
+        createdAtIso: "2026-05-25T00:00:00.000Z",
+      },
+      prompt: "Use the plan.",
+      storyboard: [
+        {
+          title: "Agent hook",
+          narration: "Open from the editor agent plan.",
+          startSeconds: 0,
+          durationSeconds: 5,
+        },
+      ],
+    });
+
+    expect(composition.storyboard).toEqual([
+      expect.objectContaining({ title: "Agent hook" }),
+    ]);
+    expect(composition.html).toContain("Open from the editor agent plan.");
+  });
+
   it("renders a composition through the helper command contract", async () => {
     const events: string[] = [];
     const helperClient = {

@@ -1,0 +1,25 @@
+{
+  "$schema": "../video-skill.schema.json",
+  "name": "caption-clip-wipe",
+  "type": "hyperframes:component",
+  "title": "Clip Wipe",
+  "description": "Left-to-right clip-path wipe reveal per word",
+  "source": {
+    "registry": "hyperframes",
+    "registryItemUrl": "https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry/components/caption-clip-wipe/registry-item.json",
+    "catalogUrl": "https://hyperframes.mintlify.app/catalog/components/caption-clip-wipe",
+    "packageVersion": "hyperframes@0.6.42"
+  },
+  "install": {
+    "command": "npx hyperframes add caption-clip-wipe --no-clipboard",
+    "targetPath": "compositions/components/caption-clip-wipe.html"
+  },
+  "wiring": {
+    "mode": "inline-snippet",
+    "requiredInputs": [
+      "caption phrases or words with start/end seconds",
+      "composition duration",
+      "caption container position"
+    ]
+  }
+}

@@ -9,6 +9,7 @@ import {
   createVideoGenerationManifest,
   type VideoGenerationComposition,
   type VideoGenerationRender,
+  type VideoGenerationStoryboardScene,
 } from "@/domain/video-generation";
 import { invoke } from "@tauri-apps/api/core";
 import { FakeHelperClient, type HelperClient } from "@/services/fakeHelperClient";
@@ -28,6 +29,8 @@ export type GenerateVideoCompositionRequest = {
   summary?: SummaryDocument;
   transcript?: TranscriptSegment[];
   prompt?: string;
+  componentNames?: string[];
+  storyboard?: VideoGenerationStoryboardScene[];
 };
 
 export type RenderVideoCompositionRequest = {

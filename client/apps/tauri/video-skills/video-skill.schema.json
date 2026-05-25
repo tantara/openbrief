@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenBrief Video Skill Manifest",
+  "type": "object",
+  "required": ["name", "type", "title", "description", "source", "install", "wiring"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string" },
+    "type": { "enum": ["hyperframes:component", "hyperframes:block"] },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "source": {
+      "type": "object",
+      "required": ["registry", "registryItemUrl", "catalogUrl", "packageVersion"],
+      "properties": {
+        "registry": { "const": "hyperframes" },
+        "registryItemUrl": { "type": "string", "format": "uri" },
+        "catalogUrl": { "type": "string", "format": "uri" },
+        "packageVersion": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "install": {
+      "type": "object",
+      "required": ["command", "targetPath"],
+      "properties": {
+        "command": { "type": "string" },
+        "targetPath": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "wiring": {
+      "type": "object",
+      "required": ["mode", "requiredInputs"],
+      "properties": {
+        "mode": { "enum": ["inline-snippet", "sub-composition"] },
+        "requiredInputs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
