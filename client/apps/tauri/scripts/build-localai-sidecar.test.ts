@@ -8,6 +8,7 @@ import {
   copyBuiltLocalAiSidecar,
   ensureVenvPythonCompatible,
   extrasForBuildProfile,
+  mlxAudioInstallArgsForTarget,
   pythonExecutableCandidatesForPlatform,
   pyinstallerCollectArgs,
   pyinstallerOutputPath,
@@ -65,6 +66,12 @@ describe("Local AI sidecar build script", () => {
         targetTriple: "aarch64-apple-darwin",
       }),
     ).toEqual(["qwen-tts", "torch", "mlx"]);
+    expect(
+      extrasForBuildProfile({
+        profile: "asr",
+        targetTriple: "aarch64-apple-darwin",
+      }),
+    ).toEqual(["mlx"]);
     expect(
       extrasForBuildProfile({
         profile: "smoke",
@@ -140,6 +147,18 @@ describe("Local AI sidecar build script", () => {
     expect(torchInstallArgsForTarget("aarch64-apple-darwin")).toBeNull();
   });
 
+  it("pins MLX-Audio explicitly for Apple Silicon without pulling resolver deps", () => {
+    expect(mlxAudioInstallArgsForTarget("aarch64-apple-darwin")).toEqual([
+      "-m",
+      "pip",
+      "install",
+      "--no-deps",
+      "mlx-audio==0.4.3",
+    ]);
+    expect(mlxAudioInstallArgsForTarget("x86_64-apple-darwin")).toBeNull();
+    expect(mlxAudioInstallArgsForTarget("x86_64-unknown-linux-gnu")).toBeNull();
+  });
+
   it("collects only installed model modules for PyInstaller", () => {
     const ttsArgs = pyinstallerCollectArgs({
       profile: "tts",
@@ -154,6 +173,17 @@ describe("Local AI sidecar build script", () => {
     expect(ttsArgs).not.toContain("qwen_asr");
     expect(asrArgs).toContain("qwen_asr");
     expect(asrArgs).not.toContain("qwen_tts");
+    const appleSiliconAsrArgs = pyinstallerCollectArgs({
+      profile: "asr",
+      targetTriple: "aarch64-apple-darwin",
+    });
+
+    expect(appleSiliconAsrArgs).toEqual(
+      expect.arrayContaining(["mlx", "mlx_audio", "mlx-audio"]),
+    );
+    expect(appleSiliconAsrArgs).not.toContain("qwen_asr");
+    expect(appleSiliconAsrArgs).not.toContain("qwen-asr");
+    expect(appleSiliconAsrArgs).not.toContain("torch");
     expect(
       pyinstallerCollectArgs({
         profile: "smoke",
@@ -251,6 +281,45 @@ describe("Local AI sidecar build script", () => {
     expect(result.skipped).toBe(false);
     expect(torchInstallIndex).toBeGreaterThan(-1);
     expect(qwenInstallIndex).toBeGreaterThan(torchInstallIndex);
+  });
+
+  it("installs MLX-Audio after Apple Silicon Qwen extras", () => {
+    const root = mkdtempSync(join(tmpdir(), "openbrief-localai-mlx-"));
+    const sourceDir = join(root, "source");
+    const commands: string[][] = [];
+    mkdirSync(sourceDir, { recursive: true });
+    writeFileSync(join(sourceDir, "openbrief_localai.py"), "print('localai')\n");
+
+    const result = buildLocalAiSidecar({
+      root,
+      sourceDir,
+      binariesDir: join(root, "binaries"),
+      targetTriple: "aarch64-apple-darwin",
+      hostTriple: "aarch64-apple-darwin",
+      release: true,
+      execFile: (_command, args) => {
+        commands.push(args.map(String));
+        if (args.includes("-c")) {
+          return "3.12.8\n";
+        }
+        if (args.includes("PyInstaller")) {
+          const distDir = join(root, "dist", "aarch64-apple-darwin");
+          mkdirSync(distDir, { recursive: true });
+          writeFileSync(join(distDir, "openbrief-localai"), "#!/bin/sh\n");
+        }
+      },
+    });
+
+    const qwenInstallIndex = commands.findIndex((args) =>
+      args.some((arg) => arg.endsWith("[qwen-tts,torch,mlx]")),
+    );
+    const mlxAudioInstallIndex = commands.findIndex((args) =>
+      args.includes("mlx-audio==0.4.3"),
+    );
+
+    expect(result.skipped).toBe(false);
+    expect(qwenInstallIndex).toBeGreaterThan(-1);
+    expect(mlxAudioInstallIndex).toBeGreaterThan(qwenInstallIndex);
   });
 
   it("rejects cross-target PyInstaller release builds", () => {

@@ -15,6 +15,7 @@ const rustCrateDir = join(projectDir, "src-tauri");
 const sidecarSourceDir = join(rustCrateDir, "sidecars", "localai-python");
 const buildRoot = join(rustCrateDir, "target", "localai-sidecar");
 const sidecarBaseName = "openbrief-localai";
+const mlxAudioVersion = "0.4.3";
 const minQwenPython = [3, 9];
 const maxQwenPythonExclusive = [3, 13];
 
@@ -168,17 +169,22 @@ export function pyinstallerOutputPath({ distDir, targetTriple }) {
 
 export function extrasForBuildProfile({ profile, targetTriple }) {
   const extras = [];
+  const appleSilicon = targetTriple === "aarch64-apple-darwin";
   if (profile === "tts") {
     extras.push("qwen-tts");
-  } else if (profile === "asr") {
+  } else if (profile === "asr" && !appleSilicon) {
     extras.push("qwen-asr");
   }
 
-  if (targetTriple.includes("apple-darwin") && profile !== "smoke") {
+  if (
+    targetTriple.includes("apple-darwin") &&
+    profile !== "smoke" &&
+    !(profile === "asr" && appleSilicon)
+  ) {
     extras.push("torch");
   }
 
-  if (targetTriple === "aarch64-apple-darwin" && profile !== "smoke") {
+  if (appleSilicon && profile !== "smoke") {
     extras.push("mlx");
   }
 
@@ -200,8 +206,19 @@ export function torchInstallArgsForTarget(targetTriple) {
   return null;
 }
 
+export function mlxAudioInstallArgsForTarget(targetTriple) {
+  if (targetTriple === "aarch64-apple-darwin") {
+    return ["-m", "pip", "install", "--no-deps", `mlx-audio==${mlxAudioVersion}`];
+  }
+
+  return null;
+}
+
 export function pyinstallerCollectArgs({ profile, targetTriple }) {
   const args = [];
+  const appleSilicon = targetTriple === "aarch64-apple-darwin";
+  const usesQwenPytorchPackage =
+    profile === "tts" || (profile === "asr" && !appleSilicon);
   const addCollectAll = (moduleName) => {
     args.push("--collect-all", moduleName);
   };
@@ -217,10 +234,14 @@ export function pyinstallerCollectArgs({ profile, targetTriple }) {
   addCollectAll("soundfile");
   addCollectAll("transformers");
   addCollectAll("tokenizers");
-  addCollectAll(profile === "tts" ? "qwen_tts" : "qwen_asr");
-  args.push("--hidden-import", "torch");
+  if (usesQwenPytorchPackage) {
+    addCollectAll(profile === "tts" ? "qwen_tts" : "qwen_asr");
+    args.push("--hidden-import", "torch");
+  }
 
-  addCopyMetadata(profile === "tts" ? "qwen-tts" : "qwen-asr");
+  if (usesQwenPytorchPackage) {
+    addCopyMetadata(profile === "tts" ? "qwen-tts" : "qwen-asr");
+  }
   addCopyMetadata("transformers");
   addCopyMetadata("huggingface-hub");
   addCopyMetadata("tokenizers");
@@ -327,6 +348,12 @@ export function buildLocalAiSidecar({
     });
   } else {
     execFile(python, ["-m", "pip", "install", sourceDir], {
+      stdio: "inherit",
+    });
+  }
+  const mlxAudioInstallArgs = mlxAudioInstallArgsForTarget(targetTriple);
+  if (profile !== "smoke" && mlxAudioInstallArgs) {
+    execFile(python, mlxAudioInstallArgs, {
       stdio: "inherit",
     });
   }

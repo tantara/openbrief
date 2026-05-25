@@ -32,7 +32,7 @@ torch = [
 ]
 mlx = [
   "mlx>=0.25; platform_system == 'Darwin' and platform_machine == 'arm64'",
-  "mlx-audio>=0.2; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "miniaudio>=1.61; platform_system == 'Darwin' and platform_machine == 'arm64'",
 ]
 
 [project.scripts]

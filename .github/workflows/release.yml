@@ -203,6 +203,13 @@ jobs:
           echo "release_tag is required when upload_release is true." >&2
           exit 1
 
+      - name: Require notarization for published macOS releases
+        if: runner.os == 'macOS' && inputs.upload_release == true && inputs.notarize_macos != true
+        shell: bash
+        run: |
+          echo "macOS release uploads must set notarize_macos=true so published DMGs are Developer ID signed and notarized." >&2
+          exit 1
+
       - name: Validate Apple notarization secrets
         if: runner.os == 'macOS' && inputs.notarize_macos == true
         shell: bash
@@ -337,6 +344,7 @@ jobs:
             exit 1
           fi
 
+          codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$dmg_path"
           codesign --verify --verbose=2 "$dmg_path"
           xcrun notarytool submit "$dmg_path" \
             --apple-id "$APPLE_ID" \

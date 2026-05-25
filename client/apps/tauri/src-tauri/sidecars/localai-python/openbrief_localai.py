@@ -1,7 +1,9 @@
 import argparse
+import contextlib
 import importlib.util
 import json
 import math
+import multiprocessing
 import os
 import platform
 import struct
@@ -129,16 +131,44 @@ def module_available(name: str) -> bool:
     return importlib.util.find_spec(name) is not None
 
 
+def is_apple_silicon_macos() -> bool:
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    return system == "darwin" and machine in {"arm64", "aarch64"}
+
+
+def mlx_audio_available() -> bool:
+    return module_available("mlx") and module_available("mlx_audio")
+
+
 def preferred_backend() -> str:
+    if is_apple_silicon_macos() and mlx_audio_available():
+        return "mlx"
+    return "pytorch"
+
+
+def preferred_asr_backend(*, require_available: bool = False) -> str:
+    if is_apple_silicon_macos():
+        if mlx_audio_available():
+            return "mlx"
+        if require_available:
+            raise ValueError(
+                "mlx-audio is required for Qwen3-ASR on Apple Silicon. "
+                "Rebuild the openbrief-localai ASR sidecar with the mlx extra."
+            )
+        return "mlx"
+
     system = platform.system().lower()
     machine = platform.machine().lower()
     if (
         system == "darwin"
-        and machine in {"arm64", "aarch64"}
-        and module_available("mlx")
-        and module_available("mlx_audio")
+        and machine in {"x86_64", "amd64"}
+        and require_available
     ):
-        return "mlx"
+        raise ValueError(
+            "Qwen3-ASR via mlx-audio requires Apple Silicon on macOS. "
+            "Use Apple Silicon macOS or a non-macOS PyTorch sidecar."
+        )
     return "pytorch"
 
 
@@ -170,6 +200,7 @@ def runtime_info() -> dict[str, Any]:
         "platform": platform.system().lower(),
         "machine": platform.machine().lower(),
         "backend": preferred_backend(),
+        "asrBackend": preferred_asr_backend(),
         "acceleration": acceleration,
         "modules": {
             "qwen_tts": module_available("qwen_tts"),
@@ -296,15 +327,16 @@ def synthesize_with_mlx(
         raise ValueError("mlx_audio is required for the MLX Qwen3-TTS backend")
 
     import numpy as np
-    from mlx_audio.tts import load
+    from mlx_audio.tts import load as load_tts_model
 
-    model = load(model_repo)
     audio_chunks = []
     sample_rate = 24000
     lang = LANGUAGES.get(language, "English")
-    for result in model.generate(text, lang_code=lang):
-        audio_chunks.append(np.array(result.audio))
-        sample_rate = int(result.sample_rate)
+    with contextlib.redirect_stdout(sys.stderr):
+        model = load_tts_model(model_repo)
+        for result in model.generate(text, lang_code=lang):
+            audio_chunks.append(np.array(result.audio))
+            sample_rate = int(result.sample_rate)
 
     audio = (
         np.concatenate([np.asarray(chunk, dtype=np.float32) for chunk in audio_chunks])
@@ -431,7 +463,7 @@ def models() -> list[dict[str, Any]]:
 
 
 def asr_models() -> list[dict[str, Any]]:
-    backend = preferred_backend()
+    backend = preferred_asr_backend()
     aligner_id = "qwen3-forced-aligner-0.6B"
     aligner_repos = ALIGNER_MODEL_REPOS[aligner_id]
     return [
@@ -533,14 +565,15 @@ def transcribe_with_mlx(
     if not module_available("mlx_audio"):
         raise ValueError("mlx_audio is required for the MLX Qwen3-ASR backend")
 
-    from mlx_audio.stt.utils import load_model
+    from mlx_audio.stt import load as load_stt_model
 
-    asr_model = load_model(model_repo)
-    asr_result = asr_model.generate(
-        str(audio_path),
-        language=language_label,
-        verbose=False,
-    )
+    with contextlib.redirect_stdout(sys.stderr):
+        asr_model = load_stt_model(model_repo)
+        asr_result = asr_model.generate(
+            str(audio_path),
+            language=language_label,
+            verbose=False,
+        )
     text = str(getattr(asr_result, "text", "")).strip()
     detected_language = getattr(asr_result, "language", None) or language_label
     aligner_language = language_label or detected_language or "English"
@@ -548,12 +581,13 @@ def transcribe_with_mlx(
     if aligner_code and aligner_code not in QWEN3_ALIGNER_LANGUAGES:
         raise ValueError(f"Qwen3 forced aligner does not support {aligner_language}")
 
-    aligner_model = load_model(aligner_repo)
-    alignment = aligner_model.generate(
-        str(audio_path),
-        text=text,
-        language=aligner_language,
-    )
+    with contextlib.redirect_stdout(sys.stderr):
+        aligner_model = load_stt_model(aligner_repo)
+        alignment = aligner_model.generate(
+            str(audio_path),
+            text=text,
+            language=aligner_language,
+        )
     words = normalize_alignment_items(alignment)
     return {
         "text": text,
@@ -634,7 +668,11 @@ def transcribe(args: argparse.Namespace) -> dict[str, Any]:
 
     output_path = Path(args.output).expanduser()
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    backend = preferred_backend()
+    backend = (
+        preferred_asr_backend()
+        if os.environ.get("OPENBRIEF_QWEN_ASR_SMOKE") == "1"
+        else preferred_asr_backend(require_available=True)
+    )
     model_repo = model_repo_for_backend(ASR_MODEL_REPOS[model_id], backend)
     aligner_repo = model_repo_for_backend(ALIGNER_MODEL_REPOS[aligner_id], backend)
 
@@ -717,6 +755,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    multiprocessing.freeze_support()
     parser = build_parser()
     args = parser.parse_args(argv)
 
