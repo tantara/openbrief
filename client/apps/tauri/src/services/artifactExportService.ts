@@ -21,6 +21,7 @@ import {
   createVideoAudioArtifactPath,
   createVideoPosterArtifactPath,
   mediaSourceTypeForAsset,
+  sanitizePathSegment,
 } from "@/domain/media-library";
 import { helperProtocolVersion } from "@/domain/helper-protocol";
 import {
@@ -327,9 +328,9 @@ function defaultExportFileName(
   }
 
   if (kind === "summary") {
-    return summary?.artifactPath
-      ? fileNameFromPath(summary.artifactPath)
-      : `${video.title}.md`;
+    return summary
+      ? `${createMediaAssetFilePrefix(video)}-${sanitizePathSegment(summary.id)}.md`
+      : `${createMediaAssetFilePrefix(video)}.md`;
   }
 
   if (kind === "transcription") {

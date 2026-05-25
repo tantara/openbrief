@@ -1,5 +1,13 @@
 import { Markdown } from "@tiptap/markdown";
-import { EditorContent, type Editor, useEditor } from "@tiptap/react";
+import {
+  EditorContent,
+  Node,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  type Editor,
+  type ReactNodeViewProps,
+  useEditor,
+} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
   Bold,
@@ -13,11 +21,24 @@ import {
   Quote,
   Redo2,
   Undo2,
+  X,
 } from "lucide-react";
-import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "@acme/ui/button";
 import { cn } from "@acme/ui";
-import { parseSummaryTimestampHref } from "@/domain/summary";
+import {
+  createSummaryTimestampHref,
+  parseSummaryTimestampHref,
+  parseSummaryTimestampLabel,
+} from "@/domain/summary";
 
 type MarkdownSummaryEditorProps = {
   markdown: string;
@@ -27,9 +48,114 @@ type MarkdownSummaryEditorProps = {
   toolbarActions?: ReactNode;
   onMarkdownChange?(markdown: string): void;
   onTimestampClick?(seconds: number): void;
+  onTimestampPreviewRequest?(
+    seconds: number,
+  ): Promise<SummaryTimestampPreview | undefined>;
 };
 
-const markdownExtensions = [StarterKit, Markdown];
+export type SummaryTimestampPreview = {
+  imageUrl: string;
+  alt?: string;
+};
+
+type SummaryTimestampOptions = {
+  onTimestampClick?: (seconds: number) => void;
+  hasTimestampPreviewRequest?: () => boolean;
+  onTimestampPreviewRequest?: (
+    seconds: number,
+  ) => Promise<SummaryTimestampPreview | undefined>;
+};
+
+const SummaryTimestampNode = Node.create<SummaryTimestampOptions>({
+  name: "summaryTimestamp",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: true,
+  priority: 1000,
+  markdownTokenName: "link",
+
+  addOptions() {
+    return {};
+  },
+
+  addAttributes() {
+    return {
+      label: {
+        default: "0:00",
+      },
+      seconds: {
+        default: 0,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-seconds");
+          const seconds = value ? Number(value) : 0;
+          return Number.isInteger(seconds) && seconds >= 0 ? seconds : 0;
+        },
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "span[data-openbrief-timestamp]" }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const label =
+      typeof node.attrs.label === "string" ? node.attrs.label : "0:00";
+    const seconds =
+      typeof node.attrs.seconds === "number" ? node.attrs.seconds : 0;
+
+    return [
+      "span",
+      {
+        ...HTMLAttributes,
+        "data-openbrief-timestamp": label,
+        "data-seconds": String(seconds),
+      },
+      label,
+    ];
+  },
+
+  renderText({ node }) {
+    return typeof node.attrs.label === "string" ? node.attrs.label : "";
+  },
+
+  parseMarkdown(token, helpers) {
+    const seconds = parseSummaryTimestampHref(token.href);
+    const label = markdownTokenPlainText(token).trim();
+    if (
+      seconds === undefined ||
+      parseSummaryTimestampLabel(label) === undefined
+    ) {
+      return helpers.applyMark("link", helpers.parseInline(token.tokens || []), {
+        href: token.href,
+        title: token.title || null,
+      });
+    }
+
+    return helpers.createNode("summaryTimestamp", { label, seconds });
+  },
+
+  renderMarkdown(node) {
+    const label =
+      typeof node.attrs?.label === "string" ? node.attrs.label : "0:00";
+    const seconds =
+      typeof node.attrs?.seconds === "number"
+        ? node.attrs.seconds
+        : parseSummaryTimestampLabel(label) ?? 0;
+
+    return `[${label}](${createSummaryTimestampHref(seconds)})`;
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(SummaryTimestampNodeView, {
+      as: "span",
+      attrs: {
+        class: "openbrief-timestamp-node-view",
+      },
+    });
+  },
+});
 
 export function MarkdownSummaryEditor({
   markdown,
@@ -39,11 +165,31 @@ export function MarkdownSummaryEditor({
   toolbarActions,
   onMarkdownChange,
   onTimestampClick,
+  onTimestampPreviewRequest,
 }: MarkdownSummaryEditorProps) {
   const markdownRef = useRef(markdown);
   const onMarkdownChangeRef = useRef(onMarkdownChange);
+  const onTimestampClickRef = useRef(onTimestampClick);
+  const onTimestampPreviewRequestRef = useRef(onTimestampPreviewRequest);
   markdownRef.current = markdown;
   onMarkdownChangeRef.current = onMarkdownChange;
+  onTimestampClickRef.current = onTimestampClick;
+  onTimestampPreviewRequestRef.current = onTimestampPreviewRequest;
+  const markdownExtensions = useMemo(
+    () => [
+      SummaryTimestampNode.configure({
+        onTimestampClick: (seconds) => onTimestampClickRef.current?.(seconds),
+        hasTimestampPreviewRequest: () =>
+          Boolean(onTimestampPreviewRequestRef.current),
+        onTimestampPreviewRequest: (seconds) =>
+          onTimestampPreviewRequestRef.current?.(seconds) ??
+          Promise.resolve(undefined),
+      }),
+      StarterKit,
+      Markdown,
+    ],
+    [],
+  );
 
   const editor = useEditor({
     extensions: markdownExtensions,
@@ -106,6 +252,153 @@ export function MarkdownSummaryEditor({
       </div>
     </div>
   );
+}
+
+function SummaryTimestampNodeView({
+  node,
+  editor,
+  extension,
+  deleteNode,
+}: ReactNodeViewProps) {
+  const label = typeof node.attrs.label === "string" ? node.attrs.label : "0:00";
+  const seconds =
+    typeof node.attrs.seconds === "number"
+      ? node.attrs.seconds
+      : parseSummaryTimestampLabel(label) ?? 0;
+  const options = extension.options as SummaryTimestampOptions;
+  const canPreview = options.hasTimestampPreviewRequest?.() ?? false;
+  const [previewState, setPreviewState] = useState<TimestampPreviewState>({
+    status: "idle",
+  });
+  const requestIdRef = useRef(0);
+  const requestPreview = useCallback(() => {
+    if (
+      !canPreview ||
+      !options.onTimestampPreviewRequest ||
+      previewState.status === "loading" ||
+      previewState.status === "ready"
+    ) {
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setPreviewState({ status: "loading" });
+    void options
+      .onTimestampPreviewRequest(seconds)
+      .then((preview) => {
+        if (requestIdRef.current !== requestId) return;
+        setPreviewState(
+          preview
+            ? {
+                status: "ready",
+                imageUrl: preview.imageUrl,
+                alt: preview.alt,
+              }
+            : { status: "error" },
+        );
+      })
+      .catch(() => {
+        if (requestIdRef.current !== requestId) return;
+        setPreviewState({ status: "error" });
+      });
+  }, [canPreview, options, previewState.status, seconds]);
+
+  return (
+    <NodeViewWrapper
+      as="span"
+      className="openbrief-timestamp-node"
+      contentEditable={false}
+      data-openbrief-timestamp={label}
+      data-seconds={seconds}
+      onMouseEnter={requestPreview}
+      onFocusCapture={requestPreview}
+    >
+      <button
+        type="button"
+        className={cn(
+          "openbrief-timestamp-node__seek",
+          !editor.isEditable && "rounded-r",
+        )}
+        aria-label={`Seek to ${label}`}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={(event) => {
+          event.preventDefault();
+          options.onTimestampClick?.(seconds);
+        }}
+      >
+        {label}
+      </button>
+      {editor.isEditable ? (
+        <button
+          type="button"
+          className="openbrief-timestamp-node__remove"
+          aria-label={`Remove timestamp ${label}`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.preventDefault();
+            deleteNode();
+          }}
+        >
+          <X className="h-3 w-3" aria-hidden="true" />
+        </button>
+      ) : null}
+      {canPreview ? (
+        <TimestampPreviewDialog label={label} state={previewState} />
+      ) : null}
+    </NodeViewWrapper>
+  );
+}
+
+type TimestampPreviewState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; imageUrl: string; alt?: string }
+  | { status: "error" };
+
+function TimestampPreviewDialog({
+  label,
+  state,
+}: {
+  label: string;
+  state: TimestampPreviewState;
+}) {
+  return (
+    <span
+      className="openbrief-timestamp-node__preview"
+      aria-live="polite"
+      role={state.status === "loading" ? "status" : undefined}
+    >
+      {state.status === "ready" ? (
+        <img
+          className="openbrief-timestamp-node__preview-image"
+          src={state.imageUrl}
+          alt={state.alt ?? `Frame preview for ${label}`}
+          draggable={false}
+        />
+      ) : state.status === "error" ? (
+        <span>Frame unavailable</span>
+      ) : state.status === "loading" ? (
+        <span>Loading frame</span>
+      ) : null}
+    </span>
+  );
+}
+
+function markdownTokenPlainText(token: {
+  text?: unknown;
+  tokens?: unknown;
+}): string {
+  if (typeof token.text === "string") return token.text;
+  if (!Array.isArray(token.tokens)) return "";
+
+  return token.tokens
+    .map((child) =>
+      typeof child === "object" && child !== null
+        ? markdownTokenPlainText(child as { text?: unknown; tokens?: unknown })
+        : "",
+    )
+    .join("");
 }
 
 function handleTimestampLinkClick(

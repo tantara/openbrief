@@ -65,7 +65,7 @@ describe("Local AI sidecar build script", () => {
         profile: "tts",
         targetTriple: "aarch64-apple-darwin",
       }),
-    ).toEqual(["qwen-tts", "torch", "mlx"]);
+    ).toEqual(["mlx"]);
     expect(
       extrasForBuildProfile({
         profile: "asr",
@@ -147,7 +147,7 @@ describe("Local AI sidecar build script", () => {
     expect(torchInstallArgsForTarget("aarch64-apple-darwin")).toBeNull();
   });
 
-  it("pins MLX-Audio explicitly for Apple Silicon without pulling resolver deps", () => {
+  it("pins MLX-Audio explicitly for Apple Silicon after installing explicit runtime deps", () => {
     expect(mlxAudioInstallArgsForTarget("aarch64-apple-darwin")).toEqual([
       "-m",
       "pip",
@@ -177,18 +177,33 @@ describe("Local AI sidecar build script", () => {
       profile: "asr",
       targetTriple: "aarch64-apple-darwin",
     });
+    const appleSiliconTtsArgs = pyinstallerCollectArgs({
+      profile: "tts",
+      targetTriple: "aarch64-apple-darwin",
+    });
 
     expect(appleSiliconAsrArgs).toEqual(
-      expect.arrayContaining(["mlx", "mlx_audio", "mlx-audio"]),
+      expect.arrayContaining([
+        "hf_xet",
+        "hf-xet",
+        "huggingface_hub",
+        "huggingface-hub",
+        "mlx",
+        "mlx_audio",
+        "mlx-audio",
+        "mlx_lm",
+        "mlx-lm",
+        "sentencepiece",
+        "tokenizers",
+        "transformers",
+      ]),
     );
+    expect(appleSiliconTtsArgs).not.toContain("qwen_tts");
+    expect(appleSiliconTtsArgs).not.toContain("qwen-tts");
+    expect(appleSiliconTtsArgs).not.toContain("torch");
     expect(appleSiliconAsrArgs).not.toContain("qwen_asr");
     expect(appleSiliconAsrArgs).not.toContain("qwen-asr");
     expect(appleSiliconAsrArgs).not.toContain("torch");
-    expect(appleSiliconAsrArgs).not.toContain("transformers");
-    expect(appleSiliconAsrArgs).not.toContain("tokenizers");
-    expect(appleSiliconAsrArgs).not.toContain("safetensors");
-    expect(appleSiliconAsrArgs).not.toContain("huggingface_hub");
-    expect(appleSiliconAsrArgs).not.toContain("huggingface-hub");
     expect(appleSiliconAsrArgs).not.toContain("soundfile");
     expect(
       pyinstallerCollectArgs({
@@ -289,7 +304,7 @@ describe("Local AI sidecar build script", () => {
     expect(qwenInstallIndex).toBeGreaterThan(torchInstallIndex);
   });
 
-  it("installs MLX-Audio after Apple Silicon Qwen extras", () => {
+  it("installs MLX-Audio after Apple Silicon MLX runtime deps", () => {
     const root = mkdtempSync(join(tmpdir(), "openbrief-localai-mlx-"));
     const sourceDir = join(root, "source");
     const commands: string[][] = [];
@@ -316,16 +331,16 @@ describe("Local AI sidecar build script", () => {
       },
     });
 
-    const qwenInstallIndex = commands.findIndex((args) =>
-      args.some((arg) => arg.endsWith("[qwen-tts,torch,mlx]")),
+    const mlxDepsInstallIndex = commands.findIndex((args) =>
+      args.some((arg) => arg.endsWith("[mlx]")),
     );
     const mlxAudioInstallIndex = commands.findIndex((args) =>
       args.includes("mlx-audio==0.4.3"),
     );
 
     expect(result.skipped).toBe(false);
-    expect(qwenInstallIndex).toBeGreaterThan(-1);
-    expect(mlxAudioInstallIndex).toBeGreaterThan(qwenInstallIndex);
+    expect(mlxDepsInstallIndex).toBeGreaterThan(-1);
+    expect(mlxAudioInstallIndex).toBeGreaterThan(mlxDepsInstallIndex);
   });
 
   it("rejects cross-target PyInstaller release builds", () => {

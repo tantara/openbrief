@@ -39,6 +39,7 @@ import type {
   PodcastTtsSettings,
   TtsLanguageCode,
 } from "@/services/ttsSettingsService";
+import type { VideoFramePreview } from "@/services/videoFrameService";
 import type { ReactNode, RefObject, SyntheticEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CopyActionButton } from "@/components/CopyAction";
@@ -56,6 +57,7 @@ import {
   providerOptions,
 } from "@/domain/provider";
 import {
+  createClickableSummaryTimestampMarkdown,
   summaryLengthModeLabels,
   summaryOutputLanguageOptions,
   videoSummaryTemplates,
@@ -212,6 +214,7 @@ type WorkbenchViewProps = {
   ): Promise<unknown> | unknown;
   onDeletePodcast?(podcast: PodcastDocument): Promise<unknown> | unknown;
   isVoiceCloneModeEnabled?: boolean;
+  onUseVoiceCloneReferences?(segments: TranscriptSegment[]): void;
   chatTtsAudioByMessageId?: Record<
     string,
     SupertonicChatTtsArtifact | undefined
@@ -247,6 +250,11 @@ type WorkbenchViewProps = {
   onPlayVideo(videoId: string): void;
   onPauseVideo(videoId: string): void;
   onVideoTimeUpdate(videoId: string, currentTimeSeconds: number): void;
+  onSeekVideo(videoId: string, currentTimeSeconds: number): void;
+  onTimestampFramePreview?(
+    video: VideoAsset,
+    seconds: number,
+  ): Promise<VideoFramePreview>;
   onVideoEnded(videoId: string): void;
   onOpenPictureInPicture(videoId: string): void;
 };
@@ -291,6 +299,7 @@ export function WorkbenchView({
   onDownloadPodcastScript,
   onDeletePodcast,
   isVoiceCloneModeEnabled = false,
+  onUseVoiceCloneReferences,
   chatTtsAudioByMessageId = {},
   generatingChatTtsMessageId,
   playingChatTtsMessageId,
@@ -314,6 +323,8 @@ export function WorkbenchView({
   onPlayVideo,
   onPauseVideo,
   onVideoTimeUpdate,
+  onSeekVideo,
+  onTimestampFramePreview,
   onVideoEnded,
   onOpenPictureInPicture,
 }: WorkbenchViewProps) {
@@ -357,6 +368,7 @@ export function WorkbenchView({
       streamingMode: chatStreamingMode,
     });
   const [pendingChatMessage, setPendingChatMessage] = useState<ChatMessage>();
+  const [isChatSubmitPending, setIsChatSubmitPending] = useState(false);
   const [readingChatMessageId, setReadingChatMessageId] = useState<string>();
   const [downloadingChatTtsMessageId, setDownloadingChatTtsMessageId] =
     useState<string>();
@@ -380,7 +392,7 @@ export function WorkbenchView({
   const transcriptListRef = useRef<HTMLOListElement | null>(null);
   const isTranscribing = transcriptJob?.status === "running";
   const isSummarizing = summaryJob?.status === "running";
-  const isSendingChat = chatJob?.status === "running";
+  const isSendingChat = chatJob?.status === "running" || isChatSubmitPending;
   const isGeneratingPodcast = podcastJob?.status === "running";
   const isGeneratingQuiz = quizJob?.status === "running";
   const summaryProviderConfig = onSummaryProviderPreferenceChange
@@ -422,20 +434,48 @@ export function WorkbenchView({
   }, [podcast?.id, podcastAudioUrl]);
 
   const displayedChatMessages = useMemo(() => {
-    if (!pendingChatMessage) return chatMessages;
+    const messages = [...chatMessages];
 
-    const pendingMessageIsPersisted = chatMessages.some(
-      (message) =>
-        message.role === "user" &&
-        message.videoId === pendingChatMessage.videoId &&
-        message.contextMode === pendingChatMessage.contextMode &&
-        message.content === pendingChatMessage.content,
-    );
+    if (pendingChatMessage) {
+      const pendingMessageIsPersisted = messages.some(
+        (message) =>
+          message.role === "user" &&
+          message.videoId === pendingChatMessage.videoId &&
+          message.contextMode === pendingChatMessage.contextMode &&
+          message.content === pendingChatMessage.content,
+      );
 
-    return pendingMessageIsPersisted
-      ? chatMessages
-      : [...chatMessages, pendingChatMessage];
-  }, [chatMessages, pendingChatMessage]);
+      if (!pendingMessageIsPersisted) {
+        messages.push(pendingChatMessage);
+      }
+    }
+
+    if (isSendingChat) {
+      messages.push({
+        id: `chat-running-${video?.id ?? "workspace"}`,
+        videoId: video?.id ?? "",
+        role: "assistant",
+        content:
+          chatJob?.status === "running" &&
+          chatJob.streamingMode &&
+          chatJob.draftText
+            ? chatJob.draftText
+            : t("workbench.chat.sending"),
+        contextMode,
+        createdAtIso: new Date().toISOString(),
+      });
+    }
+
+    return messages;
+  }, [
+    chatJob,
+    chatMessages,
+    contextMode,
+    isSendingChat,
+    pendingChatMessage,
+    t,
+    video?.id,
+  ]);
   const summaryTabs = normalizeSummaryTabs(summaries, summary);
   const activeTranscriptVariant = transcriptVariants.find(
     (variant) => variant.id === activeTranscriptVariantId,
@@ -460,7 +500,18 @@ export function WorkbenchView({
     summaryTabs.find((candidate) => candidate.id === activeSummaryId) ??
     summaryTabs[0] ??
     summary;
-  const summaryMarkdown = summaryJob?.draftText ?? activeSummary?.markdown;
+  const streamingSummaryDraft =
+    summaryJob?.status === "running" && summaryJob.streamingMode
+      ? summaryJob.draftText
+      : undefined;
+  const rawSummaryMarkdown = activeSummary?.markdown;
+  const summaryMarkdown = useMemo(
+    () =>
+      rawSummaryMarkdown
+        ? createClickableSummaryTimestampMarkdown(rawSummaryMarkdown)
+        : undefined,
+    [rawSummaryMarkdown],
+  );
   const sourceType = video ? mediaSourceTypeForAsset(video) : "video";
   const activeTranscriptSegmentId = useMemo(() => {
     if (
@@ -484,6 +535,17 @@ export function WorkbenchView({
     sourceType,
     video,
   ]);
+  const requestSummaryTimestampPreview = useCallback(
+    async (seconds: number) => {
+      if (!video || sourceType !== "video" || !onTimestampFramePreview) {
+        return undefined;
+      }
+
+      const preview = await onTimestampFramePreview(video, seconds);
+      return { imageUrl: preview.imageUrl };
+    },
+    [onTimestampFramePreview, sourceType, video],
+  );
 
   useEffect(() => {
     if (!activeTranscriptSegmentId) return;
@@ -650,6 +712,7 @@ export function WorkbenchView({
     if (pendingMessage) {
       setPendingChatMessage(pendingMessage);
     }
+    setIsChatSubmitPending(true);
     try {
       await onSendChat({
         question: submittedQuestion,
@@ -662,6 +725,7 @@ export function WorkbenchView({
     } catch {
       // The library hook records failed chat jobs for the Workbench status panel.
     } finally {
+      setIsChatSubmitPending(false);
       if (pendingMessage) {
         setPendingChatMessage((current) =>
           current?.id === pendingMessage.id ? undefined : current,
@@ -884,8 +948,7 @@ export function WorkbenchView({
   function seekToSummaryTimestamp(seconds: number) {
     if (!video || sourceType === "pdf") return;
 
-    onPlayVideo(video.id);
-    onVideoTimeUpdate(video.id, seconds);
+    onSeekVideo(video.id, seconds);
   }
 
   function startTranscriptEdit(segment: TranscriptSegment) {
@@ -1050,17 +1113,38 @@ export function WorkbenchView({
                           })}
                         </span>
                         {voiceCloneTranscriptSegmentIds.length > 0 ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() =>
-                              setVoiceCloneTranscriptSegmentIds([])
-                            }
-                          >
-                            {t("workbench.transcript.voiceCloneClear")}
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {onUseVoiceCloneReferences ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => {
+                                  const selectedSegments = renderedTranscript.filter(
+                                    (segment) =>
+                                      voiceCloneTranscriptSegmentIds.includes(
+                                        segment.id,
+                                      ),
+                                  );
+                                  onUseVoiceCloneReferences(selectedSegments);
+                                }}
+                              >
+                                {t("workbench.transcript.voiceCloneUse")}
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() =>
+                                setVoiceCloneTranscriptSegmentIds([])
+                              }
+                            >
+                              {t("workbench.transcript.voiceCloneClear")}
+                            </Button>
+                          </div>
                         ) : null}
                       </div>
                     ) : null}
@@ -1289,7 +1373,6 @@ export function WorkbenchView({
                     languageCode={summaryLanguage.code}
                     isGenerating={isSummarizing}
                     disabled={renderedTranscript.length === 0}
-                    triggerVariant="outline"
                     onOpenChange={setIsSummaryGenerateDialogOpen}
                     onTemplateChange={setSummaryTemplateId}
                     onLengthChange={setSummaryLengthMode}
@@ -1310,7 +1393,6 @@ export function WorkbenchView({
                         hasSummary={Boolean(activeSummary)}
                         hasTranscript={transcript.length > 0}
                         isGenerating={isGeneratingPodcast}
-                        triggerVariant="outline"
                         onOpenChange={setIsPodcastGenerateDialogOpen}
                         onSettingsChange={setPodcastSettings}
                         onSourceKindChange={setPodcastSourceKind}
@@ -1338,7 +1420,6 @@ export function WorkbenchView({
                     canGenerate={Boolean(onGenerateQuiz && video)}
                     hasSource={Boolean(activeSummary || renderedTranscript.length > 0)}
                     isGenerating={isGeneratingQuiz}
-                    triggerVariant="outline"
                     onOpenChange={setIsQuizGenerateDialogOpen}
                     onModeChange={setQuizMode}
                     onQuestionCountChange={setQuizQuestionCount}
@@ -1382,8 +1463,11 @@ export function WorkbenchView({
                         failedLabel={t("workbench.summary.failed")}
                       />
                     ) : null}
-                    {summaryMarkdown ? (
+                    {streamingSummaryDraft ? (
+                      <StreamingSummaryDraft draftText={streamingSummaryDraft} />
+                    ) : summaryMarkdown ? (
                       <SummaryMarkdownPanel
+                        key={activeSummary?.id ?? "summary"}
                         summaryId={activeSummary?.id}
                         markdown={summaryMarkdown}
                         editable={Boolean(
@@ -1394,6 +1478,9 @@ export function WorkbenchView({
                         saveLabel={t("workbench.summary.save")}
                         saveDisabled={isSummarizing}
                         onTimestampClick={seekToSummaryTimestamp}
+                        onTimestampPreviewRequest={
+                          requestSummaryTimestampPreview
+                        }
                         onSaveMarkdown={
                           activeSummary
                             ? () => onSaveMarkdown(activeSummary.id)
@@ -1571,8 +1658,11 @@ export function WorkbenchView({
                           isDownloadingTts={
                             downloadingChatTtsMessageId === message.id
                           }
+                          isPending={message.id.startsWith("chat-running-")}
                           onRead={
-                            onReadChatMessage && message.role !== "user"
+                            onReadChatMessage &&
+                            message.role !== "user" &&
+                            !message.id.startsWith("chat-running-")
                               ? (renderedText) =>
                                   void readChatMessage(message, renderedText)
                               : undefined
@@ -1599,17 +1689,12 @@ export function WorkbenchView({
                     })}
                   </ol>
                 )}
-                {chatJob ? (
+                {chatJob?.status === "failed" ? (
                   <AiGenerationStatus
                     job={chatJob}
                     runningLabel={t("workbench.chat.sending")}
                     failedLabel={t("workbench.chat.failed")}
                   />
-                ) : null}
-                {chatJob?.status === "running" &&
-                chatJob.streamingMode &&
-                chatJob.draftText ? (
-                  <StreamingChatDraft draftText={chatJob.draftText} />
                 ) : null}
               </div>
               <div className="mt-auto grid gap-2">
@@ -2075,7 +2160,7 @@ function QuizBriefPanel({
             </div>
             <ol className="grid gap-3">
               {quiz.items.map((item, index) => (
-                <li key={item.id}>
+                <li key={`${quiz.id}-${item.id}`}>
                   {item.type === "multiple-choice" ? (
                     <MultipleChoiceQuizCard item={item} index={index} />
                   ) : (
@@ -2098,6 +2183,14 @@ function MultipleChoiceQuizCard({
   item: MultipleChoiceQuizItem;
   index: number;
 }) {
+  const { t } = useI18n();
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(
+    null,
+  );
+  const hasAnswered = selectedOptionIndex !== null;
+  const selectedIsCorrect = selectedOptionIndex === item.correctOptionIndex;
+  const correctOption = item.options[item.correctOptionIndex] ?? "";
+
   return (
     <div className="rounded-md border px-3 py-3 text-sm">
       <div className="mb-3 flex gap-2 font-medium">
@@ -2109,29 +2202,67 @@ function MultipleChoiceQuizCard({
       <ol className="grid gap-2">
         {item.options.map((option, optionIndex) => {
           const isCorrect = optionIndex === item.correctOptionIndex;
+          const isSelected = optionIndex === selectedOptionIndex;
 
           return (
-            <li
-              key={`${item.id}-${optionIndex}`}
-              className={cn(
-                "flex items-start gap-2 rounded-md border px-2 py-1.5",
-                isCorrect
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100"
-                  : "bg-muted/20",
-              )}
-            >
-              <span className="text-muted-foreground shrink-0">
-                {String.fromCharCode(65 + optionIndex)}
-              </span>
-              <span className="min-w-0 flex-1">{option}</span>
-              {isCorrect ? (
-                <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
-              ) : null}
+            <li key={`${item.id}-${optionIndex}`}>
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-start gap-2 rounded-md border px-2 py-1.5 text-left transition-colors",
+                  !hasAnswered
+                    ? "bg-muted/20 hover:bg-muted/40"
+                    : "bg-muted/10",
+                  hasAnswered && isCorrect
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100"
+                    : "",
+                  hasAnswered && isSelected && !isCorrect
+                    ? "border-destructive/40 bg-destructive/10 text-destructive"
+                    : "",
+                  hasAnswered && !isSelected && !isCorrect
+                    ? "text-muted-foreground"
+                    : "",
+                )}
+                disabled={hasAnswered}
+                onClick={() => setSelectedOptionIndex(optionIndex)}
+              >
+                <span className="text-muted-foreground shrink-0">
+                  {String.fromCharCode(65 + optionIndex)}
+                </span>
+                <span className="min-w-0 flex-1">{option}</span>
+                {hasAnswered && isCorrect ? (
+                  <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+                ) : null}
+                {hasAnswered && isSelected && !isCorrect ? (
+                  <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                ) : null}
+              </button>
             </li>
           );
         })}
       </ol>
-      {item.explanation ? (
+      {hasAnswered ? (
+        <div className="mt-3 grid gap-1 text-xs leading-relaxed">
+          <p
+            className={cn(
+              "font-medium",
+              selectedIsCorrect
+                ? "text-emerald-700 dark:text-emerald-300"
+                : "text-destructive",
+            )}
+          >
+            {selectedIsCorrect
+              ? t("workbench.quiz.correct")
+              : t("workbench.quiz.incorrect")}
+          </p>
+          {correctOption ? (
+            <p className="text-muted-foreground">
+              {t("workbench.quiz.answer", { answer: correctOption })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {hasAnswered && item.explanation ? (
         <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
           {item.explanation}
         </p>
@@ -2147,6 +2278,9 @@ function FlashCardQuizCard({
   item: Exclude<QuizDocument["items"][number], MultipleChoiceQuizItem>;
   index: number;
 }) {
+  const { t } = useI18n();
+  const [isRevealed, setIsRevealed] = useState(false);
+
   return (
     <div className="grid gap-2 rounded-md border px-3 py-3 text-sm">
       <div className="flex gap-2 font-medium">
@@ -2155,10 +2289,21 @@ function FlashCardQuizCard({
         </span>
         <span>{item.front}</span>
       </div>
-      <div className="rounded-md bg-muted/50 px-3 py-2 leading-relaxed">
-        {item.back}
-      </div>
-      {item.explanation ? (
+      {isRevealed ? (
+        <div className="rounded-md bg-muted/50 px-3 py-2 leading-relaxed">
+          {t("workbench.quiz.answer", { answer: item.back })}
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="justify-self-start"
+          onClick={() => setIsRevealed(true)}
+        >
+          {t("workbench.quiz.showAnswer")}
+        </Button>
+      )}
+      {isRevealed && item.explanation ? (
         <p className="text-muted-foreground text-xs leading-relaxed">
           {item.explanation}
         </p>
@@ -2424,7 +2569,7 @@ function PodcastGenerateDialog({
   hasSummary,
   hasTranscript,
   isGenerating,
-  triggerVariant = "outline",
+  triggerVariant = "default",
   onOpenChange,
   onSettingsChange,
   onSourceKindChange,
@@ -2675,6 +2820,7 @@ function SummaryMarkdownPanel({
   saveLabel,
   saveDisabled = false,
   onTimestampClick,
+  onTimestampPreviewRequest,
   onSaveMarkdown,
 }: {
   summaryId?: string;
@@ -2685,6 +2831,9 @@ function SummaryMarkdownPanel({
   saveLabel: string;
   saveDisabled?: boolean;
   onTimestampClick?(seconds: number): void;
+  onTimestampPreviewRequest?(
+    seconds: number,
+  ): Promise<{ imageUrl: string } | undefined>;
   onSaveMarkdown?(): void;
 }) {
   const [draftMarkdown, setDraftMarkdown] = useState(markdown);
@@ -2768,6 +2917,7 @@ function SummaryMarkdownPanel({
         }
         onMarkdownChange={setDraftMarkdown}
         onTimestampClick={onTimestampClick}
+        onTimestampPreviewRequest={onTimestampPreviewRequest}
       />
     </div>
   );
@@ -2806,7 +2956,10 @@ function ChatQuestionForm({
         className="min-w-0 flex-1"
       />
       <Button type="submit" disabled={isSending || !trimmedQuestion}>
-        {isSending ? t("workbench.chat.sending") : t("workbench.chat.send")}
+        {isSending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : null}
+        {t("workbench.chat.send")}
       </Button>
     </form>
   );
@@ -2819,6 +2972,7 @@ function ChatBubble({
   isPlayingTts = false,
   isStartingTts = false,
   isDownloadingTts = false,
+  isPending = false,
   ttsAudio,
   onRead,
   onPlayTtsAudio,
@@ -2831,6 +2985,7 @@ function ChatBubble({
   isPlayingTts?: boolean;
   isStartingTts?: boolean;
   isDownloadingTts?: boolean;
+  isPending?: boolean;
   ttsAudio?: SupertonicChatTtsArtifact;
   onRead?(renderedText: string): void;
   onPlayTtsAudio?(audio: SupertonicChatTtsArtifact): void;
@@ -2842,7 +2997,8 @@ function ChatBubble({
   const [isActionRegionFocused, setIsActionRegionFocused] = useState(false);
   const [isActionRegionHovered, setIsActionRegionHovered] = useState(false);
   const hasUsage = Boolean(message.tokenUsage);
-  const showActions = isLast || isActionRegionFocused || isActionRegionHovered;
+  const showActions =
+    !isPending && (isLast || isActionRegionFocused || isActionRegionHovered);
   const renderedText = () =>
     renderedChatTextFromElement(contentRef.current, message.content);
 
@@ -3136,12 +3292,10 @@ function sanitizeChatTtsMessagePathSegment(value: string) {
   return sanitized || "item";
 }
 
-function StreamingChatDraft({ draftText }: { draftText: string }) {
+function StreamingSummaryDraft({ draftText }: { draftText: string }) {
   return (
-    <div className="flex items-start">
-      <div className="bg-muted text-foreground max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed">
-        <MarkdownRenderer markdown={draftText} />
-      </div>
+    <div className="min-h-full px-3 text-sm leading-relaxed">
+      <MarkdownRenderer markdown={draftText} />
     </div>
   );
 }

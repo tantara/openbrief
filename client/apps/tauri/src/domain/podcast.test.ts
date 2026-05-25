@@ -60,6 +60,9 @@ describe("podcast domain", () => {
     expect(prompt.systemPrompt).toContain("Return only valid JSON");
     expect(prompt.userPrompt).toContain("conversational podcast summary");
     expect(prompt.userPrompt).toContain("Speaker A: Mark");
+    expect(prompt.userPrompt).toContain(
+      "Length: 6 to 8 concise turns, about 3 to 5 minutes",
+    );
     expect(prompt.userPrompt).toContain("Output language: English");
     expect(prompt.userPrompt).toContain("# Summary");
   });

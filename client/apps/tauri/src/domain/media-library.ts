@@ -257,7 +257,7 @@ export class VideoArtifactBundle {
   }
 
   summaryPath(summaryId: string) {
-    return `${this.summaryDirectory}/${sanitizePathSegment(summaryId)}.md`;
+    return `${this.summaryDirectory}/${sanitizePathSegment(summaryId)}/summary.md`;
   }
 
   get chatDirectory() {
@@ -691,6 +691,14 @@ export function createVideoAudioArtifactPath(
   return `${bundle.audioDirectory}/${prefix}-audio.wav`;
 }
 
+export function createVideoFrameArtifactPath(videoId: string, seconds: number) {
+  const safeSeconds = Number.isFinite(seconds)
+    ? Math.max(0, Math.floor(seconds))
+    : 0;
+
+  return `${createVideoArtifactBundle(videoId).rootDirectory}/frames/${safeSeconds}.jpg`;
+}
+
 export function createVideoTranscriptArtifactDirectory(videoId: string) {
   return createVideoArtifactBundle(videoId).transcriptDirectory;
 }
@@ -702,21 +710,9 @@ export function createVideoTranscriptJsonArtifactPath(videoId: string) {
 export function createSummaryArtifactPath(
   videoId: string,
   summaryId: string,
-  sourceFileName?: string,
+  _sourceFileName?: string,
 ) {
-  const bundle = createVideoArtifactBundle(videoId);
-
-  if (!sourceFileName) {
-    return bundle.summaryPath(summaryId);
-  }
-
-  const prefix = createArtifactFilePrefix(sourceFileName);
-  const suffix =
-    summaryId.startsWith(`summary-${videoId}-`)
-      ? summaryId.slice(`summary-${videoId}-`.length)
-      : (summaryId.replace(/^summary-/, "") || summaryId);
-
-  return `${bundle.summaryDirectory}/${prefix}-summary-${sanitizePathSegment(suffix)}.md`;
+  return createVideoArtifactBundle(videoId).summaryPath(summaryId);
 }
 
 export function createChatSessionArtifactPath(videoId: string, sessionId = "default") {

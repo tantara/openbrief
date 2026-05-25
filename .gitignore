@@ -1,3 +1,4 @@
 .omx/
 .DS_Store
 .env.release
+__pycache__

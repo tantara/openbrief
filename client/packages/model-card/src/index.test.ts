@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   isLanguageSupportedByModel,
+  isLocalSttModelVisible,
+  isLocalTtsModelVisible,
   isSynthesisLanguageSupportedByModel,
   localSttModelCardForModel,
   localTtsModelCardForModel,
@@ -79,6 +81,44 @@ describe("local STT model cards", () => {
       "whisper.cpp",
     );
   });
+
+  it("shows Qwen3-ASR only on supported platforms and aligner languages", () => {
+    expect(
+      isLocalSttModelVisible({
+        modelId: "qwen3-asr-0.6B",
+        languageCode: "ja",
+        platform: "macos",
+      }),
+    ).toBe(true);
+    expect(
+      isLocalSttModelVisible({
+        modelId: "qwen3-asr-0.6B",
+        languageCode: "ja",
+        platform: "windows",
+      }),
+    ).toBe(true);
+    expect(
+      isLocalSttModelVisible({
+        modelId: "qwen3-asr-0.6B",
+        languageCode: "ja",
+        platform: "linux",
+      }),
+    ).toBe(true);
+    expect(
+      isLocalSttModelVisible({
+        modelId: "qwen3-asr-0.6B",
+        languageCode: "ar",
+        platform: "macos",
+      }),
+    ).toBe(false);
+    expect(
+      isLocalSttModelVisible({
+        modelId: "qwen3-asr-0.6B",
+        languageCode: "ja",
+        platform: "browser-preview",
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("local TTS model cards", () => {
@@ -136,5 +176,43 @@ describe("local TTS model cards", () => {
     expect(isSynthesisLanguageSupportedByModel("qwen-tts-1.7B", "ar")).toBe(
       false,
     );
+  });
+
+  it("shows Qwen3-TTS only on supported platforms and synthesis languages", () => {
+    expect(
+      isLocalTtsModelVisible({
+        modelId: "qwen-tts-0.6B",
+        languageCode: "zh",
+        platform: "macos",
+      }),
+    ).toBe(true);
+    expect(
+      isLocalTtsModelVisible({
+        modelId: "qwen-tts-0.6B",
+        languageCode: "zh",
+        platform: "windows",
+      }),
+    ).toBe(true);
+    expect(
+      isLocalTtsModelVisible({
+        modelId: "qwen-tts-0.6B",
+        languageCode: "zh",
+        platform: "linux",
+      }),
+    ).toBe(true);
+    expect(
+      isLocalTtsModelVisible({
+        modelId: "qwen-tts-0.6B",
+        languageCode: "ar",
+        platform: "macos",
+      }),
+    ).toBe(false);
+    expect(
+      isLocalTtsModelVisible({
+        modelId: "qwen-tts-0.6B",
+        languageCode: "zh",
+        platform: "browser-preview",
+      }),
+    ).toBe(false);
   });
 });

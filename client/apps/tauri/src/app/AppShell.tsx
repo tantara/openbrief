@@ -59,7 +59,7 @@ import {
 } from "@/domain/ingest";
 import { mediaSourceTypeForAsset } from "@/domain/media-library";
 import { defaultProviderModels } from "@/domain/provider";
-import { selectPreferredSttModel } from "@/domain/settings";
+import { formatModelSize, selectPreferredSttModel } from "@/domain/settings";
 import { formatTimestamp } from "@/domain/summary";
 import { FaqView } from "@/features/faq/FaqView";
 import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
@@ -136,12 +136,14 @@ import {
   showTranscriptOverlay,
   transcriptOverlayHiddenEvent,
 } from "@/services/transcriptOverlayService";
+import { createVideoFrameService } from "@/services/videoFrameService";
 import { describeVideoDownloadAccessAction } from "@/services/videoDownloadAccessNoticeService";
 import { listen } from "@tauri-apps/api/event";
 import { ExternalLink, Info, Loader2, Search, Volume2 } from "lucide-react";
 
 import type { TranscriptionLanguageCode } from "@acme/model-card";
 import {
+  isLocalSttModelVisible,
   isSynthesisLanguageSupportedByModel,
   localTtsModelCards,
   synthesisLanguagesForModel,
@@ -153,6 +155,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@acme/ui/dialog";
@@ -320,6 +323,7 @@ export function AppShell() {
     pauseVideo,
     stopVideo,
     updateVideoTime,
+    seekVideo,
     openPictureInPicture,
     playActiveOrSelectedVideo,
     pauseActiveVideo,
@@ -335,6 +339,7 @@ export function AppShell() {
     () => createArtifactExportService(),
     [],
   );
+  const videoFrameService = useMemo(() => createVideoFrameService(), []);
   const activeViewRef = useRef(state.activeView);
   const chatTtsAudioRef = useRef<HTMLAudioElement | null>(null);
   const chatTtsGenerationRef = useRef<ChatTtsGeneration | undefined>(
@@ -376,6 +381,8 @@ export function AppShell() {
   const [playingChatTtsMessageId, setPlayingChatTtsMessageId] =
     useState<string>();
   const [isVoiceCloneModeEnabled, setIsVoiceCloneModeEnabled] = useState(false);
+  const [isVoiceCloneOnboardingOpen, setIsVoiceCloneOnboardingOpen] =
+    useState(false);
   const [ttsModelDraft, setTtsModelDraft] = useState<TtsModelId>(
     () => ttsSettings.modelId,
   );
@@ -730,9 +737,13 @@ export function AppShell() {
           type="button"
           variant={isVoiceCloneModeEnabled ? "default" : "outline"}
           aria-pressed={isVoiceCloneModeEnabled}
-          onClick={() =>
-            setIsVoiceCloneModeEnabled((currentEnabled) => !currentEnabled)
-          }
+          onClick={() => {
+            if (isVoiceCloneModeEnabled) {
+              setIsVoiceCloneModeEnabled(false);
+              return;
+            }
+            setIsVoiceCloneOnboardingOpen(true);
+          }}
         >
           <Volume2 className="mr-2 h-4 w-4" aria-hidden="true" />
           {t("voices.cloneVoice")}
@@ -1366,6 +1377,38 @@ export function AppShell() {
     setTtsVoiceDraft(saved.voiceStyleId);
     setTtsQwenPresetVoiceDraft(saved.qwenPresetVoiceId);
     setTtsLanguageDraft(saved.languageCode);
+  }
+
+  function startQwenVoiceCloneOnboarding() {
+    const qwenModelId: TtsModelId = ttsSettings.modelId.startsWith("qwen-")
+      ? ttsSettings.modelId
+      : "qwen-tts-0.6B";
+    const saved = saveTtsSettings({
+      ...ttsSettings,
+      engine: "qwen",
+      modelId: qwenModelId,
+      qwenPresetVoiceId: "default",
+      languageCode: isSynthesisLanguageSupportedByModel(
+        qwenModelId,
+        ttsSettings.languageCode,
+      )
+        ? ttsSettings.languageCode
+        : defaultLanguageForModel(qwenModelId),
+      hasSelectedVoice: true,
+    });
+    setTtsSettings(saved);
+    setTtsModelDraft(saved.modelId);
+    setTtsQwenPresetVoiceDraft(saved.qwenPresetVoiceId);
+    setTtsLanguageDraft(saved.languageCode);
+    setIsVoiceCloneOnboardingOpen(false);
+    setIsVoiceCloneModeEnabled(true);
+
+    if (selectedVideo) {
+      showView("workbench");
+    } else {
+      setAppNotice(t("notice.voiceClone.selectVideo"));
+      showView("finder");
+    }
   }
 
   function resetSystemPrompts() {
@@ -2161,6 +2204,7 @@ export function AppShell() {
           onPlayVideo={playVideo}
           onPauseVideo={pauseVideo}
           onVideoTimeUpdate={updateVideoTime}
+          onSeekVideo={seekVideo}
           onVideoEnded={stopVideo}
           onOpenPictureInPicture={openPictureInPicture}
           onExtractTranscript={() =>
@@ -2226,6 +2270,14 @@ export function AppShell() {
           onDownloadPodcastScript={downloadPodcastScript}
           onDeletePodcast={removePodcast}
           isVoiceCloneModeEnabled={isVoiceCloneModeEnabled}
+          onUseVoiceCloneReferences={(segments) => {
+            setIsVoiceCloneModeEnabled(false);
+            setAppNotice(
+              t("notice.voiceClone.referencesSelected", {
+                count: segments.length,
+              }),
+            );
+          }}
           chatTtsAudioByMessageId={chatTtsAudioByMessageId}
           generatingChatTtsMessageId={
             chatTtsGeneration && chatTtsGeneration.videoId === selectedVideo?.id
@@ -2273,6 +2325,9 @@ export function AppShell() {
             if (!selectedVideo) return;
             updateSummaryMarkdown(selectedVideo.id, summaryId, markdown);
           }}
+          onTimestampFramePreview={(video, seconds) =>
+            videoFrameService.getFramePreview({ video, seconds })
+          }
         />
       </div>
       <div
@@ -2536,6 +2591,57 @@ export function AppShell() {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={isVoiceCloneOnboardingOpen}
+        onOpenChange={setIsVoiceCloneOnboardingOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("voices.cloneOnboarding.title")}</DialogTitle>
+            <DialogDescription>
+              {t("voices.cloneOnboarding.description")}
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="grid gap-3 text-sm">
+            <li className="rounded-md border p-3">
+              <div className="font-medium">
+                {t("voices.cloneOnboarding.downloadCheckpoint")}
+              </div>
+              <div className="text-muted-foreground mt-1">
+                {t("voices.cloneOnboarding.downloadCheckpointDescription")}
+              </div>
+            </li>
+            <li className="rounded-md border p-3">
+              <div className="font-medium">
+                {t("voices.cloneOnboarding.pickTranscription")}
+              </div>
+              <div className="text-muted-foreground mt-1">
+                {t("voices.cloneOnboarding.pickTranscriptionDescription")}
+              </div>
+            </li>
+            <li className="rounded-md border p-3">
+              <div className="font-medium">
+                {t("voices.cloneOnboarding.useVoice")}
+              </div>
+              <div className="text-muted-foreground mt-1">
+                {t("voices.cloneOnboarding.useVoiceDescription")}
+              </div>
+            </li>
+          </ol>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsVoiceCloneOnboardingOpen(false)}
+            >
+              {t("voices.cloneOnboarding.cancel")}
+            </Button>
+            <Button type="button" onClick={startQwenVoiceCloneOnboarding}>
+              {t("voices.cloneOnboarding.start")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <CaptionLanguageDialog
         open={Boolean(captionLanguageDialog)}
         languages={captionLanguageDialog?.languages ?? []}
@@ -2547,6 +2653,7 @@ export function AppShell() {
         }
         whisperErrorMessage={captionLanguageDialog?.whisperErrorMessage}
         whisperModels={sttModels}
+        platform={effectiveSettings?.versionInfo.osPlatform}
         whisperModelId={captionDialogWhisperModel?.id}
         whisperModelName={
           captionDialogWhisperModel?.name ??
@@ -2802,6 +2909,7 @@ function CaptionLanguageDialog({
   whisperDownloadProgressPercent,
   whisperErrorMessage,
   whisperModels,
+  platform,
   whisperModelId,
   whisperModelName,
   onClose,
@@ -2817,6 +2925,7 @@ function CaptionLanguageDialog({
   whisperDownloadProgressPercent: number;
   whisperErrorMessage?: string;
   whisperModels: SettingsSnapshot["stt"]["models"];
+  platform?: string;
   whisperModelId?: string;
   whisperModelName?: string;
   onClose(): void;
@@ -2837,6 +2946,17 @@ function CaptionLanguageDialog({
   const transcriptionLanguageOptions = useMemo(
     () => transcriptionLanguagesForModel(whisperModelId),
     [whisperModelId],
+  );
+  const visibleWhisperModels = useMemo(
+    () =>
+      whisperModels.filter((model) =>
+        isLocalSttModelVisible({
+          modelId: model.id,
+          languageCode: selectedWhisperLanguage,
+          platform: platform ?? "macos",
+        }),
+      ),
+    [platform, selectedWhisperLanguage, whisperModels],
   );
 
   useEffect(() => {
@@ -2861,6 +2981,16 @@ function CaptionLanguageDialog({
       setSelectedWhisperLanguage("auto");
     }
   }, [selectedWhisperLanguage, transcriptionLanguageOptions]);
+
+  useEffect(() => {
+    if (
+      visibleWhisperModels.length > 0 &&
+      whisperModelId &&
+      !visibleWhisperModels.some((model) => model.id === whisperModelId)
+    ) {
+      onWhisperModelChange(visibleWhisperModels[0].id);
+    }
+  }, [onWhisperModelChange, visibleWhisperModels, whisperModelId]);
 
   const selectedLanguage = languages.find(
     (language) => languageKey(language) === selectedLanguageKey,
@@ -2914,13 +3044,13 @@ function CaptionLanguageDialog({
           </Button>
         </div>
         {activeTab === "transcribe" ? (
-          <div className="rounded-md border p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+          <div className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+              <div className="min-w-0">
                 <div className="text-sm font-medium">
                   {t("transcript.languageDialog.whisperModel")}
                 </div>
-                <div className="text-muted-foreground mt-1 text-sm">
+                <div className="text-muted-foreground mt-1 truncate text-sm">
                   {whisperModelName ??
                     t("transcript.languageDialog.whisperUnavailable")}
                 </div>
@@ -2937,6 +3067,7 @@ function CaptionLanguageDialog({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="shrink-0"
                 disabled={whisperBusy}
                 onClick={() => setShowWhisperModelSelect((current) => !current)}
               >
@@ -2944,21 +3075,24 @@ function CaptionLanguageDialog({
               </Button>
             </div>
             {showWhisperModelSelect ? (
-              <div className="mt-3">
+              <div className="mt-3 w-full min-w-0 max-w-[calc(100vw-5rem)] overflow-hidden sm:max-w-[22rem]">
                 <Select
                   value={whisperModelId}
                   onValueChange={onWhisperModelChange}
                   disabled={whisperBusy}
                 >
                   <SelectTrigger
+                    className="w-full min-w-0 max-w-full overflow-hidden pr-3 [&>span]:block [&>span]:min-w-0 [&>span]:max-w-[18rem] [&>span]:truncate [&>svg]:ml-2 [&>svg]:shrink-0"
                     aria-label={t("transcript.languageDialog.whisperModel")}
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {whisperModels.map((model) => (
+                    {visibleWhisperModels.map((model) => (
                       <SelectItem key={model.id} value={model.id}>
-                        {whisperModelOptionLabel(model, t)}
+                        <span className="block max-w-[18rem] truncate sm:max-w-[22rem]">
+                          {whisperModelOptionLabel(model, t)}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -3155,7 +3289,7 @@ function whisperModelOptionLabel(
     ? t("setup.whisper.downloaded")
     : t("setup.whisper.notDownloaded");
 
-  return `${model.name} (${model.sizeMb} MB) - ${status}`;
+  return `${model.name} (${formatModelSize(model.sizeMb)}) - ${status}`;
 }
 
 function caughtErrorMessage(error: unknown, fallback: string) {

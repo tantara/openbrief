@@ -90,6 +90,36 @@
     @apply decoration-primary/60 cursor-pointer font-medium;
   }
 
+  .openbrief-timestamp-node {
+    @apply relative inline-flex items-center align-baseline;
+  }
+
+  .openbrief-timestamp-node__seek {
+    @apply bg-primary/10 text-primary hover:bg-primary/15 focus:bg-primary/15 cursor-pointer rounded-l px-1.5 py-0.5 text-xs font-medium underline decoration-primary/60 underline-offset-2 outline-none;
+  }
+
+  .openbrief-timestamp-node__remove {
+    @apply bg-primary/10 text-primary hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground pointer-events-none inline-flex rounded-r px-1 py-0.5 opacity-0 outline-none transition-opacity;
+  }
+
+  .openbrief-timestamp-node:hover .openbrief-timestamp-node__remove,
+  .openbrief-timestamp-node:focus-within .openbrief-timestamp-node__remove {
+    @apply pointer-events-auto opacity-100;
+  }
+
+  .openbrief-timestamp-node__preview {
+    @apply bg-popover text-popover-foreground border-border pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-64 -translate-x-1/2 rounded-md border p-2 text-xs shadow-md;
+  }
+
+  .openbrief-timestamp-node:hover .openbrief-timestamp-node__preview,
+  .openbrief-timestamp-node:focus-within .openbrief-timestamp-node__preview {
+    @apply block;
+  }
+
+  .openbrief-timestamp-node__preview-image {
+    @apply aspect-video w-full rounded object-cover;
+  }
+
   .openbrief-chat-markdown {
     @apply text-sm leading-relaxed;
   }

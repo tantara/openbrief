@@ -33,7 +33,11 @@ import {
   providerModelOptions,
   providerOptions,
 } from "@/domain/provider";
-import { formatStoragePercentage, formatStorageSize } from "@/domain/settings";
+import {
+  formatModelSize,
+  formatStoragePercentage,
+  formatStorageSize,
+} from "@/domain/settings";
 import { useI18n } from "@/i18n";
 import { defaultAiProviderPreferences } from "@/services/aiProviderPreferencesService";
 import { defaultSystemPromptSettings } from "@/services/systemPromptSettingsService";
@@ -60,8 +64,11 @@ import {
 } from "lucide-react";
 
 import {
+  isLocalSttModelVisible,
+  isLocalTtsModelVisible,
   localTtsModelCards,
   synthesisLanguagesForModel,
+  type TranscriptionLanguageCode,
 } from "@acme/model-card";
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
@@ -276,6 +283,45 @@ export function SettingsView({
       hasSelectedVoice: true,
     });
   }
+
+  const localModelPlatform = settings?.versionInfo.osPlatform ?? "macos";
+  const speechLanguageCode = ttsSettings.languageCode as TranscriptionLanguageCode;
+  const recommendedSttModels = useMemo(
+    () =>
+      settings?.stt.models.filter(
+        (model) =>
+          model.recommended &&
+          isLocalSttModelVisible({
+            modelId: model.id,
+            languageCode: speechLanguageCode,
+            platform: localModelPlatform,
+          }),
+      ) ?? [],
+    [localModelPlatform, settings?.stt.models, speechLanguageCode],
+  );
+  const advancedSttModels = useMemo(
+    () =>
+      settings?.stt.models.filter(
+        (model) =>
+          !model.recommended &&
+          isLocalSttModelVisible({
+            modelId: model.id,
+            languageCode: speechLanguageCode,
+            platform: localModelPlatform,
+          }),
+      ) ?? [],
+    [localModelPlatform, settings?.stt.models, speechLanguageCode],
+  );
+  const visibleTtsModelCards = useMemo(() => {
+    const cards = localTtsModelCards.filter((model) =>
+      isLocalTtsModelVisible({
+        modelId: model.id,
+        languageCode: ttsSettings.languageCode,
+        platform: localModelPlatform,
+      }),
+    );
+    return cards.length > 0 ? cards : localTtsModelCards;
+  }, [localModelPlatform, ttsSettings.languageCode]);
 
   return (
     <div className="grid w-full gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -802,9 +848,7 @@ export function SettingsView({
                         ]}
                       />
                       <ModelGrid>
-                        {settings.stt.models
-                          .filter((model) => model.recommended)
-                          .map((model) => (
+                        {recommendedSttModels.map((model) => (
                             <ModelRow
                               key={model.id}
                               model={model}
@@ -820,9 +864,7 @@ export function SettingsView({
                           {t("settings.stt.advancedModels")}
                         </summary>
                         <ModelGrid className="mt-2">
-                          {settings.stt.models
-                            .filter((model) => !model.recommended)
-                            .map((model) => (
+                          {advancedSttModels.map((model) => (
                               <ModelRow
                                 key={model.id}
                                 model={model}
@@ -885,7 +927,7 @@ export function SettingsView({
                         updateTtsModel(event.target.value as TtsModelId)
                       }
                     >
-                      {localTtsModelCards.map((model) => (
+                      {visibleTtsModelCards.map((model) => (
                         <option key={model.id} value={model.id}>
                           {model.name}
                         </option>
@@ -1787,7 +1829,7 @@ function ModelRow({
         </Badge>
       </div>
       <p className="text-muted-foreground mt-1 text-xs break-words">
-        {model.engine} · {model.fileName} · {model.sizeMb} MB
+        {model.engine} · {model.fileName} · {formatModelSize(model.sizeMb)}
       </p>
       {compatibility && compatibility.severity !== "supported" ? (
         <p className="text-muted-foreground mt-2 text-xs">

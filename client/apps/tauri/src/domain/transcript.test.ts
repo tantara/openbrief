@@ -6,6 +6,10 @@ import {
   createDefaultTranscriptSegments,
   createTranscribeAudioCommand,
 } from "@/domain/transcript";
+import {
+  createTranscriptSourceVariant,
+  createTranscriptVariant,
+} from "@/domain/transcript-actions";
 import type { VideoAsset } from "@/domain/media-library";
 
 const video: VideoAsset = {
@@ -103,5 +107,29 @@ describe("transcript domain", () => {
       endSeconds: 24,
       sourceKind: "youtube-captions",
     });
+  });
+
+  it("stores transcript variants under their variant id directories", () => {
+    const segments = createDefaultTranscriptSegments(video, "youtube-captions");
+
+    expect(
+      createTranscriptVariant({
+        video,
+        kind: "translation",
+        language: { code: "ko", label: "Korean" },
+        provider: "openai",
+        segments,
+        nowIso: "2026-05-21T00:00:00.000Z",
+      }).artifactPath,
+    ).toBe(
+      "videos/video-1/transcript/transcript-video-1-ko-2026-05-21T00-00-00.000Z/transcript.txt",
+    );
+    expect(
+      createTranscriptSourceVariant({
+        video,
+        sourceKind: "local-stt",
+        segments,
+      }).artifactPath,
+    ).toBe("videos/video-1/transcript/transcript-video-1-local-stt/transcript.txt");
   });
 });

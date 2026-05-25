@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { TranscriptSegment, VideoAsset } from "@/domain/media-library";
 import {
   chunkTranscriptSegments,
+  createClickableSummaryTimestampMarkdown,
   createSummaryDocument,
   createSummaryPrompt,
   createSummaryTimestampHref,
   getVideoSummaryTemplate,
+  parseSummaryTimestampLabel,
   parseSummaryTimestampHref,
 } from "@/domain/summary";
 
@@ -75,8 +77,9 @@ describe("summary domain", () => {
     expect(prompt.systemPrompt).toContain("## Final Thought");
     expect(prompt.systemPrompt).toContain("Never invent a timestamp");
     expect(prompt.systemPrompt).toContain(
-      "[linked text](#openbrief-timestamp-SECONDS)",
+      "[MM:SS](#openbrief-timestamp-SECONDS)",
     );
+    expect(prompt.systemPrompt).toContain("Do not wrap prose in timestamp links");
     expect(prompt.systemPrompt).toContain("Do not use VIDEO_URL&t=SECONDS");
     expect(prompt.userPrompt).toContain("VIDEO_TITLE: Design Review");
     expect(prompt.userPrompt).toContain("VIDEO_URL: https://youtu.be/example");
@@ -107,8 +110,37 @@ describe("summary domain", () => {
     expect(createSummaryTimestampHref(30.8)).toBe("#openbrief-timestamp-30");
     expect(parseSummaryTimestampHref("#openbrief-timestamp-30")).toBe(30);
     expect(parseSummaryTimestampHref("openbrief://timestamp/30")).toBe(30);
+    expect(parseSummaryTimestampLabel("4:05")).toBe(245);
+    expect(parseSummaryTimestampLabel("1:04:05")).toBe(3845);
     expect(parseSummaryTimestampHref("#openbrief-timestamp-30.5")).toBeUndefined();
+    expect(parseSummaryTimestampLabel("not a timestamp")).toBeUndefined();
     expect(parseSummaryTimestampHref("https://example.com?t=30")).toBeUndefined();
+  });
+
+  it("links bare summary timestamps without changing code blocks or existing links", () => {
+    expect(
+      createClickableSummaryTimestampMarkdown(
+        [
+          "### 미국 시스템의 독특함과 대체 불가능성 - 4:05",
+          "| Section | Starts At |",
+          "| --- | --- |",
+          "| Existing | [0:30](#openbrief-timestamp-30) |",
+          "```",
+          "leave 1:23 alone",
+          "```",
+        ].join("\n"),
+      ),
+    ).toBe(
+      [
+        "### 미국 시스템의 독특함과 대체 불가능성 - [4:05](#openbrief-timestamp-245)",
+        "| Section | Starts At |",
+        "| --- | --- |",
+        "| Existing | [0:30](#openbrief-timestamp-30) |",
+        "```",
+        "leave 1:23 alone",
+        "```",
+      ].join("\n"),
+    );
   });
 
   it("falls back to the YouTube blog template for default callers", () => {
@@ -125,16 +157,37 @@ describe("summary domain", () => {
       sourceSegmentCount: 2,
       sourceFileName: "Design Review.mp4",
       nowIso: "2026-05-21T00:00:00.000Z",
+      idSuffix: "test-run",
     });
 
     expect(summary).toMatchObject({
-      id: "summary-video-1-2026-05-21T00-00-00-000Z",
+      id: "summary-video-1-2026-05-21T00-00-00-000Z-test-run",
       provider: "openai",
       templateId: "youtube-blog",
       lengthMode: "default",
       sourceSegmentCount: 2,
       artifactPath:
-        "videos/video-1/summary/Design-Review-summary-2026-05-21T00-00-00-000Z.md",
+        "videos/video-1/summary/summary-video-1-2026-05-21T00-00-00-000Z-test-run/summary.md",
     });
+  });
+
+  it("creates distinct summary ids for the same video and timestamp", () => {
+    const first = createSummaryDocument({
+      videoId: "video-1",
+      provider: "openai",
+      markdown: "# First",
+      sourceSegmentCount: 1,
+      nowIso: "2026-05-21T00:00:00.000Z",
+    });
+    const second = createSummaryDocument({
+      videoId: "video-1",
+      provider: "openrouter",
+      markdown: "# Second",
+      sourceSegmentCount: 1,
+      nowIso: "2026-05-21T00:00:00.000Z",
+    });
+
+    expect(first.id).not.toBe(second.id);
+    expect(first.artifactPath).not.toBe(second.artifactPath);
   });
 });

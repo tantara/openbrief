@@ -206,16 +206,17 @@ describe("artifactExportService", () => {
   it("exports a saved markdown summary artifact", async () => {
     const invokeCommand = vi.fn().mockResolvedValue({
       targetPath: "/exports/Workbench sample.md",
-      sourceRelativePath: "videos/video-1/summary/summary-video-1.md",
+      sourceRelativePath: "videos/video-1/summary/summary-video-1/summary.md",
       bytesWritten: 10,
     });
+    const selectSavePath = vi.fn().mockResolvedValue("/exports/custom-summary.md");
     const service = createArtifactExportService({
       invokeCommand,
       helperClient: new FakeHelperClient(),
       fileDialogService: {
         selectVideoFile: vi.fn(),
         selectImageFile: vi.fn(),
-        selectSavePath: vi.fn().mockResolvedValue("/exports/custom-summary.md"),
+        selectSavePath,
       },
     });
 
@@ -228,17 +229,22 @@ describe("artifactExportService", () => {
         markdown: "# Summary",
         provider: "openai",
         sourceSegmentCount: 1,
-        artifactPath: "videos/video-1/summary/summary-video-1.md",
+        artifactPath: "videos/video-1/summary/summary-video-1/summary.md",
         createdAtIso: "2026-05-21T00:00:00.000Z",
       },
     });
 
+    expect(selectSavePath).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultPath: "Workbench-sample-summary-video-1.md",
+      }),
+    );
     expect(invokeCommand).toHaveBeenNthCalledWith(1, "write_text_artifact", {
-      relativePath: "videos/video-1/summary/summary-video-1.md",
+      relativePath: "videos/video-1/summary/summary-video-1/summary.md",
       text: "# Summary",
     });
     expect(invokeCommand).toHaveBeenNthCalledWith(2, "export_library_artifact", {
-      sourceRelativePath: "videos/video-1/summary/summary-video-1.md",
+      sourceRelativePath: "videos/video-1/summary/summary-video-1/summary.md",
       outputDirectory: "/exports",
       fileName: "custom-summary.md",
     });

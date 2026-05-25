@@ -31,8 +31,17 @@ torch = [
   "torch>=2.4; platform_system != 'Darwin' or platform_machine != 'x86_64'",
 ]
 mlx = [
-  "mlx>=0.25; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "huggingface_hub>=1.0; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "hf-xet>=1.4.3,<2.0.0; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "mlx>=0.31.1; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "mlx-lm>=0.31.1; platform_system == 'Darwin' and platform_machine == 'arm64'",
   "miniaudio>=1.61; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "numpy>=1.26.4,<2.0; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "scipy>=1.10.0; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "sentencepiece>=0.2.0; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "sounddevice>=0.5.3; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "tqdm>=4.67.1; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "transformers>=5.5.0; platform_system == 'Darwin' and platform_machine == 'arm64'",
 ]
 
 [project.scripts]

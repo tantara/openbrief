@@ -505,7 +505,9 @@ describe("summary chat service", () => {
       kind: "translation",
       languageCode: "ko",
       languageLabel: "Korean",
-      artifactPath: "videos/video-1/transcript/Design-Review_ko.txt",
+      artifactPath: expect.stringMatching(
+        /^videos\/video-1\/transcript\/transcript-video-1-ko-.+\/transcript\.txt$/,
+      ),
     });
     expect(providerCalls[0].systemPrompt).toContain(
       "Every output line must echo the input segment id and start timestamp exactly.",

@@ -21,6 +21,7 @@ import {
   providerModelOptions,
   providerOptions,
 } from "@/domain/provider";
+import { formatModelSize } from "@/domain/settings";
 import type { ProviderAuthMode, SettingsSnapshot } from "@/domain/settings";
 import type { SttModelDownloadOptions } from "@/services/setupService";
 import { useI18n } from "@/i18n";
@@ -385,7 +386,7 @@ function ModelPicker({
                 <span className="min-w-0">
                   <span className="block font-medium">{model.name}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {model.fileName} · {model.sizeMb} MB
+                    {model.fileName} · {formatModelSize(model.sizeMb)}
                   </span>
                 </span>
               </span>

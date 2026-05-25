@@ -147,6 +147,10 @@ export const zh_cn = {
   "notice.open": "打开",
   "notice.artifactExport.success": "已导出到 {path}",
   "notice.artifactExport.failed": "导出失败：{message}",
+  "notice.voiceClone.selectVideo":
+    "Open an audio or video with a transcript, then choose up to 3 transcript blocks for voice cloning.",
+  "notice.voiceClone.referencesSelected":
+    "{count} reference block(s) selected for Qwen3 voice cloning.",
   "notice.openLocation.failed": "无法打开位置：{message}",
   "settings.appearance.title": "外观",
   "settings.appearance.theme": "主题",
@@ -269,6 +273,7 @@ export const zh_cn = {
   "workbench.transcript.overlay.tooltip": "Open transcript overlay",
   "workbench.transcript.voiceCloneSelection": "语音克隆参考块：{count}/3",
   "workbench.transcript.voiceCloneToggle": "使用 {time} 处的转录块进行语音克隆",
+  "workbench.transcript.voiceCloneUse": "Use as voice",
   "workbench.transcript.voiceCloneClear": "清除",
   "transcriptOverlay.window": "转录本叠加",
   "transcriptOverlay.close": "关闭转录覆盖",
@@ -363,6 +368,10 @@ export const zh_cn = {
   "workbench.quiz.empty": "Generate a quiz from the current summary or transcript.",
   "workbench.quiz.sourceRequired": "Generate a summary or extract a transcript first.",
   "workbench.quiz.failed": "Quiz failed",
+  "workbench.quiz.correct": "Correct",
+  "workbench.quiz.incorrect": "Not quite",
+  "workbench.quiz.answer": "Answer: {answer}",
+  "workbench.quiz.showAnswer": "Show answer",
   "workbench.chat.context": "聊天上下文",
   "workbench.chat.provider": "聊天提供商",
   "workbench.chat.empty": "使用摘要或文字记录上下文提出问题。",
@@ -591,6 +600,20 @@ export const zh_cn = {
   "voices.preview.download": "下载",
   "voices.preview.ready": "预览就绪 ({size})",
   "voices.cloneVoice": "克隆声音",
+  "voices.cloneOnboarding.title": "Clone a Qwen3 voice",
+  "voices.cloneOnboarding.description":
+    "Set up Qwen3-TTS voice cloning from existing transcript blocks.",
+  "voices.cloneOnboarding.downloadCheckpoint": "Download checkpoint",
+  "voices.cloneOnboarding.downloadCheckpointDescription":
+    "OpenBrief downloads the selected Qwen3-TTS checkpoint on demand through the Local AI sidecar.",
+  "voices.cloneOnboarding.pickTranscription": "Pick transcript blocks",
+  "voices.cloneOnboarding.pickTranscriptionDescription":
+    "Choose up to 3 adjacent transcript blocks from an audio or video source.",
+  "voices.cloneOnboarding.useVoice": "Use it as voice",
+  "voices.cloneOnboarding.useVoiceDescription":
+    "The selected blocks become the reference voice for Qwen3 read-aloud generation.",
+  "voices.cloneOnboarding.cancel": "Cancel",
+  "voices.cloneOnboarding.start": "Pick transcript blocks",
   "voices.usage.title": "如何使用语音",
   "voices.usage.description": "OpenBrief 中的朗读操作将使用所选的语音。",
   "voices.usage.podcast.title": "播客一代",

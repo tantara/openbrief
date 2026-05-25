@@ -103,8 +103,8 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let play = MenuItemBuilder::with_id("play-video", "Play").build(app)?;
     let pause = MenuItemBuilder::with_id("pause-video", "Pause").build(app)?;
     let menu = MenuBuilder::new(app).item(&play).item(&pause).build()?;
-    let icon =
-        Image::from_bytes(include_bytes!("../icons/32x32.png")).expect("failed to load tray icon");
+    let icon = Image::from_bytes(include_bytes!("../icons/tray-macos-template.png"))
+        .expect("failed to load macOS tray icon");
 
     TrayIconBuilder::new()
         .icon(icon)

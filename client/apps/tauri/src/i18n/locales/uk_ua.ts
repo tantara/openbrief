@@ -147,6 +147,10 @@ export const uk_ua = {
   "notice.open": "Відкрити",
   "notice.artifactExport.success": "Експортовано до {path}",
   "notice.artifactExport.failed": "Не вдалося експортувати: {message}",
+  "notice.voiceClone.selectVideo":
+    "Open an audio or video with a transcript, then choose up to 3 transcript blocks for voice cloning.",
+  "notice.voiceClone.referencesSelected":
+    "{count} reference block(s) selected for Qwen3 voice cloning.",
   "notice.openLocation.failed": "Не вдалося відкрити розташування: {message}",
   "settings.appearance.title": "Вигляд",
   "settings.appearance.theme": "Тема",
@@ -269,6 +273,7 @@ export const uk_ua = {
   "workbench.transcript.overlay.tooltip": "Open transcript overlay",
   "workbench.transcript.voiceCloneSelection": "Блоки клонування голосу: {count}/3",
   "workbench.transcript.voiceCloneToggle": "Використовуйте блок розшифровки на {time} для клонування голосу",
+  "workbench.transcript.voiceCloneUse": "Use as voice",
   "workbench.transcript.voiceCloneClear": "ясно",
   "transcriptOverlay.window": "Накладання стенограми",
   "transcriptOverlay.close": "Закрити стенограму",
@@ -363,6 +368,10 @@ export const uk_ua = {
   "workbench.quiz.empty": "Generate a quiz from the current summary or transcript.",
   "workbench.quiz.sourceRequired": "Generate a summary or extract a transcript first.",
   "workbench.quiz.failed": "Quiz failed",
+  "workbench.quiz.correct": "Correct",
+  "workbench.quiz.incorrect": "Not quite",
+  "workbench.quiz.answer": "Answer: {answer}",
+  "workbench.quiz.showAnswer": "Show answer",
   "workbench.chat.context": "Контекст чату",
   "workbench.chat.provider": "Провайдер чату",
   "workbench.chat.empty": "Поставте запитання, використовуючи короткий виклад або контекст стенограми.",
@@ -591,6 +600,20 @@ export const uk_ua = {
   "voices.preview.download": "Завантажити",
   "voices.preview.ready": "Попередній перегляд готовий ({size})",
   "voices.cloneVoice": "Клонувати голос",
+  "voices.cloneOnboarding.title": "Clone a Qwen3 voice",
+  "voices.cloneOnboarding.description":
+    "Set up Qwen3-TTS voice cloning from existing transcript blocks.",
+  "voices.cloneOnboarding.downloadCheckpoint": "Download checkpoint",
+  "voices.cloneOnboarding.downloadCheckpointDescription":
+    "OpenBrief downloads the selected Qwen3-TTS checkpoint on demand through the Local AI sidecar.",
+  "voices.cloneOnboarding.pickTranscription": "Pick transcript blocks",
+  "voices.cloneOnboarding.pickTranscriptionDescription":
+    "Choose up to 3 adjacent transcript blocks from an audio or video source.",
+  "voices.cloneOnboarding.useVoice": "Use it as voice",
+  "voices.cloneOnboarding.useVoiceDescription":
+    "The selected blocks become the reference voice for Qwen3 read-aloud generation.",
+  "voices.cloneOnboarding.cancel": "Cancel",
+  "voices.cloneOnboarding.start": "Pick transcript blocks",
   "voices.usage.title": "Як можна використовувати голос",
   "voices.usage.description": "Вибраний голос використовується для дій читання вголос у OpenBrief.",
   "voices.usage.podcast.title": "Генерація подкастів",

@@ -147,6 +147,10 @@ export const ko_kr = {
   "notice.open": "열기",
   "notice.artifactExport.success": "{path}로 내보냈습니다",
   "notice.artifactExport.failed": "내보내기 실패: {message}",
+  "notice.voiceClone.selectVideo":
+    "Open an audio or video with a transcript, then choose up to 3 transcript blocks for voice cloning.",
+  "notice.voiceClone.referencesSelected":
+    "{count} reference block(s) selected for Qwen3 voice cloning.",
   "notice.openLocation.failed": "위치를 열 수 없습니다: {message}",
   "settings.appearance.title": "모양",
   "settings.appearance.theme": "테마",
@@ -269,6 +273,7 @@ export const ko_kr = {
   "workbench.transcript.overlay.tooltip": "Open transcript overlay",
   "workbench.transcript.voiceCloneSelection": "음성 복제 참조 블록: {count}/3",
   "workbench.transcript.voiceCloneToggle": "음성 복제를 위해 {time}의 기록 블록 사용",
+  "workbench.transcript.voiceCloneUse": "Use as voice",
   "workbench.transcript.voiceCloneClear": "분명한",
   "transcriptOverlay.window": "성적 오버레이",
   "transcriptOverlay.close": "스크립트 오버레이 닫기",
@@ -363,6 +368,10 @@ export const ko_kr = {
   "workbench.quiz.empty": "Generate a quiz from the current summary or transcript.",
   "workbench.quiz.sourceRequired": "Generate a summary or extract a transcript first.",
   "workbench.quiz.failed": "Quiz failed",
+  "workbench.quiz.correct": "Correct",
+  "workbench.quiz.incorrect": "Not quite",
+  "workbench.quiz.answer": "Answer: {answer}",
+  "workbench.quiz.showAnswer": "Show answer",
   "workbench.chat.context": "채팅 컨텍스트",
   "workbench.chat.provider": "채팅 제공자",
   "workbench.chat.empty": "요약 또는 성적 증명서 컨텍스트를 사용하여 질문하세요.",
@@ -591,6 +600,20 @@ export const ko_kr = {
   "voices.preview.download": "다운로드",
   "voices.preview.ready": "미리보기 준비됨({size})",
   "voices.cloneVoice": "클론 음성",
+  "voices.cloneOnboarding.title": "Clone a Qwen3 voice",
+  "voices.cloneOnboarding.description":
+    "Set up Qwen3-TTS voice cloning from existing transcript blocks.",
+  "voices.cloneOnboarding.downloadCheckpoint": "Download checkpoint",
+  "voices.cloneOnboarding.downloadCheckpointDescription":
+    "OpenBrief downloads the selected Qwen3-TTS checkpoint on demand through the Local AI sidecar.",
+  "voices.cloneOnboarding.pickTranscription": "Pick transcript blocks",
+  "voices.cloneOnboarding.pickTranscriptionDescription":
+    "Choose up to 3 adjacent transcript blocks from an audio or video source.",
+  "voices.cloneOnboarding.useVoice": "Use it as voice",
+  "voices.cloneOnboarding.useVoiceDescription":
+    "The selected blocks become the reference voice for Qwen3 read-aloud generation.",
+  "voices.cloneOnboarding.cancel": "Cancel",
+  "voices.cloneOnboarding.start": "Pick transcript blocks",
   "voices.usage.title": "음성을 사용하는 방법",
   "voices.usage.description": "선택한 음성은 OpenBrief 전체에서 소리내어 읽기 작업에 사용됩니다.",
   "voices.usage.podcast.title": "팟캐스트 생성",

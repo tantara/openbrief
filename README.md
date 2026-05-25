@@ -9,7 +9,7 @@ OpenBrief is a pnpm/Turborepo workspace centered on a Tauri v2 desktop app. It s
 | Model type | Supported | TODO |
 | --- | --- | --- |
 | Speech to text | Whisper, Parakeet, Qwen3-ASR | None |
-| Text to speech | Supertonic 3 | Qwen3-TTS |
+| Text to speech | Supertonic 3, Qwen3-TTS | None |
 | Large language model | OpenAI GPT, Anthropic Claude, Google Gemini, OpenRouter DeepSeek | Local Gemma 4 |
 
 ## Repository Layout
@@ -192,6 +192,10 @@ OpenBrief builds on and takes inspiration from several projects:
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) for video download support.
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp) and [transcribe-rs](https://github.com/cjpais/transcribe-rs) for local speech-to-text.
+- [FluidAudio](https://github.com/FluidInference/FluidAudio) for local Apple-platform audio AI inspiration.
+- [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) for speech recognition model support.
+- [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) for text-to-speech model support.
+- [Supertonic](https://github.com/supertone-inc/supertonic/) for Supertonic 3 TTS support.
 - [tweakcn](https://tweakcn.com/themes/cmlhfpjhw000004l4f4ax3m7z) for the shadcn theme.
 - [Voicebox](https://github.com/jamiepine/voicebox) and [Anarlog](https://github.com/fastrepl/anarlog) for product and implementation inspiration.
 

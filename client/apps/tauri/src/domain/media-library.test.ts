@@ -15,6 +15,7 @@ import {
   createVideoArtifactBundle,
   createVideoBundleManifest,
   createVideoAudioArtifactPath,
+  createVideoFrameArtifactPath,
   createVideoPosterArtifactPath,
   createVideoTranscriptArtifactDirectory,
   createVideoTranscriptJsonArtifactPath,
@@ -70,6 +71,9 @@ describe("media library contracts", () => {
     expect(createVideoAudioArtifactPath("video-1", "Design Review.mp4")).toBe(
       "videos/video-1/audio/Design-Review-audio.wav",
     );
+    expect(createVideoFrameArtifactPath("video-1", 245.9)).toBe(
+      "videos/video-1/frames/245.jpg",
+    );
     expect(createVideoTranscriptArtifactDirectory("video-1")).toBe(
       "videos/video-1/transcript",
     );
@@ -77,7 +81,7 @@ describe("media library contracts", () => {
       "videos/video-1/transcript/transcript.json",
     );
     expect(createSummaryArtifactPath("video-1", "summary main")).toBe(
-      "videos/video-1/summary/summary-main.md",
+      "videos/video-1/summary/summary-main/summary.md",
     );
     expect(
       createSummaryArtifactPath(
@@ -86,7 +90,7 @@ describe("media library contracts", () => {
         "Design Review.mp4",
       ),
     ).toBe(
-      "videos/video-1/summary/Design-Review-summary-2026-05-21T00-00-00-000Z.md",
+      "videos/video-1/summary/summary-video-1-2026-05-21T00-00-00-000Z/summary.md",
     );
     expect(createChatSessionArtifactPath("video-1", "session 1")).toBe(
       "videos/video-1/chat/session-1.jsonl",
@@ -108,7 +112,7 @@ describe("media library contracts", () => {
     expect(
       createVideoBundleManifest({
         video,
-        summaryPaths: ["videos/video-1/summary/summary-1.md"],
+        summaryPaths: ["videos/video-1/summary/summary-1/summary.md"],
         chatSessionPaths: ["videos/video-1/chat/default.jsonl"],
       }),
     ).toEqual({
@@ -118,7 +122,7 @@ describe("media library contracts", () => {
       artifacts: {
         thumbnailPath: "videos/video-1/thumbnail/video-1-thumbnail.jpg",
         transcriptVariantPaths: [],
-        summaryPaths: ["videos/video-1/summary/summary-1.md"],
+        summaryPaths: ["videos/video-1/summary/summary-1/summary.md"],
         chatSessionPaths: ["videos/video-1/chat/default.jsonl"],
       },
     });

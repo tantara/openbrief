@@ -560,6 +560,7 @@ pub fn download_youtube_plan(payload: &Value) -> HelperResult<CommandPlan> {
 pub fn extract_thumbnail_plan(payload: &Value) -> HelperResult<CommandPlan> {
     let input = required_string(payload, &["videoPath", "inputPath", "path"])?;
     let output = required_string(payload, &["outputPath"])?;
+    let seek_timestamp = ffmpeg_seek_timestamp(payload)?;
     Ok(CommandPlan {
         tool: "ffmpeg",
         program: discover_media_tool("ffmpeg"),
@@ -567,7 +568,7 @@ pub fn extract_thumbnail_plan(payload: &Value) -> HelperResult<CommandPlan> {
             "-hide_banner".into(),
             "-y".into(),
             "-ss".into(),
-            "00:00:01".into(),
+            seek_timestamp,
             "-i".into(),
             input,
             "-frames:v".into(),
@@ -577,6 +578,32 @@ pub fn extract_thumbnail_plan(payload: &Value) -> HelperResult<CommandPlan> {
             output,
         ],
     })
+}
+
+fn ffmpeg_seek_timestamp(payload: &Value) -> HelperResult<String> {
+    let Some(value) = payload.get("timestampSeconds") else {
+        return Ok("00:00:01".to_string());
+    };
+    let seconds = value
+        .as_f64()
+        .ok_or_else(|| HelperError::new("timestampSeconds must be numeric"))?;
+
+    if !seconds.is_finite() || seconds < 0.0 {
+        return Err(HelperError::new(
+            "timestampSeconds must be a finite non-negative number",
+        ));
+    }
+
+    let rounded = (seconds * 1000.0).round() / 1000.0;
+    if rounded.fract() == 0.0 {
+        return Ok((rounded as u64).to_string());
+    }
+
+    let formatted = format!("{rounded:.3}");
+    Ok(formatted
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string())
 }
 
 pub fn list_captions_plan(payload: &Value) -> HelperResult<CommandPlan> {
@@ -1436,6 +1463,37 @@ mod tests {
             .windows(2)
             .any(|pair| pair == ["--ffmpeg-location", "/tmp/openbrief-tools"]));
         env::remove_var(MEDIA_TOOLS_DIR_ENV);
+    }
+
+    #[test]
+    fn shapes_timestamp_thumbnail_extraction_as_fast_ffmpeg_seek() {
+        let plan = command_plan_for_request(&request(
+            HelperCommandName::ExtractThumbnail,
+            json!({
+                "videoPath": "/library/videos/video-1/source.mp4",
+                "outputPath": "/library/videos/video-1/frames/245.jpg",
+                "timestampSeconds": 245
+            }),
+        ))
+        .unwrap();
+
+        assert_eq!(plan.tool, "ffmpeg");
+        assert_eq!(
+            plan.args,
+            vec![
+                "-hide_banner",
+                "-y",
+                "-ss",
+                "245",
+                "-i",
+                "/library/videos/video-1/source.mp4",
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=640:-2",
+                "/library/videos/video-1/frames/245.jpg"
+            ]
+        );
     }
 
     #[test]

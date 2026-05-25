@@ -476,6 +476,18 @@ export function useMediaLibrary(
       model,
       streamingMode: options.streamingMode,
     });
+    const summarySnapshotHandler = options.streamingMode
+      ? createThrottledTextSnapshotHandler((draftText) => {
+          setSummaryJob(videoId, {
+            videoId,
+            status: "running",
+            provider,
+            model,
+            streamingMode: true,
+            draftText,
+          });
+        })
+      : undefined;
 
     try {
       const summary = await summaryChatService.generateSummary({
@@ -487,19 +499,9 @@ export function useMediaLibrary(
         lengthMode: options.lengthMode,
         outputLanguage: options.outputLanguage,
         streamingMode: options.streamingMode,
-        onTextSnapshot: options.streamingMode
-          ? (draftText) => {
-              setSummaryJob(videoId, {
-                videoId,
-                status: "running",
-                provider,
-                model,
-                streamingMode: true,
-                draftText,
-              });
-            }
-          : undefined,
+        onTextSnapshot: summarySnapshotHandler,
       });
+      summarySnapshotHandler?.cancel();
 
       updateLibrarySnapshot(
         (current) => ({
@@ -531,6 +533,8 @@ export function useMediaLibrary(
           error instanceof Error ? error.message : "summary_generation_failed",
       });
       throw error;
+    } finally {
+      summarySnapshotHandler?.cancel();
     }
   }
 
@@ -1377,7 +1381,7 @@ export function useMediaLibrary(
     setSummaryJobsByVideoId((current) => omitRecordKey(current, videoId));
   }
 
-  function setChatJob(videoId: string, job: AiGenerationJob) {
+function setChatJob(videoId: string, job: AiGenerationJob) {
     setChatJobsByVideoId((current) => ({ ...current, [videoId]: job }));
   }
 
@@ -1633,6 +1637,61 @@ function transcriptProgressRange(command: HelperCommandName) {
     default:
       return { start: 1, end: 5 };
   }
+}
+
+function createThrottledTextSnapshotHandler(
+  onSnapshot: (draftText: string) => void,
+  intervalMs = 100,
+) {
+  let latestDraftText: string | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let lastEmittedAt: number | undefined;
+
+  function emit() {
+    if (latestDraftText === undefined) return;
+
+    onSnapshot(latestDraftText);
+    latestDraftText = undefined;
+    lastEmittedAt = performance.now();
+  }
+
+  function cancel() {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+      timeout = undefined;
+    }
+    latestDraftText = undefined;
+  }
+
+  const handler = (draftText: string) => {
+    latestDraftText = draftText;
+
+    if (lastEmittedAt === undefined) {
+      emit();
+      return;
+    }
+
+    const elapsedMs = performance.now() - lastEmittedAt;
+    if (elapsedMs >= intervalMs) {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+        timeout = undefined;
+      }
+      emit();
+      return;
+    }
+
+    if (timeout === undefined) {
+      timeout = setTimeout(() => {
+        timeout = undefined;
+        emit();
+      }, intervalMs - elapsedMs);
+    }
+  };
+
+  handler.cancel = cancel;
+
+  return handler;
 }
 
 function shouldAttemptCaptionTranscript(video: VideoAsset) {

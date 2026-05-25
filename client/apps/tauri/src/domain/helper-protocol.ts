@@ -35,6 +35,7 @@ export type ExtractThumbnailCommand = HelperCommandBase<"extract_thumbnail"> & {
   videoPath: string;
   outputPath: string;
   tempDir: string;
+  timestampSeconds?: number;
 };
 
 export type CaptionLanguage = {

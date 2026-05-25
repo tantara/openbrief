@@ -141,6 +141,25 @@ export function useVideoPlayback() {
     );
   }
 
+  function seekVideo(videoId: string, currentTimeSeconds: number) {
+    setState((current) => {
+      const isCurrentActiveVideo = current.activeVideoId === videoId;
+
+      return {
+        ...current,
+        activeVideoId: videoId,
+        status:
+          isCurrentActiveVideo && current.status === "playing"
+            ? "playing"
+            : "paused",
+        currentTimeSeconds: Math.max(0, currentTimeSeconds),
+        pictureInPictureActive: isCurrentActiveVideo
+          ? current.pictureInPictureActive
+          : false,
+      };
+    });
+  }
+
   function openPictureInPicture(
     videoId: string,
     options: PictureInPictureOptions = {},
@@ -198,6 +217,7 @@ export function useVideoPlayback() {
     pauseVideo,
     stopVideo,
     updateVideoTime,
+    seekVideo,
     openPictureInPicture,
     closePictureInPicture,
     playActiveOrSelectedVideo,

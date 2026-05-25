@@ -82,8 +82,13 @@ export const DEFAULT_QUIZ_SYSTEM_PROMPT = [
   "You create grounded study quizzes for OpenBrief.",
   "Return only valid JSON. Do not include markdown fences.",
   "Use only the supplied source material. Do not invent facts.",
+  "If no specific area of interest is provided, create the strongest general quiz you can from the source.",
+  "For general quizzes, cover the most important concepts, relationships, examples, and practical takeaways with a balanced spread across the material.",
   "When possible, include anchors with startSeconds/endSeconds for audio or video, or pageStart/pageEnd for PDFs.",
 ].join("\n");
+
+export const DEFAULT_QUIZ_AREA_OF_INTEREST =
+  "general quiz covering the most important ideas";
 
 export function createQuizId(
   assetId: string,
@@ -113,7 +118,7 @@ export function createQuizPrompt({
       `Title: ${video.title}`,
       `Source type: ${mediaSourceTypeForAsset(video)}`,
       `Question count: ${questionCount}`,
-      `Area of interest: ${areaOfInterest.trim() || "general comprehension"}`,
+      `Area of interest: ${normalizeQuizAreaOfInterest(areaOfInterest)}`,
       "",
       "Return JSON with this exact shape:",
       quizJsonShape(mode),
@@ -296,6 +301,10 @@ function quizJsonShape(mode: QuizMode) {
 
 function quizModeLabel(mode: QuizMode) {
   return mode === "flash-card" ? "flash card" : "multiple choice";
+}
+
+function normalizeQuizAreaOfInterest(areaOfInterest: string) {
+  return areaOfInterest.trim() || DEFAULT_QUIZ_AREA_OF_INTEREST;
 }
 
 function normalizeQuizAnchor(anchor: unknown, video: VideoAsset) {

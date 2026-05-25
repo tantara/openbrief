@@ -220,7 +220,7 @@ describe("WorkbenchView", () => {
     });
   });
 
-  it("shows generated quiz questions in the quiz tab", () => {
+  it("reveals multiple-choice correctness after the student answers", () => {
     render(
       <WorkbenchView
         {...defaultProps({
@@ -234,7 +234,49 @@ describe("WorkbenchView", () => {
 
     expect(screen.getByText("Workbench quiz")).toBeInTheDocument();
     expect(screen.getByText("What is the key point?")).toBeInTheDocument();
-    expect(screen.getByText("The summary is grounded")).toBeInTheDocument();
+    expect(screen.queryByText("Not quite")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("The quiz is based on the current media."),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /the source is ignored/i }),
+    );
+
+    expect(screen.getByText("Not quite")).toBeInTheDocument();
+    expect(
+      screen.getByText("Answer: The summary is grounded"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("The quiz is based on the current media."),
+    ).toBeInTheDocument();
+  });
+
+  it("reveals flash-card answers on request", () => {
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          quiz: flashCardQuizFixture,
+          quizHistory: [flashCardQuizFixture],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Quiz" }));
+
+    expect(screen.getByText("Define grounding.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Answer: Using only source-backed facts."),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show answer" }));
+
+    expect(
+      screen.getByText("Answer: Using only source-backed facts."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Grounding prevents invented details."),
+    ).toBeInTheDocument();
   });
 
   it("limits voice clone transcript selection to three contiguous blocks", () => {
@@ -326,6 +368,30 @@ describe("WorkbenchView", () => {
         name: /for voice cloning/i,
       }),
     ).toHaveLength(transcriptFixture.length);
+  });
+
+  it("uses selected transcript blocks as voice clone references", () => {
+    const onUseVoiceCloneReferences = vi.fn();
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          isVoiceCloneModeEnabled: true,
+          onUseVoiceCloneReferences,
+        })}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("checkbox", {
+        name: /for voice cloning/i,
+      })[0],
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Use as voice" }));
+
+    expect(onUseVoiceCloneReferences).toHaveBeenCalledWith([
+      transcriptFixture[0],
+    ]);
   });
 
   it("renders a selection prompt without a video", () => {
@@ -920,11 +986,9 @@ describe("WorkbenchView", () => {
     );
 
     expect(screen.getAllByText("Generating summary...")).toHaveLength(1);
-    expect(screen.getAllByText("AI is writing a response...")).toHaveLength(2);
-    expect(screen.getAllByText("openai · gpt-5.4-mini")).toHaveLength(2);
-    expect(
-      screen.getByRole("button", { name: /ai is writing a response/i }),
-    ).toBeDisabled();
+    expect(screen.getAllByText("AI is writing a response...")).toHaveLength(1);
+    expect(screen.getAllByText("openai · gpt-5.4-mini")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /^send$/i })).toBeDisabled();
   });
 
   it("shortens model names in the summary generation status", () => {
@@ -1078,6 +1142,8 @@ describe("WorkbenchView", () => {
     fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
 
     expect(await screen.findByText("What mattered?")).toBeInTheDocument();
+    expect(screen.getByText("AI is writing a response...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^send$/i })).toBeDisabled();
     expect(screen.getByLabelText(/chat question/i)).toHaveValue("");
     await waitFor(() =>
       expect(onSendChat).toHaveBeenCalledWith({
@@ -1093,6 +1159,11 @@ describe("WorkbenchView", () => {
     await act(async () => {
       resolveSend();
     });
+    await waitFor(() =>
+      expect(
+        screen.queryByText("AI is writing a response..."),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("starts transcription from the summary-required warning", async () => {
@@ -1363,6 +1434,39 @@ describe("WorkbenchView", () => {
     expect(onSelectSummaryTab).toHaveBeenCalledWith("summary-video-1");
   });
 
+  it("replaces summary editor content when the active summary tab changes", async () => {
+    const { rerender } = render(
+      <WorkbenchView
+        {...defaultProps({
+          summary: secondSummaryFixture,
+          summaries: [secondSummaryFixture, summaryFixture],
+          activeSummaryId: "summary-video-1-alt",
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Alternate" }),
+    ).toBeInTheDocument();
+
+    rerender(
+      <WorkbenchView
+        {...defaultProps({
+          summary: summaryFixture,
+          summaries: [secondSummaryFixture, summaryFixture],
+          activeSummaryId: "summary-video-1",
+        })}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Summary" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Alternate" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("requests the shared add video dialog from the media tabs", () => {
     const onAddVideo = vi.fn();
 
@@ -1449,9 +1553,10 @@ describe("WorkbenchView", () => {
     expect(onPlayVideo).toHaveBeenCalledWith("video-1");
   });
 
-  it("seeks playback from summary timestamp links", async () => {
+  it("seeks summary timestamp links without starting playback", async () => {
     const onVideoTimeUpdate = vi.fn();
     const onPlayVideo = vi.fn();
+    const onSeekVideo = vi.fn();
 
     render(
       <WorkbenchView
@@ -1459,22 +1564,50 @@ describe("WorkbenchView", () => {
           summary: {
             ...summaryFixture,
             markdown:
-              "# Summary\n\n[Replay this summary sentence.](#openbrief-timestamp-30)",
+              "# Summary\n\n### 미국 시스템의 독특함과 대체 불가능성 - 0:30",
           },
           onVideoTimeUpdate,
           onPlayVideo,
+          onSeekVideo,
         })}
       />,
     );
 
     fireEvent.click(
-      await screen.findByRole("link", {
-        name: "Replay this summary sentence.",
-      }),
+      await screen.findByRole("button", { name: "Seek to 0:30" }),
     );
 
-    expect(onVideoTimeUpdate).toHaveBeenCalledWith("video-1", 30);
-    expect(onPlayVideo).toHaveBeenCalledWith("video-1");
+    expect(onSeekVideo).toHaveBeenCalledWith("video-1", 30);
+    expect(onPlayVideo).not.toHaveBeenCalled();
+    expect(onVideoTimeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("requests summary timestamp frame previews on hover", async () => {
+    const onTimestampFramePreview = vi.fn(async () => ({
+      relativePath: "videos/video-1/frames/30.jpg",
+      imageUrl: "asset://localhost/frame-30.jpg",
+      cached: true,
+    }));
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          summary: {
+            ...summaryFixture,
+            markdown:
+              "# Summary\n\n### 미국 시스템의 독특함과 대체 불가능성 - 0:30",
+          },
+          onTimestampFramePreview,
+        })}
+      />,
+    );
+
+    fireEvent.mouseEnter(
+      await screen.findByRole("button", { name: "Seek to 0:30" }),
+    );
+
+    await screen.findByRole("img", { name: "Frame preview for 0:30" });
+    expect(onTimestampFramePreview).toHaveBeenCalledWith(videoFixture, 30);
   });
 
   it("highlights the transcript segment that matches active playback time", () => {
@@ -2063,7 +2196,7 @@ const translationFixture = {
       text: "번역된 자막",
     },
   ],
-  artifactPath: "videos/video-1/transcript/workbench-sample_ko.txt",
+  artifactPath: "videos/video-1/transcript/translation-ko/transcript.txt",
   createdAtIso: "2026-05-21T00:02:00.000Z",
 };
 
@@ -2082,7 +2215,7 @@ const whisperSourceVariantFixture = {
       sourceKind: "local-stt" as const,
     },
   ],
-  artifactPath: "videos/video-1/transcript/workbench-sample_local-stt.txt",
+  artifactPath: "videos/video-1/transcript/transcript-video-1-local-stt/transcript.txt",
   createdAtIso: "2026-05-21T00:03:00.000Z",
 };
 
@@ -2207,6 +2340,30 @@ const quizFixture: QuizDocument = {
   artifactPath: "videos/video-1/quiz/quiz-video-1/quiz.json",
 };
 
+const flashCardQuizFixture: QuizDocument = {
+  schemaVersion: 1,
+  id: "quiz-video-1-flash-card",
+  sourceAssetId: "video-1",
+  mode: "flash-card",
+  questionCount: 1,
+  areaOfInterest: "key points",
+  provider: "openai",
+  model: "gpt-5.4-mini",
+  createdAtIso: "2026-05-21T00:04:00.000Z",
+  title: "Workbench flash cards",
+  description: "A focused flash card set.",
+  items: [
+    {
+      id: "question-0001",
+      type: "flash-card",
+      front: "Define grounding.",
+      back: "Using only source-backed facts.",
+      explanation: "Grounding prevents invented details.",
+    },
+  ],
+  artifactPath: "videos/video-1/quiz/quiz-video-1-flash-card/quiz.json",
+};
+
 const summaryJobFixture: AiGenerationJob = {
   videoId: "video-1",
   status: "running",
@@ -2260,6 +2417,7 @@ function defaultProps(
     onPlayVideo: vi.fn(),
     onPauseVideo: vi.fn(),
     onVideoTimeUpdate: vi.fn(),
+    onSeekVideo: vi.fn(),
     onVideoEnded: vi.fn(),
     onOpenPictureInPicture: vi.fn(),
     ...overrides,

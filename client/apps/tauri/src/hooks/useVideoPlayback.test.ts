@@ -98,6 +98,32 @@ describe("video playback state helpers", () => {
     });
   });
 
+  it("seeks an idle video without starting playback", () => {
+    const { result } = renderHook(() => useVideoPlayback());
+
+    act(() => result.current.seekVideo("video-1", 245));
+
+    expect(result.current.playbackState).toMatchObject({
+      activeVideoId: "video-1",
+      status: "paused",
+      currentTimeSeconds: 245,
+      pictureInPictureActive: false,
+    });
+  });
+
+  it("preserves playback when seeking the currently playing video", () => {
+    const { result } = renderHook(() => useVideoPlayback());
+
+    act(() => result.current.playVideo("video-1"));
+    act(() => result.current.seekVideo("video-1", 245));
+
+    expect(result.current.playbackState).toMatchObject({
+      activeVideoId: "video-1",
+      status: "playing",
+      currentTimeSeconds: 245,
+    });
+  });
+
   it("can play a selected video from an external menu command", () => {
     const { result } = renderHook(() => useVideoPlayback());
 

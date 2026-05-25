@@ -26,7 +26,7 @@ const summary: SummaryDocument = {
   markdown: "# Summary",
   provider: "openai",
   sourceSegmentCount: 1,
-  artifactPath: "videos/video-1/summary/summary-video-1.md",
+  artifactPath: "videos/video-1/summary/summary-video-1/summary.md",
   createdAtIso: "2026-05-24T00:01:00.000Z",
 };
 

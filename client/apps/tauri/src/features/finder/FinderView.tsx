@@ -922,7 +922,11 @@ function FinderStatusPill({
   children: ReactNode;
 }) {
   if (active) {
-    return <Badge className="gap-1">{children}</Badge>;
+    return (
+      <Badge variant="outline" className="gap-1">
+        {children}
+      </Badge>
+    );
   }
 
   return (

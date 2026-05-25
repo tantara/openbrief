@@ -184,6 +184,13 @@ export function formatStorageSize(sizeBytes: number): string {
   return `${value.toFixed(1)} ${units[unitIndex]}`;
 }
 
+export function formatModelSize(sizeMb: number): string {
+  const safeMb = Math.max(0, Number.isFinite(sizeMb) ? sizeMb : 0);
+  if (safeMb < 1000) return `${Math.round(safeMb)} MB`;
+
+  return `${(safeMb / 1000).toFixed(1)} GB`;
+}
+
 export function formatStoragePercentage(percentage: number): string {
   const safePercentage = Math.max(
     0,

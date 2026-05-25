@@ -147,6 +147,10 @@ export const ja_jp = {
   "notice.open": "開く",
   "notice.artifactExport.success": "{path} に書き出しました",
   "notice.artifactExport.failed": "書き出しに失敗しました: {message}",
+  "notice.voiceClone.selectVideo":
+    "Open an audio or video with a transcript, then choose up to 3 transcript blocks for voice cloning.",
+  "notice.voiceClone.referencesSelected":
+    "{count} reference block(s) selected for Qwen3 voice cloning.",
   "notice.openLocation.failed": "場所を開けません: {message}",
   "settings.appearance.title": "外観",
   "settings.appearance.theme": "テーマ",
@@ -269,6 +273,7 @@ export const ja_jp = {
   "workbench.transcript.overlay.tooltip": "Open transcript overlay",
   "workbench.transcript.voiceCloneSelection": "音声クローン参照ブロック: {count}/3",
   "workbench.transcript.voiceCloneToggle": "音声クローン作成には {time} のトランスクリプト ブロックを使用します",
+  "workbench.transcript.voiceCloneUse": "Use as voice",
   "workbench.transcript.voiceCloneClear": "クリア",
   "transcriptOverlay.window": "トランスクリプトオーバーレイ",
   "transcriptOverlay.close": "トランスクリプトオーバーレイを閉じる",
@@ -363,6 +368,10 @@ export const ja_jp = {
   "workbench.quiz.empty": "Generate a quiz from the current summary or transcript.",
   "workbench.quiz.sourceRequired": "Generate a summary or extract a transcript first.",
   "workbench.quiz.failed": "Quiz failed",
+  "workbench.quiz.correct": "Correct",
+  "workbench.quiz.incorrect": "Not quite",
+  "workbench.quiz.answer": "Answer: {answer}",
+  "workbench.quiz.showAnswer": "Show answer",
   "workbench.chat.context": "チャットのコンテキスト",
   "workbench.chat.provider": "チャットプロバイダー",
   "workbench.chat.empty": "概要またはトランスクリプトのコンテキストを使用して質問します。",
@@ -591,6 +600,20 @@ export const ja_jp = {
   "voices.preview.download": "ダウンロード",
   "voices.preview.ready": "プレビュー対応 ({size})",
   "voices.cloneVoice": "クローンボイス",
+  "voices.cloneOnboarding.title": "Clone a Qwen3 voice",
+  "voices.cloneOnboarding.description":
+    "Set up Qwen3-TTS voice cloning from existing transcript blocks.",
+  "voices.cloneOnboarding.downloadCheckpoint": "Download checkpoint",
+  "voices.cloneOnboarding.downloadCheckpointDescription":
+    "OpenBrief downloads the selected Qwen3-TTS checkpoint on demand through the Local AI sidecar.",
+  "voices.cloneOnboarding.pickTranscription": "Pick transcript blocks",
+  "voices.cloneOnboarding.pickTranscriptionDescription":
+    "Choose up to 3 adjacent transcript blocks from an audio or video source.",
+  "voices.cloneOnboarding.useVoice": "Use it as voice",
+  "voices.cloneOnboarding.useVoiceDescription":
+    "The selected blocks become the reference voice for Qwen3 read-aloud generation.",
+  "voices.cloneOnboarding.cancel": "Cancel",
+  "voices.cloneOnboarding.start": "Pick transcript blocks",
   "voices.usage.title": "音声の使い方",
   "voices.usage.description": "選択した音声は、OpenBrief 全体の読み上げアクションで使用されます。",
   "voices.usage.podcast.title": "ポッドキャストの生成",

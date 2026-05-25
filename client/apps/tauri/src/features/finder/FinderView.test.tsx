@@ -276,7 +276,7 @@ describe("FinderView", () => {
             markdown: "# Summary",
             provider: "openai",
             sourceSegmentCount: 1,
-            artifactPath: "videos/video-thumb/summary/summary-video-thumb.md",
+            artifactPath: "videos/video-thumb/summary/summary-video-thumb/summary.md",
             createdAtIso: "2026-05-21T00:00:00.000Z",
           },
         }}
@@ -461,7 +461,7 @@ describe("FinderView", () => {
             markdown: "# Summary",
             provider: "openai",
             sourceSegmentCount: 1,
-            artifactPath: "videos/video-1/summary/summary-video-1.md",
+            artifactPath: "videos/video-1/summary/summary-video-1/summary.md",
             createdAtIso: "2026-05-21T00:00:00.000Z",
           },
         }}

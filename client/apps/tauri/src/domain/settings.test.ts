@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createZeroStorageUsageSnapshot,
+  formatModelSize,
   formatStoragePercentage,
   formatStorageSize,
   selectPreferredSttModel,
@@ -73,6 +74,11 @@ describe("settings domain", () => {
     expect(formatStorageSize(512)).toBe("512 B");
     expect(formatStorageSize(1_258_291)).toBe("1.2 MB");
     expect(formatStorageSize(2_254_381_363)).toBe("2.1 GB");
+  });
+
+  it("formats model sizes from MB metadata with decimal model units", () => {
+    expect(formatModelSize(466)).toBe("466 MB");
+    expect(formatModelSize(5700)).toBe("5.7 GB");
   });
 
   it("formats storage percentages for compact display", () => {

@@ -147,6 +147,10 @@ export const el_gr = {
   "notice.open": "Άνοιγμα",
   "notice.artifactExport.success": "Εξήχθη στο {path}",
   "notice.artifactExport.failed": "Η εξαγωγή απέτυχε: {message}",
+  "notice.voiceClone.selectVideo":
+    "Open an audio or video with a transcript, then choose up to 3 transcript blocks for voice cloning.",
+  "notice.voiceClone.referencesSelected":
+    "{count} reference block(s) selected for Qwen3 voice cloning.",
   "notice.openLocation.failed": "Το άνοιγμα τοποθεσίας απέτυχε: {message}",
   "settings.appearance.title": "Εμφάνιση",
   "settings.appearance.theme": "Θέμα",
@@ -269,6 +273,7 @@ export const el_gr = {
   "workbench.transcript.overlay.tooltip": "Open transcript overlay",
   "workbench.transcript.voiceCloneSelection": "Μπλοκ αναφοράς κλώνων φωνής: {count}/3",
   "workbench.transcript.voiceCloneToggle": "Χρησιμοποιήστε το μπλοκ μεταγραφής στο {time} για κλωνοποίηση φωνής",
+  "workbench.transcript.voiceCloneUse": "Use as voice",
   "workbench.transcript.voiceCloneClear": "Σαφής",
   "transcriptOverlay.window": "Επικάλυψη μεταγραφής",
   "transcriptOverlay.close": "Κλείσιμο επικάλυψης μεταγραφής",
@@ -363,6 +368,10 @@ export const el_gr = {
   "workbench.quiz.empty": "Generate a quiz from the current summary or transcript.",
   "workbench.quiz.sourceRequired": "Generate a summary or extract a transcript first.",
   "workbench.quiz.failed": "Quiz failed",
+  "workbench.quiz.correct": "Correct",
+  "workbench.quiz.incorrect": "Not quite",
+  "workbench.quiz.answer": "Answer: {answer}",
+  "workbench.quiz.showAnswer": "Show answer",
   "workbench.chat.context": "Πλαίσιο συνομιλίας",
   "workbench.chat.provider": "Πάροχος συνομιλίας",
   "workbench.chat.empty": "Κάντε μια ερώτηση χρησιμοποιώντας περίληψη ή μεταγραφή.",
@@ -591,6 +600,20 @@ export const el_gr = {
   "voices.preview.download": "Λήψη",
   "voices.preview.ready": "Έτοιμη προεπισκόπηση ({size})",
   "voices.cloneVoice": "Κλώνη φωνή",
+  "voices.cloneOnboarding.title": "Clone a Qwen3 voice",
+  "voices.cloneOnboarding.description":
+    "Set up Qwen3-TTS voice cloning from existing transcript blocks.",
+  "voices.cloneOnboarding.downloadCheckpoint": "Download checkpoint",
+  "voices.cloneOnboarding.downloadCheckpointDescription":
+    "OpenBrief downloads the selected Qwen3-TTS checkpoint on demand through the Local AI sidecar.",
+  "voices.cloneOnboarding.pickTranscription": "Pick transcript blocks",
+  "voices.cloneOnboarding.pickTranscriptionDescription":
+    "Choose up to 3 adjacent transcript blocks from an audio or video source.",
+  "voices.cloneOnboarding.useVoice": "Use it as voice",
+  "voices.cloneOnboarding.useVoiceDescription":
+    "The selected blocks become the reference voice for Qwen3 read-aloud generation.",
+  "voices.cloneOnboarding.cancel": "Cancel",
+  "voices.cloneOnboarding.start": "Pick transcript blocks",
   "voices.usage.title": "Πώς μπορείτε να χρησιμοποιήσετε τη φωνή",
   "voices.usage.description": "Η επιλεγμένη φωνή χρησιμοποιείται από ενέργειες ανάγνωσης στο OpenBrief.",
   "voices.usage.podcast.title": "Γενιά podcast",

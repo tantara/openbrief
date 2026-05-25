@@ -170,7 +170,7 @@ export function pyinstallerOutputPath({ distDir, targetTriple }) {
 export function extrasForBuildProfile({ profile, targetTriple }) {
   const extras = [];
   const appleSilicon = targetTriple === "aarch64-apple-darwin";
-  if (profile === "tts") {
+  if (profile === "tts" && !appleSilicon) {
     extras.push("qwen-tts");
   } else if (profile === "asr" && !appleSilicon) {
     extras.push("qwen-asr");
@@ -179,7 +179,7 @@ export function extrasForBuildProfile({ profile, targetTriple }) {
   if (
     targetTriple.includes("apple-darwin") &&
     profile !== "smoke" &&
-    !(profile === "asr" && appleSilicon)
+    !appleSilicon
   ) {
     extras.push("torch");
   }
@@ -218,12 +218,20 @@ export function pyinstallerCollectArgs({ profile, targetTriple }) {
   const args = [];
   const appleSilicon = targetTriple === "aarch64-apple-darwin";
   const usesQwenPytorchPackage =
-    profile === "tts" || (profile === "asr" && !appleSilicon);
+    (profile === "tts" && !appleSilicon) || (profile === "asr" && !appleSilicon);
+  const addPair = (flag, value) => {
+    for (let index = 0; index < args.length - 1; index += 1) {
+      if (args[index] === flag && args[index + 1] === value) {
+        return;
+      }
+    }
+    args.push(flag, value);
+  };
   const addCollectAll = (moduleName) => {
-    args.push("--collect-all", moduleName);
+    addPair("--collect-all", moduleName);
   };
   const addCopyMetadata = (packageName) => {
-    args.push("--copy-metadata", packageName);
+    addPair("--copy-metadata", packageName);
   };
 
   if (profile === "smoke") {
@@ -245,10 +253,23 @@ export function pyinstallerCollectArgs({ profile, targetTriple }) {
   }
 
   if (targetTriple === "aarch64-apple-darwin") {
+    addCollectAll("hf_xet");
+    addCollectAll("huggingface_hub");
     addCollectAll("mlx");
     addCollectAll("mlx_audio");
+    addCollectAll("mlx_lm");
+    addCollectAll("sentencepiece");
+    addCollectAll("tokenizers");
+    addCollectAll("transformers");
+    addCopyMetadata("hf-xet");
+    addCopyMetadata("huggingface-hub");
     addCopyMetadata("mlx");
     addCopyMetadata("mlx-audio");
+    addCopyMetadata("mlx-lm");
+    addCopyMetadata("safetensors");
+    addCopyMetadata("sentencepiece");
+    addCopyMetadata("tokenizers");
+    addCopyMetadata("transformers");
   }
 
   return args;

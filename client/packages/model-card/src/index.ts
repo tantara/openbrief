@@ -137,6 +137,8 @@ export interface LocalTtsModelCard {
   supportedLanguages: readonly TranscriptionLanguage[];
 }
 
+export type LocalModelPlatform = "macos" | "windows" | "linux" | "unknown";
+
 const autoLanguage = {
   code: "auto",
   label: "Auto-detect",
@@ -441,5 +443,30 @@ export function isSynthesisLanguageSupportedByModel(
 ) {
   return synthesisLanguagesForModel(modelId).some(
     (language) => language.code === languageCode,
+  );
+}
+
+export function isLocalModelPlatformSupported(platform: string | undefined) {
+  return platform === "macos" || platform === "windows" || platform === "linux";
+}
+
+export function isLocalSttModelVisible(options: {
+  modelId: string;
+  languageCode: string;
+  platform?: string;
+}) {
+  if (!isLocalModelPlatformSupported(options.platform)) return false;
+  return isLanguageSupportedByModel(options.modelId, options.languageCode);
+}
+
+export function isLocalTtsModelVisible(options: {
+  modelId: string;
+  languageCode: string;
+  platform?: string;
+}) {
+  if (!isLocalModelPlatformSupported(options.platform)) return false;
+  return isSynthesisLanguageSupportedByModel(
+    options.modelId,
+    options.languageCode,
   );
 }

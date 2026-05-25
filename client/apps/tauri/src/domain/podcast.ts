@@ -119,9 +119,9 @@ const podcastDirectoryBySourceType = {
 } as const;
 
 const lengthGuidance: Record<PodcastLengthMode, string> = {
-  short: "4 to 6 concise turns",
-  default: "6 to 10 focused turns",
-  long: "10 to 16 detailed turns",
+  short: "6 to 8 concise turns, about 3 to 5 minutes",
+  default: "14 to 18 focused turns, about 8 to 10 minutes",
+  long: "24 to 32 detailed turns, about 15 to 20 minutes",
 };
 
 export function createPodcastId(

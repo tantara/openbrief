@@ -155,11 +155,17 @@ fn save_media_library_snapshot_to_connection(
     for (video_id, summary) in object_field(snapshot, "summariesByVideoId") {
         let mut summary = summary.clone();
         let summary_id = value_id(&summary);
-        let artifact_path = summary_artifact_path(
-            video_id,
-            &summary_id,
-            video_by_id(snapshot, video_id).and_then(Value::as_object),
-        );
+        let artifact_path = summary
+            .get("artifactPath")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_else(|| {
+                summary_artifact_path(
+                    video_id,
+                    &summary_id,
+                    video_by_id(snapshot, video_id).and_then(Value::as_object),
+                )
+            });
         ensure_string_field(&mut summary, "artifactPath", &artifact_path);
         insert_record(
             &tx,
@@ -874,34 +880,18 @@ fn ensure_string_field(value: &mut Value, key: &str, field_value: &str) {
 fn summary_artifact_path(
     video_id: &str,
     summary_id: &str,
-    video: Option<&Map<String, Value>>,
+    _video: Option<&Map<String, Value>>,
 ) -> String {
-    let sanitized_video_id = sanitize_path_segment(video_id);
-    let Some(video) = video else {
-        return format!(
-            "videos/{}/summary/{}.md",
-            sanitized_video_id,
-            sanitize_path_segment(summary_id)
-        );
-    };
-    let prefix = video_artifact_prefix(video, video_id);
-    let summary_prefix = format!("summary-{video_id}-");
-    let summary_suffix = summary_id
-        .strip_prefix(&summary_prefix)
-        .or_else(|| summary_id.strip_prefix("summary-"))
-        .filter(|value| !value.is_empty())
-        .unwrap_or(summary_id);
-
     format!(
-        "videos/{sanitized_video_id}/summary/{}-summary-{}.md",
-        sanitize_path_segment(&prefix),
-        sanitize_path_segment(summary_suffix)
+        "videos/{}/summary/{}/summary.md",
+        sanitize_path_segment(video_id),
+        sanitize_path_segment(summary_id)
     )
 }
 
 fn transcript_variant_artifact_path(video_id: &str, variant_id: &str) -> String {
     format!(
-        "videos/{}/transcript/{}.txt",
+        "videos/{}/transcript/{}/transcript.txt",
         sanitize_path_segment(video_id),
         sanitize_path_segment(variant_id)
     )
@@ -1126,7 +1116,7 @@ mod tests {
         assert_eq!(reloaded["videos"][0]["id"], "video-1");
         assert_eq!(
             reloaded["summariesByVideoId"]["video-1"]["artifactPath"],
-            "videos/video-1/summary/Design-Review-summary-video-1.md"
+            "videos/video-1/summary/summary-video-1/summary.md"
         );
         assert_eq!(reloaded["playlists"][0]["id"], "playlist-1");
         assert_eq!(reloaded["playlists"][0]["videoIds"][0], "video-1");
@@ -1135,11 +1125,22 @@ mod tests {
             "playlists/playlist-1/cover.png"
         );
         assert_eq!(
+            fs::read_to_string(library.join("videos/video-1/summary/summary-video-1/summary.md"))
+                .unwrap(),
+            "# Summary"
+        );
+        assert_eq!(
+            reloaded["transcriptVariantsByVideoId"]["video-1"][0]["artifactPath"],
+            "videos/video-1/transcript/transcript-video-1-ko-2026-05-21/transcript.txt"
+        );
+        assert_eq!(
             fs::read_to_string(
-                library.join("videos/video-1/summary/Design-Review-summary-video-1.md")
+                library.join(
+                    "videos/video-1/transcript/transcript-video-1-ko-2026-05-21/transcript.txt"
+                )
             )
             .unwrap(),
-            "# Summary"
+            "0:00\t번역"
         );
         assert!(
             fs::read_to_string(library.join("videos/video-1/chat/default.jsonl"))
@@ -1165,8 +1166,12 @@ mod tests {
             "videos/video-1/thumbnail/video-1-thumbnail.jpg"
         );
         assert_eq!(
+            manifest["artifacts"]["transcriptVariantPaths"][0],
+            "videos/video-1/transcript/transcript-video-1-ko-2026-05-21/transcript.txt"
+        );
+        assert_eq!(
             manifest["artifacts"]["summaryPaths"][0],
-            "videos/video-1/summary/Design-Review-summary-video-1.md"
+            "videos/video-1/summary/summary-video-1/summary.md"
         );
         assert_eq!(
             manifest["artifacts"]["chatSessionPaths"][0],
@@ -1382,6 +1387,21 @@ mod tests {
                     "startSeconds": 0,
                     "text": "Transcript",
                     "sourceKind": "youtube-captions"
+                }]
+            },
+            "transcriptVariantsByVideoId": {
+                "video-1": [{
+                    "id": "transcript-video-1-ko-2026-05-21",
+                    "videoId": "video-1",
+                    "kind": "translation",
+                    "languageCode": "ko",
+                    "segments": [{
+                        "id": "segment-1",
+                        "startSeconds": 0,
+                        "text": "번역",
+                        "sourceKind": "youtube-captions"
+                    }],
+                    "createdAtIso": "2026-05-21T00:01:30.000Z"
                 }]
             },
             "summariesByVideoId": {

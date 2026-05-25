@@ -257,7 +257,7 @@ export function createTranscriptVariant({
     provider,
     model,
     segments,
-    artifactPath: createTranscriptArtifactPath(video, suffix),
+    artifactPath: createTranscriptArtifactPath(video, suffix, id),
     createdAtIso: nowIso,
   };
 }
@@ -274,15 +274,16 @@ export function createTranscriptSourceVariant({
   nowIso?: string;
 }): TranscriptVariant {
   const suffix = sourceKind;
+  const id = `transcript-${video.id}-${sanitizePathSegment(suffix)}`;
 
   return {
-    id: `transcript-${video.id}-${sanitizePathSegment(suffix)}`,
+    id,
     videoId: video.id,
     kind: "source",
     sourceKind,
     languageLabel: transcriptSourceKindLabel(sourceKind),
     segments,
-    artifactPath: createTranscriptArtifactPath(video, suffix),
+    artifactPath: createTranscriptArtifactPath(video, suffix, id),
     createdAtIso: nowIso,
   };
 }
@@ -293,7 +294,17 @@ export function transcriptSourceKindLabel(sourceKind: TranscriptSourceKind) {
     : "AI transcription";
 }
 
-export function createTranscriptArtifactPath(video: VideoAsset, suffix = "original") {
+export function createTranscriptArtifactPath(
+  video: VideoAsset,
+  suffix = "original",
+  variantId?: string,
+) {
+  if (variantId) {
+    return `videos/${sanitizePathSegment(video.id)}/transcript/${sanitizePathSegment(
+      variantId,
+    )}/transcript.txt`;
+  }
+
   const prefix = createMediaAssetFilePrefix(video);
 
   return `videos/${sanitizePathSegment(video.id)}/transcript/${sanitizePathSegment(
