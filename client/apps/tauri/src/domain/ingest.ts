@@ -7,7 +7,7 @@ import {
 import {
   createLibraryAssetDirectory,
   createLibraryRelativePath,
-  type LibraryDirectory,
+  libraryDirectoryForMediaSourceType,
   sanitizePathSegment,
   type IngestJob,
   type MediaSourceType,
@@ -160,19 +160,6 @@ export function isSupportedLocalMediaFile(fileName: string) {
     isSupportedAudioExtension(extension) ||
     isSupportedPdfExtension(extension)
   );
-}
-
-function libraryDirectoryForMediaSourceType(
-  sourceType: MediaSourceType,
-): LibraryDirectory {
-  switch (sourceType) {
-    case "audio":
-      return "audios";
-    case "pdf":
-      return "pdfs";
-    case "video":
-      return "videos";
-  }
 }
 
 function isSupportedVideoExtension(extension: string) {

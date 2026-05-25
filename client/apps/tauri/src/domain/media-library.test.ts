@@ -124,6 +124,8 @@ describe("media library contracts", () => {
         transcriptVariantPaths: [],
         summaryPaths: ["videos/video-1/summary/summary-1/summary.md"],
         chatSessionPaths: ["videos/video-1/chat/default.jsonl"],
+        videoGenerationCompositionPaths: [],
+        videoGenerationRenderPaths: [],
       },
     });
   });

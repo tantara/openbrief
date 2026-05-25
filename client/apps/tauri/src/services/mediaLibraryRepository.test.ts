@@ -259,6 +259,41 @@ function createSnapshot(): MediaLibrarySnapshot {
       "video-1": [],
     },
     quizJobsByVideoId: {},
+    videoGenerationsBySourceId: {
+      "video-1": {
+        id: "composition-1",
+        sourceId: "video-1",
+        sourceType: "video",
+        scenario: "summary-to-video",
+        adapter: "deno-hyperframes",
+        title: "Design Review",
+        prompt: "Make a concise briefing.",
+        html: "<html></html>",
+        entryPath: "videos/video-1/generated-video/composition-1/index.html",
+        manifestPath:
+          "videos/video-1/generated-video/composition-1/composition.json",
+        renderPath: "videos/video-1/generated-video/composition-1/render.mp4",
+        durationSeconds: 45,
+        aspectRatio: "16:9",
+        createdAtIso: "2026-05-21T00:06:00.000Z",
+        updatedAtIso: "2026-05-21T00:06:00.000Z",
+      },
+    },
+    videoGenerationHistoryBySourceId: {
+      "video-1": [],
+    },
+    videoGenerationRendersByCompositionId: {
+      "composition-1": [
+        {
+          id: "render-1",
+          compositionId: "composition-1",
+          sourceId: "video-1",
+          adapter: "deno-hyperframes",
+          outputPath: "videos/video-1/generated-video/composition-1/render.mp4",
+          createdAtIso: "2026-05-21T00:07:00.000Z",
+        },
+      ],
+    },
     playlists: [
       {
         id: "playlist-1",
@@ -276,6 +311,9 @@ function createSnapshot(): MediaLibrarySnapshot {
   ];
   snapshot.quizHistoryByVideoId["video-1"] = [
     snapshot.quizzesByVideoId["video-1"],
+  ];
+  snapshot.videoGenerationHistoryBySourceId["video-1"] = [
+    snapshot.videoGenerationsBySourceId["video-1"],
   ];
   return snapshot;
 }

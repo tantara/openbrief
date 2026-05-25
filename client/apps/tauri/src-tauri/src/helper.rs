@@ -20,6 +20,7 @@ pub const HELPER_EXTERNAL_BIN_PATH: &str = "openbrief-helper";
 pub const MEDIA_TOOLS_RESOURCE_DIR: &str = "media-tools";
 pub const MEDIA_TOOLS_DIR_ENV: &str = "OPENBRIEF_MEDIA_TOOLS_DIR";
 pub const YTDLP_PATH_ENV: &str = "OPENBRIEF_YTDLP_PATH";
+pub const DENO_PATH_ENV: &str = "OPENBRIEF_DENO_PATH";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -30,6 +31,9 @@ pub enum HelperCommandName {
     ListCaptions,
     ExtractCaptions,
     ExtractAudio,
+    TranscodeVideo,
+    InspectVideoGenerationRuntime,
+    RenderHtmlComposition,
     TranscribeAudio,
     CancelJob,
 }
@@ -133,6 +137,9 @@ pub fn helper_protocol_contract() -> HelperProtocolContract {
             HelperCommandName::ListCaptions,
             HelperCommandName::ExtractCaptions,
             HelperCommandName::ExtractAudio,
+            HelperCommandName::TranscodeVideo,
+            HelperCommandName::InspectVideoGenerationRuntime,
+            HelperCommandName::RenderHtmlComposition,
             HelperCommandName::TranscribeAudio,
             HelperCommandName::CancelJob,
         ],
@@ -140,6 +147,7 @@ pub fn helper_protocol_contract() -> HelperProtocolContract {
             media_tool_contract("yt-dlp", vec!["--version"]),
             media_tool_contract("ffmpeg", vec!["-version"]),
             media_tool_contract("ffprobe", vec!["-version"]),
+            media_tool_contract("deno", vec!["--version"]),
         ],
     }
 }
@@ -221,6 +229,9 @@ pub async fn run_helper_command<R: Runtime>(
     }
     if let Some(ytdlp_path) = crate::media_tools::updated_ytdlp_path_for_app(&app) {
         sidecar = sidecar.env(YTDLP_PATH_ENV, ytdlp_path);
+    }
+    if let Ok(deno_path) = std::env::var(DENO_PATH_ENV) {
+        sidecar = sidecar.env(DENO_PATH_ENV, deno_path);
     }
 
     let started_at = Instant::now();
@@ -1013,7 +1024,7 @@ mod tests {
         assert_eq!(contract.protocol_version, 1);
         assert_eq!(contract.sidecar_base_name, "openbrief-helper");
         assert_eq!(contract.sidecar_external_bin, "openbrief-helper");
-        assert_eq!(contract.commands.len(), 8);
+        assert_eq!(contract.commands.len(), 11);
         assert!(contract.commands.contains(&HelperCommandName::ProbeMedia));
         assert!(contract
             .commands
@@ -1028,6 +1039,15 @@ mod tests {
         assert!(contract.commands.contains(&HelperCommandName::ExtractAudio));
         assert!(contract
             .commands
+            .contains(&HelperCommandName::TranscodeVideo));
+        assert!(contract
+            .commands
+            .contains(&HelperCommandName::InspectVideoGenerationRuntime));
+        assert!(contract
+            .commands
+            .contains(&HelperCommandName::RenderHtmlComposition));
+        assert!(contract
+            .commands
             .contains(&HelperCommandName::TranscribeAudio));
         assert!(contract.commands.contains(&HelperCommandName::CancelJob));
     }
@@ -1036,7 +1056,7 @@ mod tests {
     fn keeps_media_tool_contracts_as_argument_arrays_without_credentials() {
         let contract = helper_protocol_contract();
 
-        assert_eq!(contract.media_tools.len(), 3);
+        assert_eq!(contract.media_tools.len(), 4);
         for tool in contract.media_tools {
             assert!(!tool.version_args.is_empty());
             assert!(!tool.receives_provider_credentials);

@@ -10,6 +10,8 @@ export type HelperCommandName =
   | "extract_captions"
   | "extract_audio"
   | "transcode_video"
+  | "inspect_video_generation_runtime"
+  | "render_html_composition"
   | "transcribe_audio"
   | "cancel_job";
 
@@ -76,6 +78,16 @@ export type TranscribeAudioCommand = HelperCommandBase<"transcribe_audio"> & {
   language?: string;
 };
 
+export type InspectVideoGenerationRuntimeCommand =
+  HelperCommandBase<"inspect_video_generation_runtime">;
+
+export type RenderHtmlCompositionCommand =
+  HelperCommandBase<"render_html_composition"> & {
+    inputPath: string;
+    outputPath: string;
+    tempDir: string;
+  };
+
 export type CancelJobCommand = HelperCommandBase<"cancel_job"> & {
   targetJobId: string;
 };
@@ -88,6 +100,8 @@ export type HelperCommand =
   | ExtractCaptionsCommand
   | ExtractAudioCommand
   | TranscodeVideoCommand
+  | InspectVideoGenerationRuntimeCommand
+  | RenderHtmlCompositionCommand
   | TranscribeAudioCommand
   | CancelJobCommand;
 
@@ -175,6 +189,22 @@ export type HelperCommandResult =
     }
   | {
       command: "transcode_video";
+      videoPath: string;
+    }
+  | {
+      command: "inspect_video_generation_runtime";
+      adapter: "deno-hyperframes";
+      package: string;
+      available: boolean;
+      tools: Record<
+        "deno" | "ffmpeg" | "hyperframes",
+        { available: boolean; version?: string; error?: string }
+      >;
+      missing: string[];
+      message: string;
+    }
+  | {
+      command: "render_html_composition";
       videoPath: string;
     }
   | {

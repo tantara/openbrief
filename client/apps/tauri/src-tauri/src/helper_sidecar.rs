@@ -13,6 +13,8 @@ use std::{
 pub const HELPER_PROTOCOL_VERSION: u16 = 1;
 pub const MEDIA_TOOLS_DIR_ENV: &str = "OPENBRIEF_MEDIA_TOOLS_DIR";
 pub const YTDLP_PATH_ENV: &str = "OPENBRIEF_YTDLP_PATH";
+pub const DENO_PATH_ENV: &str = "OPENBRIEF_DENO_PATH";
+pub const HYPERFRAMES_NPM_PACKAGE: &str = "hyperframes@0.6.42";
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -24,6 +26,8 @@ pub enum HelperCommandName {
     ExtractCaptions,
     ExtractAudio,
     TranscodeVideo,
+    InspectVideoGenerationRuntime,
+    RenderHtmlComposition,
     TranscribeAudio,
     CancelJob,
 }
@@ -202,6 +206,7 @@ fn dispatch_request<W: Write>(
                 .or_else(|| string_field(&request.payload, "jobId"))
                 .unwrap_or_else(|| job_id.to_string())
         })),
+        HelperCommandName::InspectVideoGenerationRuntime => inspect_video_generation_runtime(),
         HelperCommandName::TranscribeAudio => transcribe_audio(&request.payload, writer, job_id),
         _ => {
             let plan = command_plan_for_request(request)?;
@@ -500,6 +505,10 @@ pub fn command_plan_for_request(request: &HelperRequest) -> HelperResult<Command
         HelperCommandName::ExtractCaptions => extract_captions_plan(&request.payload),
         HelperCommandName::ExtractAudio => extract_audio_plan(&request.payload),
         HelperCommandName::TranscodeVideo => transcode_video_plan(&request.payload),
+        HelperCommandName::InspectVideoGenerationRuntime => Err(HelperError::new(
+            "inspect_video_generation_runtime is handled in-process and has no command plan",
+        )),
+        HelperCommandName::RenderHtmlComposition => render_html_composition_plan(&request.payload),
         HelperCommandName::TranscribeAudio => Err(HelperError::new(
             "transcribe_audio has no media-tool command plan",
         )),
@@ -702,6 +711,36 @@ pub fn transcode_video_plan(payload: &Value) -> HelperResult<CommandPlan> {
     })
 }
 
+pub fn render_html_composition_plan(payload: &Value) -> HelperResult<CommandPlan> {
+    let input = required_string(payload, &["inputPath"])?;
+    let output = required_string(payload, &["outputPath"])?;
+    let project_dir = Path::new(&input)
+        .parent()
+        .ok_or_else(|| HelperError::new("render_html_composition_project_dir_missing"))?;
+
+    Ok(CommandPlan {
+        tool: "deno",
+        program: discover_runtime_tool("deno"),
+        args: vec![
+            "run".into(),
+            "-A".into(),
+            format!("npm:{HYPERFRAMES_NPM_PACKAGE}"),
+            "render".into(),
+            path_to_string(project_dir.to_path_buf()),
+            "--output".into(),
+            output,
+            "--quality".into(),
+            "standard".into(),
+            "--fps".into(),
+            "30".into(),
+            "--format".into(),
+            "mp4".into(),
+            "--workers".into(),
+            "1".into(),
+        ],
+    })
+}
+
 pub fn discover_media_tool(tool_name: &'static str) -> PathBuf {
     if tool_name == "yt-dlp" {
         if let Ok(path) = env::var(YTDLP_PATH_ENV) {
@@ -716,6 +755,16 @@ pub fn discover_media_tool(tool_name: &'static str) -> PathBuf {
     } else {
         PathBuf::from(executable_name(tool_name))
     }
+}
+
+pub fn discover_runtime_tool(tool_name: &'static str) -> PathBuf {
+    if tool_name == "deno" {
+        if let Ok(path) = env::var(DENO_PATH_ENV) {
+            return PathBuf::from(path);
+        }
+    }
+
+    PathBuf::from(executable_name(tool_name))
 }
 
 fn media_tools_dir() -> Option<PathBuf> {
@@ -777,9 +826,112 @@ pub fn command_result(
             "command": "transcode_video",
             "videoPath": required_string(payload, &["outputPath"])?,
         })),
-        HelperCommandName::TranscribeAudio | HelperCommandName::CancelJob => Err(HelperError::new(
+        HelperCommandName::RenderHtmlComposition => Ok(json!({
+            "command": "render_html_composition",
+            "videoPath": required_string(payload, &["outputPath"])?,
+        })),
+        HelperCommandName::InspectVideoGenerationRuntime
+        | HelperCommandName::TranscribeAudio
+        | HelperCommandName::CancelJob => Err(HelperError::new(
             "command does not produce a media-tool result",
         )),
+    }
+}
+
+fn inspect_video_generation_runtime() -> HelperResult<Value> {
+    let deno = inspect_tool_version(discover_runtime_tool("deno"), &["--version"]);
+    let ffmpeg = inspect_tool_version(discover_media_tool("ffmpeg"), &["-version"]);
+    let mut missing = Vec::new();
+
+    if !deno.available {
+        missing.push("deno");
+    }
+    if !ffmpeg.available {
+        missing.push("ffmpeg");
+    }
+
+    let hyperframes_available = deno.available;
+    let available = missing.is_empty() && hyperframes_available;
+    let message = if available {
+        format!("Deno runtime can render npm:{HYPERFRAMES_NPM_PACKAGE}.")
+    } else {
+        format!(
+            "Missing required video generation runtime tools: {}",
+            missing.join(", ")
+        )
+    };
+
+    Ok(json!({
+        "command": "inspect_video_generation_runtime",
+        "adapter": "deno-hyperframes",
+        "package": HYPERFRAMES_NPM_PACKAGE,
+        "available": available,
+        "tools": {
+            "deno": deno.as_json(),
+            "ffmpeg": ffmpeg.as_json(),
+            "hyperframes": {
+                "available": hyperframes_available,
+                "version": if hyperframes_available {
+                    Some(format!("npm:{HYPERFRAMES_NPM_PACKAGE} resolved during render"))
+                } else {
+                    None
+                }
+            }
+        },
+        "missing": missing,
+        "message": message,
+    }))
+}
+
+#[derive(Debug)]
+struct ToolInspection {
+    available: bool,
+    version: Option<String>,
+    error: Option<String>,
+}
+
+impl ToolInspection {
+    fn as_json(&self) -> Value {
+        json!({
+            "available": self.available,
+            "version": self.version,
+            "error": self.error,
+        })
+    }
+}
+
+fn inspect_tool_version(program: PathBuf, args: &[&str]) -> ToolInspection {
+    match Command::new(&program).args(args).output() {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let version = stdout
+                .lines()
+                .chain(stderr.lines())
+                .map(str::trim)
+                .find(|line| !line.is_empty())
+                .map(ToString::to_string);
+
+            ToolInspection {
+                available: true,
+                version,
+                error: None,
+            }
+        }
+        Ok(output) => ToolInspection {
+            available: false,
+            version: None,
+            error: Some(format!(
+                "{} exited with status {}",
+                path_to_string(program),
+                output.status
+            )),
+        },
+        Err(error) => ToolInspection {
+            available: false,
+            version: None,
+            error: Some(error.to_string()),
+        },
     }
 }
 
@@ -1807,6 +1959,43 @@ Second caption line
                 "-ac",
                 "1",
                 "/tmp/audio.wav"
+            ]
+        );
+    }
+
+    #[test]
+    fn shapes_html_composition_render_as_deno_hyperframes_argv_array() {
+        let _guard = env_lock();
+        env::remove_var(DENO_PATH_ENV);
+        let plan = command_plan_for_request(&request(
+            HelperCommandName::RenderHtmlComposition,
+            json!({
+                "inputPath": "/library/videos/video-1/generated-video/composition-1/index.html",
+                "outputPath": "/library/videos/video-1/generated-video/composition-1/render.mp4",
+                "tempDir": "/library/videos/video-1/generated-video/composition-1/tmp"
+            }),
+        ))
+        .unwrap();
+
+        assert_eq!(plan.tool, "deno");
+        assert_eq!(
+            plan.args,
+            vec![
+                "run",
+                "-A",
+                "npm:hyperframes@0.6.42",
+                "render",
+                "/library/videos/video-1/generated-video/composition-1",
+                "--output",
+                "/library/videos/video-1/generated-video/composition-1/render.mp4",
+                "--quality",
+                "standard",
+                "--fps",
+                "30",
+                "--format",
+                "mp4",
+                "--workers",
+                "1"
             ]
         );
     }

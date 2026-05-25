@@ -64,6 +64,7 @@ import {
 } from "@/domain/settings";
 import { formatTimestamp } from "@/domain/summary";
 import { FaqView } from "@/features/faq/FaqView";
+import { EditorView } from "@/features/editor/EditorView";
 import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
 import { FinderView } from "@/features/finder/FinderView";
 import { OnboardingView } from "@/features/onboarding/OnboardingView";
@@ -350,6 +351,8 @@ export function AppShell() {
     deleteVideo,
     updateTranscriptSegment,
     updateSummaryMarkdown,
+    saveVideoGenerationComposition,
+    saveVideoGenerationRender,
     createPlaylist,
     renamePlaylist,
     setPlaylistCover,
@@ -727,6 +730,7 @@ export function AppShell() {
     state.activeView,
     selectedVideo?.title,
     t("page.video"),
+    t("page.editor"),
     t("page.playlists"),
     t("page.settings"),
     t("page.voices"),
@@ -2233,6 +2237,34 @@ export function AppShell() {
       <div
         className={cn(
           "h-full",
+          state.activeView === "editor" ? "block" : "hidden",
+        )}
+      >
+        <EditorView
+          videos={state.videos}
+          selectedVideoId={state.selectedVideoId}
+          selectedVideo={selectedVideo}
+          selectedSummary={activeSummary}
+          selectedTranscript={selectedTranscript}
+          latestComposition={
+            selectedVideo
+              ? state.videoGenerationsBySourceId[selectedVideo.id]
+              : undefined
+          }
+          compositionHistory={
+            selectedVideo
+              ? state.videoGenerationHistoryBySourceId[selectedVideo.id] ?? []
+              : []
+          }
+          rendersByCompositionId={state.videoGenerationRendersByCompositionId}
+          onSelectVideo={setSelectedVideoId}
+          onSaveComposition={saveVideoGenerationComposition}
+          onSaveRender={saveVideoGenerationRender}
+        />
+      </div>
+      <div
+        className={cn(
+          "h-full",
           state.activeView === "workbench" ? "block" : "hidden",
         )}
       >
@@ -2865,6 +2897,7 @@ function pageTitleForView(
   activeView: string,
   selectedVideoTitle: string | undefined,
   videoTitle: string,
+  editorTitle: string,
   playlistsTitle: string,
   settingsTitle: string,
   voicesTitle: string,
@@ -2877,6 +2910,7 @@ function pageTitleForView(
   if (activeView === "tutorial") return tutorialTitle;
   if (activeView === "settings") return settingsTitle;
   if (activeView === "voices") return voicesTitle;
+  if (activeView === "editor") return editorTitle;
   if (activeView === "workbench") return selectedVideoTitle ?? videoTitle;
   if (activeView === "playlists") return playlistsTitle;
   return videoTitle;

@@ -210,6 +210,8 @@ export type VideoBundleManifest = {
     transcriptVariantPaths: string[];
     summaryPaths: string[];
     chatSessionPaths: string[];
+    videoGenerationCompositionPaths: string[];
+    videoGenerationRenderPaths: string[];
   };
 };
 
@@ -328,6 +330,35 @@ export function mediaSourceTypeForAsset(asset: MediaAssetMetadata): MediaSourceT
 
 export function isVideoAsset(asset: MediaAssetMetadata) {
   return mediaSourceTypeForAsset(asset) === "video";
+}
+
+export function libraryDirectoryForMediaSourceType(
+  sourceType: MediaSourceType,
+): Extract<LibraryDirectory, "videos" | "audios" | "pdfs"> {
+  switch (sourceType) {
+    case "audio":
+      return "audios";
+    case "pdf":
+      return "pdfs";
+    case "video":
+      return "videos";
+  }
+}
+
+export function assetDirectoryForMediaAsset(asset: MediaAssetMetadata) {
+  const [directory, assetId] = asset.libraryPath.split("/");
+
+  if (
+    (directory === "videos" || directory === "audios" || directory === "pdfs") &&
+    assetId
+  ) {
+    return `${directory}/${sanitizePathSegment(assetId)}`;
+  }
+
+  return createLibraryAssetDirectory(
+    libraryDirectoryForMediaSourceType(mediaSourceTypeForAsset(asset)),
+    asset.id,
+  );
 }
 
 export function filterVideoLibrary({
@@ -644,17 +675,23 @@ export function createVideoBundleManifest({
   transcriptVariantPaths = [],
   summaryPaths = [],
   chatSessionPaths = [],
+  videoGenerationCompositionPaths = [],
+  videoGenerationRenderPaths = [],
 }: {
   video: VideoAsset;
   transcriptPath?: string;
   transcriptVariantPaths?: string[];
   summaryPaths?: string[];
   chatSessionPaths?: string[];
+  videoGenerationCompositionPaths?: string[];
+  videoGenerationRenderPaths?: string[];
 }): VideoBundleManifest {
   const artifacts: VideoBundleManifest["artifacts"] = {
     transcriptVariantPaths,
     summaryPaths,
     chatSessionPaths,
+    videoGenerationCompositionPaths,
+    videoGenerationRenderPaths,
   };
   if (video.thumbnailPath) {
     artifacts.thumbnailPath = video.thumbnailPath;
