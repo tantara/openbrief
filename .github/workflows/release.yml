@@ -518,11 +518,12 @@ jobs:
               raise SystemExit(f"Missing updater signature for {bundle}")
             register(bundle, signature)
 
-          for bundle in sorted(root.rglob("*.nsis.zip")):
-            signature = bundle.with_name(f"{bundle.name}.sig")
-            if not signature.exists():
-              raise SystemExit(f"Missing updater signature for {bundle}")
-            register(bundle, signature)
+          for pattern in ("*.nsis.zip", "*-setup.exe"):
+            for bundle in sorted(root.rglob(pattern)):
+              signature = bundle.with_name(f"{bundle.name}.sig")
+              if not signature.exists():
+                raise SystemExit(f"Missing updater signature for {bundle}")
+              register(bundle, signature)
 
           for bundle in sorted(root.rglob("*.deb")):
             signature = bundle.with_name(f"{bundle.name}.sig")
