@@ -428,7 +428,7 @@ mod tests {
     #[test]
     fn catalog_requires_confirmation_and_uses_app_data_storage() {
         let root = temp_models_dir();
-        let catalog = catalog_for_models_dir(&root);
+        let catalog = catalog_for_models_dir_with_availability(&root, false, true);
 
         assert!(catalog.download_requires_user_confirmation);
         assert_eq!(catalog.storage, "app-data/models");
