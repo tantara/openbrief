@@ -230,6 +230,7 @@ export function EditorView({
       setActiveAgentPlan(plan);
       setAgentMessages((messages) => [...messages, assistantMessage]);
       if (!instructionOverride) setAgentInput("");
+      await executeEditorAgentPlan(plan);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setActionError(message);
@@ -245,9 +246,8 @@ export function EditorView({
     }
   }
 
-  async function applyEditorAgentPlan(plan: EditorAgentPlan) {
-    if (plan.kind !== "composition") {
-      setActionError(t("editor.agent.transcriptApplyBlocked"));
+  async function executeEditorAgentPlan(plan: EditorAgentPlan) {
+    if (plan.kind !== "composition" || !plan.validation.ok) {
       return;
     }
 
@@ -551,7 +551,6 @@ export function EditorView({
           activePlan={activeAgentPlan}
           onInputChange={setAgentInput}
           onSubmit={draftEditorAgentPlan}
-          onApplyPlan={applyEditorAgentPlan}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

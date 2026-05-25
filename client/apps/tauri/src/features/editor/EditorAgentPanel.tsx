@@ -9,7 +9,7 @@ import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
 import { Textarea } from "@acme/ui/textarea";
-import { Bot, Loader2, Scissors, Send, WandSparkles } from "lucide-react";
+import { Bot, Loader2, Scissors, Send } from "lucide-react";
 
 export type EditorAgentPanelProps = {
   messages: EditorAgentMessage[];
@@ -19,7 +19,6 @@ export type EditorAgentPanelProps = {
   activePlan?: EditorAgentPlan;
   onInputChange(value: string): void;
   onSubmit(kind: EditorAgentPlanKind, instruction?: string): void;
-  onApplyPlan(plan: EditorAgentPlan): void;
 };
 
 const quickPrompts: Array<{
@@ -52,7 +51,6 @@ export function EditorAgentPanel({
   activePlan,
   onInputChange,
   onSubmit,
-  onApplyPlan,
 }: EditorAgentPanelProps) {
   const { t } = useI18n();
 
@@ -102,7 +100,6 @@ export function EditorAgentPanel({
                     <EditorAgentPlanCard
                       plan={message.plan}
                       active={activePlan === message.plan}
-                      onApplyPlan={onApplyPlan}
                     />
                   ) : null}
                 </li>
@@ -155,11 +152,9 @@ export function EditorAgentPanel({
 function EditorAgentPlanCard({
   plan,
   active,
-  onApplyPlan,
 }: {
   plan: EditorAgentPlan;
   active: boolean;
-  onApplyPlan(plan: EditorAgentPlan): void;
 }) {
   const { t } = useI18n();
 
@@ -196,16 +191,6 @@ function EditorAgentPlanCard({
           {t("editor.agent.validation")}: {plan.validation.warnings[0]}
         </div>
       ) : null}
-      <Button
-        type="button"
-        size="sm"
-        className="w-full justify-start"
-        disabled={plan.kind !== "composition"}
-        onClick={() => onApplyPlan(plan)}
-      >
-        <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
-        {t("editor.agent.applyPlan")}
-      </Button>
     </div>
   );
 }

@@ -26,7 +26,7 @@ const transcript = [
 ];
 
 describe("EditorView", () => {
-  it("shows a native editor agent pane that can apply a component-aware plan", async () => {
+  it("executes safe component-aware composition plans without a manual apply step", async () => {
     const onSaveComposition = vi.fn();
     const editorAgentService = {
       draftPlan: vi.fn(async () => ({
@@ -76,8 +76,6 @@ describe("EditorView", () => {
       ),
     );
     expect(await screen.findByText("Drafted a native short.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Apply plan" }));
 
     await waitFor(() => expect(onSaveComposition).toHaveBeenCalledTimes(1));
     expect(onSaveComposition.mock.calls[0][0]).toMatchObject({
@@ -131,7 +129,9 @@ describe("EditorView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cut fillers" }));
 
     expect(await screen.findByText("Drafted conservative cuts.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Apply plan" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Apply plan" }),
+    ).not.toBeInTheDocument();
     expect(onSaveComposition).not.toHaveBeenCalled();
   });
 
