@@ -46,6 +46,7 @@ import { CopyActionButton } from "@/components/CopyAction";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
 import { MarkdownSummaryEditor } from "@/components/markdown/MarkdownSummaryEditor";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
+import { CsvViewer } from "@/components/media/CsvViewer";
 import { PdfViewer } from "@/components/media/PdfViewer";
 import { ProviderIcon } from "@/components/provider/ProviderIcon";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
@@ -513,10 +514,12 @@ export function WorkbenchView({
     [rawSummaryMarkdown],
   );
   const sourceType = video ? mediaSourceTypeForAsset(video) : "video";
+  const canExtractTranscript = sourceType === "video" || sourceType === "audio";
   const activeTranscriptSegmentId = useMemo(() => {
     if (
       !video ||
       sourceType === "pdf" ||
+      sourceType === "csv" ||
       playbackState.activeVideoId !== video.id ||
       playbackState.status === "idle"
     ) {
@@ -851,9 +854,7 @@ export function WorkbenchView({
     onPauseVideo(currentPodcast.sourceAssetId);
   }
 
-  function handlePodcastAudioPause(
-    event: SyntheticEvent<HTMLAudioElement>,
-  ) {
+  function handlePodcastAudioPause(event: SyntheticEvent<HTMLAudioElement>) {
     if (
       podcastAudioSeekingRef.current &&
       podcastAudioWasPlayingBeforeSeekRef.current
@@ -866,9 +867,7 @@ export function WorkbenchView({
     setIsPodcastAudioPlaying(false);
   }
 
-  function handlePodcastAudioSeeking(
-    event: SyntheticEvent<HTMLAudioElement>,
-  ) {
+  function handlePodcastAudioSeeking(event: SyntheticEvent<HTMLAudioElement>) {
     podcastAudioSeekingRef.current = true;
     podcastAudioWasPlayingBeforeSeekRef.current =
       isPodcastAudioPlaying ||
@@ -879,9 +878,7 @@ export function WorkbenchView({
     }
   }
 
-  function handlePodcastAudioSeeked(
-    event: SyntheticEvent<HTMLAudioElement>,
-  ) {
+  function handlePodcastAudioSeeked(event: SyntheticEvent<HTMLAudioElement>) {
     const wasPlayingBeforeSeek = podcastAudioWasPlayingBeforeSeekRef.current;
     podcastAudioSeekingRef.current = false;
     podcastAudioWasPlayingBeforeSeekRef.current = false;
@@ -946,7 +943,7 @@ export function WorkbenchView({
   }
 
   function seekToSummaryTimestamp(seconds: number) {
-    if (!video || sourceType === "pdf") return;
+    if (!video || sourceType === "pdf" || sourceType === "csv") return;
 
     onSeekVideo(video.id, seconds);
   }
@@ -1022,14 +1019,20 @@ export function WorkbenchView({
                   onEnded={onVideoEnded}
                   onOpenPictureInPicture={onOpenPictureInPicture}
                 />
-              ) : (
+              ) : sourceType === "pdf" ? (
                 <PdfViewer media={video} />
+              ) : (
+                <CsvViewer media={video} />
               )}
               <div className="grid gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={isExtractingTranscript || isTranscribing}
+                  disabled={
+                    !canExtractTranscript ||
+                    isExtractingTranscript ||
+                    isTranscribing
+                  }
                   onClick={() => void runAction(onExtractTranscript)}
                 >
                   <Subtitles className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -1121,12 +1124,12 @@ export function WorkbenchView({
                                 size="sm"
                                 className="h-7 px-2"
                                 onClick={() => {
-                                  const selectedSegments = renderedTranscript.filter(
-                                    (segment) =>
+                                  const selectedSegments =
+                                    renderedTranscript.filter((segment) =>
                                       voiceCloneTranscriptSegmentIds.includes(
                                         segment.id,
                                       ),
-                                  );
+                                    );
                                   onUseVoiceCloneReferences(selectedSegments);
                                 }}
                               >
@@ -1418,7 +1421,9 @@ export function WorkbenchView({
                     areaOfInterest={quizAreaOfInterest}
                     quizHistoryCount={quizHistory.length}
                     canGenerate={Boolean(onGenerateQuiz && video)}
-                    hasSource={Boolean(activeSummary || renderedTranscript.length > 0)}
+                    hasSource={Boolean(
+                      activeSummary || renderedTranscript.length > 0,
+                    )}
                     isGenerating={isGeneratingQuiz}
                     onOpenChange={setIsQuizGenerateDialogOpen}
                     onModeChange={setQuizMode}
@@ -1464,7 +1469,9 @@ export function WorkbenchView({
                       />
                     ) : null}
                     {streamingSummaryDraft ? (
-                      <StreamingSummaryDraft draftText={streamingSummaryDraft} />
+                      <StreamingSummaryDraft
+                        draftText={streamingSummaryDraft}
+                      />
                     ) : summaryMarkdown ? (
                       <SummaryMarkdownPanel
                         key={activeSummary?.id ?? "summary"}
@@ -1536,9 +1543,7 @@ export function WorkbenchView({
                     />
                   }
                   onAudioPlay={
-                    podcast
-                      ? () => handlePodcastAudioPlay(podcast)
-                      : undefined
+                    podcast ? () => handlePodcastAudioPlay(podcast) : undefined
                   }
                   onAudioPause={handlePodcastAudioPause}
                   onAudioSeeking={handlePodcastAudioSeeking}
@@ -1550,7 +1555,9 @@ export function WorkbenchView({
                   quiz={quiz}
                   quizHistory={quizHistory}
                   quizJob={quizJob}
-                  hasSource={Boolean(activeSummary || renderedTranscript.length > 0)}
+                  hasSource={Boolean(
+                    activeSummary || renderedTranscript.length > 0,
+                  )}
                   generateAction={
                     <QuizGenerateDialog
                       open={isQuizGenerateDialogOpen}
@@ -1559,7 +1566,9 @@ export function WorkbenchView({
                       areaOfInterest={quizAreaOfInterest}
                       quizHistoryCount={quizHistory.length}
                       canGenerate={Boolean(onGenerateQuiz && video)}
-                      hasSource={Boolean(activeSummary || renderedTranscript.length > 0)}
+                      hasSource={Boolean(
+                        activeSummary || renderedTranscript.length > 0,
+                      )}
                       isGenerating={isGeneratingQuiz}
                       onOpenChange={setIsQuizGenerateDialogOpen}
                       onModeChange={setQuizMode}
@@ -1834,11 +1843,7 @@ function PodcastHeaderActions({
       <div className="flex flex-wrap items-center gap-2">
         {generateAction}
         {onTogglePlayback ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onTogglePlayback}
-          >
+          <Button type="button" variant="outline" onClick={onTogglePlayback}>
             {isPlaying ? (
               <Pause className="h-4 w-4" aria-hidden="true" />
             ) : (
@@ -1896,7 +1901,7 @@ function PodcastHeaderActions({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive h-9 w-9"
                 aria-label={t("workbench.podcast.delete")}
                 onClick={() => void onDeletePodcast(podcast)}
               >
@@ -2141,7 +2146,7 @@ function QuizBriefPanel({
         </div>
         {quiz ? (
           <div className="grid gap-3">
-            <div className="rounded-md border bg-muted/20 px-3 py-2">
+            <div className="bg-muted/20 rounded-md border px-3 py-2">
               <div className="font-medium">{quiz.title}</div>
               <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 <span>{t(quizModeLabelKey(quiz.mode))}</span>
@@ -2150,7 +2155,9 @@ function QuizBriefPanel({
                     count: quiz.items.length,
                   })}
                 </span>
-                {quiz.areaOfInterest ? <span>{quiz.areaOfInterest}</span> : null}
+                {quiz.areaOfInterest ? (
+                  <span>{quiz.areaOfInterest}</span>
+                ) : null}
               </div>
               {quiz.description ? (
                 <p className="text-muted-foreground mt-2 text-sm">
@@ -2194,9 +2201,7 @@ function MultipleChoiceQuizCard({
   return (
     <div className="rounded-md border px-3 py-3 text-sm">
       <div className="mb-3 flex gap-2 font-medium">
-        <span className="text-muted-foreground shrink-0">
-          {index + 1}.
-        </span>
+        <span className="text-muted-foreground shrink-0">{index + 1}.</span>
         <span>{item.question}</span>
       </div>
       <ol className="grid gap-2">
@@ -2284,13 +2289,11 @@ function FlashCardQuizCard({
   return (
     <div className="grid gap-2 rounded-md border px-3 py-3 text-sm">
       <div className="flex gap-2 font-medium">
-        <span className="text-muted-foreground shrink-0">
-          {index + 1}.
-        </span>
+        <span className="text-muted-foreground shrink-0">{index + 1}.</span>
         <span>{item.front}</span>
       </div>
       {isRevealed ? (
-        <div className="rounded-md bg-muted/50 px-3 py-2 leading-relaxed">
+        <div className="bg-muted/50 rounded-md px-3 py-2 leading-relaxed">
           {t("workbench.quiz.answer", { answer: item.back })}
         </div>
       ) : (
@@ -2411,7 +2414,10 @@ function QuizGenerateDialog({
                   onQuestionCountChange(
                     Math.min(
                       50,
-                      Math.max(1, Math.trunc(event.currentTarget.valueAsNumber || 1)),
+                      Math.max(
+                        1,
+                        Math.trunc(event.currentTarget.valueAsNumber || 1),
+                      ),
                     ),
                   )
                 }

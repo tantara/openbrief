@@ -67,8 +67,8 @@ import {
 } from "@/domain/settings";
 import { formatTimestamp } from "@/domain/summary";
 import { classifyAiRequestError } from "@/domain/user-facing-error";
-import { FaqView } from "@/features/faq/FaqView";
 import { EditorView } from "@/features/editor/EditorView";
+import { FaqView } from "@/features/faq/FaqView";
 import { AddVideoDialog } from "@/features/finder/AddVideoDialog";
 import { FinderView } from "@/features/finder/FinderView";
 import { OnboardingView } from "@/features/onboarding/OnboardingView";
@@ -1408,7 +1408,11 @@ export function AppShell() {
 
     if (action.mode === "transcript-review") {
       try {
-        await reviewTranscript(action.videoId, setupProvider, setupProviderModel);
+        await reviewTranscript(
+          action.videoId,
+          setupProvider,
+          setupProviderModel,
+        );
       } catch (error) {
         showAiRequestFailureNotice(error);
         throw error;
@@ -2198,7 +2202,7 @@ export function AppShell() {
     syncPathForView("finder");
 
     const importedNonVideo = supported.find(
-      (file) => file.sourceType === "audio" || file.sourceType === "pdf",
+      (file) => file.sourceType !== "video",
     );
     if (importedNonVideo) {
       setAppNotice(
@@ -2317,7 +2321,7 @@ export function AppShell() {
           }
           compositionHistory={
             selectedVideo
-              ? state.videoGenerationHistoryBySourceId[selectedVideo.id] ?? []
+              ? (state.videoGenerationHistoryBySourceId[selectedVideo.id] ?? [])
               : []
           }
           rendersByCompositionId={state.videoGenerationRendersByCompositionId}
@@ -2991,6 +2995,8 @@ function mediaSourceTypeLabel(
   switch (sourceType) {
     case "audio":
       return t("finder.mediaType.audio");
+    case "csv":
+      return t("finder.mediaType.csv");
     case "pdf":
       return t("finder.mediaType.pdf");
     case "video":

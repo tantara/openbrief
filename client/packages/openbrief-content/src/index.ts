@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
-export const portableAssetRoots = ["videos", "audios", "pdfs"] as const;
-export const portableAssetKinds = ["video", "audio", "pdf"] as const;
+export const portableAssetRoots = ["videos", "audios", "pdfs", "csvs"] as const;
+export const portableAssetKinds = ["video", "audio", "pdf", "csv"] as const;
 export const portableArtifactKinds = [
   "manifest",
   "thumbnail",
@@ -13,6 +13,7 @@ export const portableArtifactKinds = [
   "voice-message",
   "audio",
   "pdf",
+  "csv",
   "source-media",
   "metadata",
   "other",
@@ -142,6 +143,8 @@ export function portableAssetRoot(
   switch (sourceType) {
     case "audio":
       return "audios";
+    case "csv":
+      return "csvs";
     case "pdf":
       return "pdfs";
     case "video":

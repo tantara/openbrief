@@ -1,11 +1,12 @@
-import { open } from "@tauri-apps/plugin-dialog";
-import { describe, expect, it, vi } from "vitest";
-import { createLocalFileDialogService } from "@/services/localFileDialogService";
 import {
   supportedAudioFileExtensions,
+  supportedCsvFileExtensions,
   supportedPdfFileExtensions,
   supportedVideoFileExtensions,
 } from "@/domain/ingest";
+import { createLocalFileDialogService } from "@/services/localFileDialogService";
+import { open } from "@tauri-apps/plugin-dialog";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
@@ -13,7 +14,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 describe("localFileDialogService", () => {
-  it("allows video, audio, and PDF imports from the computer picker", async () => {
+  it("allows video, audio, PDF, and CSV imports from the computer picker", async () => {
     vi.mocked(open).mockResolvedValue("/tmp/interview.mp3");
 
     const service = createLocalFileDialogService();
@@ -31,6 +32,7 @@ describe("localFileDialogService", () => {
             ...supportedVideoFileExtensions,
             ...supportedAudioFileExtensions,
             ...supportedPdfFileExtensions,
+            ...supportedCsvFileExtensions,
           ],
         },
       ],

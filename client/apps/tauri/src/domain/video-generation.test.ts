@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
   createSummaryVideoGenerationComposition,
   createVideoGenerationArtifactPaths,
   dimensionsForVideoGenerationAspectRatio,
 } from "@/domain/video-generation";
+import { describe, expect, it } from "vitest";
 
 describe("video generation domain", () => {
   it("stores generated compositions under the source asset bundle", () => {
@@ -28,6 +28,31 @@ describe("video generation domain", () => {
       renderPath: "pdfs/pdf-1/generated-video/composition-1/render.mp4",
       tempDirectory: "pdfs/pdf-1/generated-video/composition-1/tmp",
     });
+  });
+
+  it("stores CSV video compositions under CSV asset bundles", () => {
+    const composition = createSummaryVideoGenerationComposition({
+      asset: {
+        id: "csv-1",
+        title: "Metrics",
+        sourceType: "csv",
+        sourceKind: "local-file",
+        originalUri: "file:///metrics.csv",
+        libraryPath: "csvs/csv-1/metrics.csv",
+        importStatus: "ready",
+        createdAtIso: "2026-05-25T00:00:00.000Z",
+      },
+      nowIso: "2026-05-25T00:02:00.000Z",
+    });
+
+    expect(composition.scenario).toBe("csv-to-video");
+    expect(composition.sourceType).toBe("csv");
+    expect(composition.entryPath).toBe(
+      "csvs/csv-1/generated-video/csv-1-20260525000200/index.html",
+    );
+    expect(composition.prompt).toBe(
+      "Create a concise data story video from this CSV.",
+    );
   });
 
   it("creates renderable HyperFrames HTML with a timeline contract", () => {

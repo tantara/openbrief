@@ -485,6 +485,33 @@ describe("WorkbenchView", () => {
     expect(screen.getByText("Chat")).toBeInTheDocument();
   });
 
+  it("renders a CSV preview in the first workbench column for CSV assets", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => "segment,value\nNorth,42\nSouth,18\n",
+      }),
+    );
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          video: csvFixture,
+          activeVideoId: csvFixture.id,
+          openVideos: [csvFixture],
+        })}
+      />,
+    );
+
+    expect(await screen.findByText("segment")).toBeInTheDocument();
+    expect(screen.getByText("North")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByText("Chat")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
   it("explains that transcription is required before summary generation", () => {
     render(<WorkbenchView {...defaultProps()} />);
 
@@ -598,9 +625,9 @@ describe("WorkbenchView", () => {
     expect(
       screen.getByRole("button", { name: /^translate$/i }),
     ).toHaveTextContent("Translate");
-    expect(screen.getByRole("button", { name: /^overlay$/i })).toHaveTextContent(
-      "Overlay",
-    );
+    expect(
+      screen.getByRole("button", { name: /^overlay$/i }),
+    ).toHaveTextContent("Overlay");
   });
 
   it("shows original and translated transcript text together", () => {
@@ -2172,6 +2199,17 @@ const pdfFixture: VideoAsset = {
   createdAtIso: "2026-05-21T00:00:00.000Z",
 };
 
+const csvFixture: VideoAsset = {
+  id: "csv-1",
+  title: "CSV sample",
+  sourceType: "csv",
+  sourceKind: "local-file",
+  originalUri: "/tmp/metrics.csv",
+  libraryPath: "csvs/csv-1/metrics.csv",
+  importStatus: "ready",
+  createdAtIso: "2026-05-21T00:00:00.000Z",
+};
+
 const transcriptFixture: TranscriptSegment[] = [
   {
     id: "s1",
@@ -2215,7 +2253,8 @@ const whisperSourceVariantFixture = {
       sourceKind: "local-stt" as const,
     },
   ],
-  artifactPath: "videos/video-1/transcript/transcript-video-1-local-stt/transcript.txt",
+  artifactPath:
+    "videos/video-1/transcript/transcript-video-1-local-stt/transcript.txt",
   createdAtIso: "2026-05-21T00:03:00.000Z",
 };
 

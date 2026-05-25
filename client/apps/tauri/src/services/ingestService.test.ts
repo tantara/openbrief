@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { HelperClient } from "@/services/fakeHelperClient";
+import { FakeHelperClient } from "@/services/fakeHelperClient";
 import {
   createMockIngestService,
   createTauriIngestService,
   isWebviewPlayableProbe,
 } from "@/services/ingestService";
-import { FakeHelperClient, type HelperClient } from "@/services/fakeHelperClient";
 import { logRuntimeInfo } from "@/services/runtimeLogger";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/runtimeLogger", () => ({
   logRuntimeError: vi.fn(),
@@ -16,6 +17,7 @@ describe("mock ingest service", () => {
   const videoAssetId = "00000000-0000-4000-8000-000000000001";
   const audioAssetId = "00000000-0000-4000-8000-000000000002";
   const pdfAssetId = "00000000-0000-4000-8000-000000000003";
+  const csvAssetId = "00000000-0000-4000-8000-000000000004";
 
   beforeEach(() => {
     vi.mocked(logRuntimeInfo).mockClear();
@@ -45,7 +47,9 @@ describe("mock ingest service", () => {
 
   it("imports YouTube URLs with fake helper progress events", async () => {
     const service = createMockIngestService();
-    const result = await service.importYoutubeUrl({ url: "https://youtu.be/example" });
+    const result = await service.importYoutubeUrl({
+      url: "https://youtu.be/example",
+    });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -72,7 +76,8 @@ describe("mock ingest service", () => {
 
     expect(result).toMatchObject({
       ok: false,
-      message: "Playlist, channel, profile, and collection imports are not supported in v1",
+      message:
+        "Playlist, channel, profile, and collection imports are not supported in v1",
       job: { status: "failed" },
     });
     expect(result.events).toEqual([
@@ -192,7 +197,9 @@ describe("mock ingest service", () => {
     }
 
     expect(
-      helperClient.eventsForJob(`probe-audios/${audioAssetId}/local-sample.mp3`),
+      helperClient.eventsForJob(
+        `probe-audios/${audioAssetId}/local-sample.mp3`,
+      ),
     ).toHaveLength(3);
   });
 
@@ -229,8 +236,45 @@ describe("mock ingest service", () => {
       expect(result.video.thumbnailPath).toBeUndefined();
     }
 
-    expect(helperClient.eventsForJob(`probe-pdfs/${pdfAssetId}/demo-paper.pdf`))
-      .toHaveLength(0);
+    expect(
+      helperClient.eventsForJob(`probe-pdfs/${pdfAssetId}/demo-paper.pdf`),
+    ).toHaveLength(0);
+  });
+
+  it("copies CSV files without media probing in Tauri mode", async () => {
+    const helperClient = new FakeHelperClient();
+    const service = createTauriIngestService(
+      helperClient,
+      async () =>
+        ({
+          assetId: csvAssetId,
+          originalFileName: "demo metrics.csv",
+          libraryRelativePath: `csvs/${csvAssetId}/demo-metrics.csv`,
+          fileSizeBytes: 1024,
+          sourceType: "csv",
+        }) as never,
+    );
+
+    const result = await service.importLocalFile({
+      sourcePath: "/tmp/demo metrics.csv",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.video).toMatchObject({
+        sourceType: "csv",
+        sourceKind: "local-file",
+        originalFileName: "demo metrics.csv",
+        libraryPath: `csvs/${csvAssetId}/demo-metrics.csv`,
+        fileSizeBytes: 1024,
+      });
+      expect(result.video.durationSeconds).toBeUndefined();
+      expect(result.video.thumbnailPath).toBeUndefined();
+    }
+
+    expect(
+      helperClient.eventsForJob(`probe-csvs/${csvAssetId}/demo-metrics.csv`),
+    ).toHaveLength(0);
   });
 
   it("downloads YouTube URLs and probes the resulting media in Tauri mode", async () => {

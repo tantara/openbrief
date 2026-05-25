@@ -86,7 +86,7 @@ describe("portable share manifests", () => {
     ]);
   });
 
-  it("keeps audio and pdf source artifacts in their corresponding roots", () => {
+  it("keeps audio, pdf, and csv source artifacts in their corresponding roots", () => {
     const audioManifest = createShareManifest({
       asset: {
         ...youtubeAsset,
@@ -111,11 +111,25 @@ describe("portable share manifests", () => {
       selectedKinds: ["manifest", "pdf"],
       nowIso: "2026-05-24T01:00:00.000Z",
     });
+    const csvManifest = createShareManifest({
+      asset: {
+        ...youtubeAsset,
+        id: "csv-1",
+        sourceType: "csv",
+        sourceKind: "local-file",
+        originalUri: "file:///tmp/metrics.csv",
+        libraryPath: "csvs/csv-1/metrics.csv",
+      },
+      selectedKinds: ["manifest", "csv"],
+      nowIso: "2026-05-24T01:00:00.000Z",
+    });
 
     expect(audioManifest.artifacts.at(-1)?.path).toBe(
       "audios/audio-1/source.wav",
     );
     expect(pdfManifest.artifacts.at(-1)?.path).toBe("pdfs/pdf-1/source.pdf");
+    expect(csvManifest.asset.sourceType).toBe("csv");
+    expect(csvManifest.artifacts.at(-1)?.path).toBe("csvs/csv-1/metrics.csv");
   });
 
   it("rejects paths outside the self-contained asset root", () => {

@@ -826,7 +826,7 @@ fn validate_library_relative_artifact_path(relative_path: &str) -> Result<(), St
     let relative = PathBuf::from(relative_path);
 
     let mut components = relative.components();
-    if !matches!(components.next(), Some(Component::Normal(segment)) if segment == "videos" || segment == "audios" || segment == "pdfs")
+    if !matches!(components.next(), Some(Component::Normal(segment)) if segment == "videos" || segment == "audios" || segment == "pdfs" || segment == "csvs")
     {
         return Err("media_library_artifact_path_must_start_with_asset_directory".to_string());
     }
@@ -871,7 +871,7 @@ fn asset_directory_from_library_path(relative_path: &str) -> Result<String, Stri
         return Err("media_library_asset_path_missing_asset_id".to_string());
     };
     let directory = directory.to_string_lossy();
-    if !matches!(directory.as_ref(), "videos" | "audios" | "pdfs") {
+    if !matches!(directory.as_ref(), "videos" | "audios" | "pdfs" | "csvs") {
         return Err("media_library_asset_path_unsupported_directory".to_string());
     }
 
@@ -1471,6 +1471,10 @@ mod tests {
         .is_ok());
         assert!(
             validate_library_relative_artifact_path("pdfs/pdf-1/generated-video/c/index.html")
+                .is_ok()
+        );
+        assert!(
+            validate_library_relative_artifact_path("csvs/csv-1/generated-video/c/index.html")
                 .is_ok()
         );
         assert_eq!(

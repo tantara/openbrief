@@ -1,15 +1,15 @@
-import type { DesktopPlatform } from "@/domain/platform";
 import type {
   DownloadErrorKind,
   DownloadRecoveryAction,
 } from "@/domain/download-error";
+import type { DesktopPlatform } from "@/domain/platform";
 
 export type VideoSourceKind = "local-file" | VideoProviderKind;
 export type VideoProviderKind = "youtube" | "tiktok" | "twitch" | "vimeo";
 export type TranscriptSourceKind = "youtube-captions" | "local-stt";
 export type ProviderKind = "openai" | "anthropic" | "gemini" | "openrouter";
 export type ImportStatus = "importing" | "ready" | "failed";
-export type MediaSourceType = "video" | "audio" | "pdf";
+export type MediaSourceType = "video" | "audio" | "pdf" | "csv";
 export type KnowledgeSourceKind =
   | "video"
   | "audio"
@@ -35,6 +35,7 @@ export type LibraryDirectory =
   | "videos"
   | "audios"
   | "pdfs"
+  | "csvs"
   | "playlists"
   | "thumbnails"
   | "transcripts"
@@ -45,6 +46,7 @@ export const libraryDirectories: LibraryDirectory[] = [
   "videos",
   "audios",
   "pdfs",
+  "csvs",
   "playlists",
   "thumbnails",
   "transcripts",
@@ -320,11 +322,15 @@ function createStoragePolicy(platform: DesktopPlatform): PlatformStoragePolicy {
   };
 }
 
-export function selectTranscriptSource(hasYoutubeCaptions: boolean): TranscriptSourceKind {
+export function selectTranscriptSource(
+  hasYoutubeCaptions: boolean,
+): TranscriptSourceKind {
   return hasYoutubeCaptions ? "youtube-captions" : "local-stt";
 }
 
-export function mediaSourceTypeForAsset(asset: MediaAssetMetadata): MediaSourceType {
+export function mediaSourceTypeForAsset(
+  asset: MediaAssetMetadata,
+): MediaSourceType {
   return asset.sourceType ?? "video";
 }
 
@@ -334,10 +340,12 @@ export function isVideoAsset(asset: MediaAssetMetadata) {
 
 export function libraryDirectoryForMediaSourceType(
   sourceType: MediaSourceType,
-): Extract<LibraryDirectory, "videos" | "audios" | "pdfs"> {
+): Extract<LibraryDirectory, "videos" | "audios" | "pdfs" | "csvs"> {
   switch (sourceType) {
     case "audio":
       return "audios";
+    case "csv":
+      return "csvs";
     case "pdf":
       return "pdfs";
     case "video":
@@ -349,7 +357,10 @@ export function assetDirectoryForMediaAsset(asset: MediaAssetMetadata) {
   const [directory, assetId] = asset.libraryPath.split("/");
 
   if (
-    (directory === "videos" || directory === "audios" || directory === "pdfs") &&
+    (directory === "videos" ||
+      directory === "audios" ||
+      directory === "pdfs" ||
+      directory === "csvs") &&
     assetId
   ) {
     return `${directory}/${sanitizePathSegment(assetId)}`;
@@ -552,13 +563,25 @@ function compareVideoAsset(
 ) {
   switch (sortBy) {
     case "time":
-      return compareDescending(left.durationSeconds ?? 0, right.durationSeconds ?? 0);
+      return compareDescending(
+        left.durationSeconds ?? 0,
+        right.durationSeconds ?? 0,
+      );
     case "time_asc":
-      return compareAscending(left.durationSeconds ?? 0, right.durationSeconds ?? 0);
+      return compareAscending(
+        left.durationSeconds ?? 0,
+        right.durationSeconds ?? 0,
+      );
     case "size":
-      return compareDescending(left.fileSizeBytes ?? 0, right.fileSizeBytes ?? 0);
+      return compareDescending(
+        left.fileSizeBytes ?? 0,
+        right.fileSizeBytes ?? 0,
+      );
     case "size_asc":
-      return compareAscending(left.fileSizeBytes ?? 0, right.fileSizeBytes ?? 0);
+      return compareAscending(
+        left.fileSizeBytes ?? 0,
+        right.fileSizeBytes ?? 0,
+      );
     case "created_at_asc":
       return compareAscending(
         Date.parse(left.createdAtIso) || 0,
@@ -752,7 +775,10 @@ export function createSummaryArtifactPath(
   return createVideoArtifactBundle(videoId).summaryPath(summaryId);
 }
 
-export function createChatSessionArtifactPath(videoId: string, sessionId = "default") {
+export function createChatSessionArtifactPath(
+  videoId: string,
+  sessionId = "default",
+) {
   return createVideoArtifactBundle(videoId).chatSessionPath(sessionId);
 }
 
@@ -771,7 +797,9 @@ export function sanitizePathSegment(value: string) {
 export function createMediaAssetFilePrefix(
   video: Pick<VideoAsset, "id" | "title" | "originalFileName">,
 ) {
-  return createArtifactFilePrefix(video.originalFileName ?? video.title ?? video.id);
+  return createArtifactFilePrefix(
+    video.originalFileName ?? video.title ?? video.id,
+  );
 }
 
 function createArtifactFilePrefix(value: string) {
@@ -903,7 +931,9 @@ function decomposeHangulForSearch(value: string) {
 
 function extractHangulInitialsForSearch(value: string) {
   return Array.from(value)
-    .map((character) => decomposeHangulSyllable(character)?.initial ?? character)
+    .map(
+      (character) => decomposeHangulSyllable(character)?.initial ?? character,
+    )
     .join("");
 }
 
@@ -920,7 +950,9 @@ function decomposeHangulSyllable(character: string) {
 
   const offset = codePoint - hangulBaseCode;
   const initialIndex = Math.floor(offset / hangulVowelStride);
-  const vowelIndex = Math.floor((offset % hangulVowelStride) / hangulFinalStride);
+  const vowelIndex = Math.floor(
+    (offset % hangulVowelStride) / hangulFinalStride,
+  );
   const finalIndex = offset % hangulFinalStride;
 
   return {

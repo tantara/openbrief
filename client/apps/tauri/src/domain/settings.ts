@@ -1,5 +1,5 @@
-import type { ProviderKind } from "@/domain/media-library";
 import type { PlatformCompatibilityReport } from "@/domain/compatibility";
+import type { ProviderKind } from "@/domain/media-library";
 
 export type ProviderAuthMode = "api-key" | "oauth-subscription";
 
@@ -93,6 +93,7 @@ export type StorageUsageCategory =
   | "video"
   | "audio"
   | "pdf"
+  | "csv"
   | "model-checkpoint";
 
 export type StorageUsageItem = {
@@ -151,6 +152,7 @@ export const storageUsageCategories = [
   { category: "video", label: "Video" },
   { category: "audio", label: "Audio" },
   { category: "pdf", label: "PDF" },
+  { category: "csv", label: "CSV" },
   { category: "model-checkpoint", label: "Model checkpoint" },
 ] as const satisfies ReadonlyArray<{
   category: StorageUsageCategory;

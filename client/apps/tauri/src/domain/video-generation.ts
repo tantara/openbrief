@@ -48,7 +48,7 @@ export type VideoGenerationStoryboardScene = {
 export type VideoGenerationComposition = {
   id: string;
   sourceId: string;
-  sourceType: "video" | "audio" | "pdf";
+  sourceType: "video" | "audio" | "pdf" | "csv";
   scenario: VideoGenerationScenario;
   adapter: VideoGenerationAdapter;
   title: string;
@@ -100,7 +100,9 @@ const compositionCsp =
 export function scenarioForVideoGenerationAsset(
   asset: VideoAsset,
 ): VideoGenerationScenario {
-  if (mediaSourceTypeForAsset(asset) === "pdf") return "pdf-to-video";
+  const sourceType = mediaSourceTypeForAsset(asset);
+  if (sourceType === "pdf") return "pdf-to-video";
+  if (sourceType === "csv") return "csv-to-video";
 
   return "summary-to-video";
 }
@@ -134,13 +136,16 @@ export function createSummaryVideoGenerationComposition({
   const sourceType = mediaSourceTypeForAsset(asset);
   const scenario = scenarioForVideoGenerationAsset(asset);
   const paths = createVideoGenerationArtifactPaths(asset, compositionId);
-  const title = asset.title.trim() || asset.originalFileName || "Untitled source";
+  const title =
+    asset.title.trim() || asset.originalFileName || "Untitled source";
   const content = summarizeForScript(summary?.markdown, transcript);
   const resolvedPrompt =
     prompt?.trim() ||
     (scenario === "pdf-to-video"
       ? "Create a concise pitch video from this PDF summary."
-      : "Create a concise briefing video from this summary.");
+      : scenario === "csv-to-video"
+        ? "Create a concise data story video from this CSV."
+        : "Create a concise briefing video from this summary.");
   const components = resolveVideoGenerationComponents({
     prompt: resolvedPrompt,
     componentNames,
@@ -217,7 +222,9 @@ function summarizeForScript(
     .replace(/\s+/g, " ")
     .trim();
 
-  return fromTranscript || "No summary is available yet. Generate a summary first.";
+  return (
+    fromTranscript || "No summary is available yet. Generate a summary first."
+  );
 }
 
 function createHyperframesCompositionHtml({
@@ -238,7 +245,11 @@ function createHyperframesCompositionHtml({
   storyboard: VideoGenerationStoryboardScene[];
 }) {
   const aspectClass =
-    aspectRatio === "9:16" ? "portrait" : aspectRatio === "1:1" ? "square" : "landscape";
+    aspectRatio === "9:16"
+      ? "portrait"
+      : aspectRatio === "1:1"
+        ? "square"
+        : "landscape";
   const dimensions = dimensionsForVideoGenerationAspectRatio(aspectRatio);
   const words = storyboard
     .map((scene) => scene.narration)
@@ -399,18 +410,25 @@ function createDefaultVideoGenerationStoryboard(
   ];
 }
 
-function storyboardDurationSeconds(storyboard: VideoGenerationStoryboardScene[]) {
+function storyboardDurationSeconds(
+  storyboard: VideoGenerationStoryboardScene[],
+) {
   return Math.max(
     1,
     ...storyboard.map((scene) => scene.startSeconds + scene.durationSeconds),
   );
 }
 
-function createStoryboardSceneHtml(storyboard: VideoGenerationStoryboardScene[]) {
+function createStoryboardSceneHtml(
+  storyboard: VideoGenerationStoryboardScene[],
+) {
   return storyboard
     .slice(0, 3)
     .map(
-      (scene, index) => `<article class="scene-card" style="--scene-index: ${index}">
+      (
+        scene,
+        index,
+      ) => `<article class="scene-card" style="--scene-index: ${index}">
               <h2>${escapeHtml(scene.title)}</h2>
               <p>${escapeHtml(scene.narration)}</p>
               <span class="scene-time">${formatSeconds(scene.startSeconds)}-${formatSeconds(scene.startSeconds + scene.durationSeconds)}s</span>

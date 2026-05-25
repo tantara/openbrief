@@ -37,6 +37,7 @@ export const defaultShareArtifactSelection: ShareArtifactSelection[] = [
   "voice-message",
   "audio",
   "pdf",
+  "csv",
 ];
 
 export type CreateShareManifestRequest = {
@@ -160,6 +161,18 @@ export function createShareManifest({
       path: asset.libraryPath,
       label: "Source PDF",
       mediaType: "application/pdf",
+    });
+  }
+
+  if (sourceType === "csv" && selected.has("csv")) {
+    addArtifact(artifacts, {
+      asset,
+      sourceType,
+      selected,
+      kind: "csv",
+      path: asset.libraryPath,
+      label: "Source CSV",
+      mediaType: "text/csv",
     });
   }
 

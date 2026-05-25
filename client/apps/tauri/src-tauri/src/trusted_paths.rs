@@ -585,6 +585,7 @@ fn media_source_type_from_file_name(file_name: &str) -> Result<&'static str, Str
         "mp4" | "m4v" | "mov" | "webm" | "mkv" => Ok("video"),
         "mp3" | "wav" | "m4a" | "aac" | "flac" | "ogg" | "opus" => Ok("audio"),
         "pdf" => Ok("pdf"),
+        "csv" => Ok("csv"),
         _ => Err("local_file_unsupported_extension".to_string()),
     }
 }
@@ -593,6 +594,7 @@ fn library_directory_for_media_source_type(source_type: &str) -> &'static str {
     match source_type {
         "audio" => "audios",
         "pdf" => "pdfs",
+        "csv" => "csvs",
         _ => "videos",
     }
 }
@@ -817,7 +819,7 @@ mod tests {
     }
 
     #[test]
-    fn copies_audio_and_pdf_into_shared_library_storage() {
+    fn copies_audio_pdf_and_csv_into_shared_library_storage() {
         let fixture = TestFixture::new("trusted-copy-shared-media");
         let audio = fixture.write_file("source/demo audio.mp3", "audio bytes");
         let pdf = fixture.write_file(
@@ -828,12 +830,15 @@ mod tests {
 3 0 obj << /Type /Page /Parent 2 0 R >> endobj
 4 0 obj << /Type/Page /Parent 2 0 R >> endobj",
         );
+        let csv = fixture.write_file("source/demo metrics.csv", "label,value\nA,10\nB,20\n");
         let library = fixture.create_dir("library");
 
         let audio_result =
             copy_local_file_into_library_root(path_to_string(audio), library.clone()).unwrap();
         let pdf_result =
             copy_local_file_into_library_root(path_to_string(pdf), library.clone()).unwrap();
+        let csv_result =
+            copy_local_file_into_library_root(path_to_string(csv), library.clone()).unwrap();
 
         assert_eq!(audio_result.source_type, "audio");
         assert_eq!(audio_result.original_file_name, "demo audio.mp3");
@@ -850,6 +855,14 @@ mod tests {
             pdf_result.library_relative_path,
             format!("pdfs/{}/demo-paper.pdf", pdf_result.asset_id)
         );
+        assert_eq!(csv_result.source_type, "csv");
+        assert_eq!(csv_result.original_file_name, "demo metrics.csv");
+        assert_eq!(csv_result.page_count, None);
+        assert_eq!(csv_result.asset_id.len(), UUID_PATTERN_LENGTH);
+        assert_eq!(
+            csv_result.library_relative_path,
+            format!("csvs/{}/demo-metrics.csv", csv_result.asset_id)
+        );
         assert_eq!(
             fs::read_to_string(library.join(audio_result.library_relative_path)).unwrap(),
             "audio bytes"
@@ -861,6 +874,10 @@ mod tests {
 2 0 obj << /Type /Pages /Count 2 /Kids [3 0 R 4 0 R] >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R >> endobj
 4 0 obj << /Type/Page /Parent 2 0 R >> endobj"
+        );
+        assert_eq!(
+            fs::read_to_string(library.join(csv_result.library_relative_path)).unwrap(),
+            "label,value\nA,10\nB,20\n"
         );
     }
 
