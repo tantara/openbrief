@@ -51,7 +51,7 @@ describe("settings domain", () => {
     ).toBe("parakeet-tdt-0.6b-v3");
   });
 
-  it("creates a five-category zero storage snapshot", () => {
+  it("creates a six-category zero storage snapshot", () => {
     const snapshot = createZeroStorageUsageSnapshot(
       "2026-05-24T00:00:00.000Z",
     );
@@ -63,6 +63,7 @@ describe("settings domain", () => {
       "video",
       "audio",
       "pdf",
+      "csv",
       "model-checkpoint",
     ]);
     expect(snapshot.items.every((item) => item.sizeBytes === 0)).toBe(true);
