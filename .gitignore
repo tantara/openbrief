@@ -2,3 +2,4 @@
 .DS_Store
 .env.release
 __pycache__
+assets/

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -9,7 +10,6 @@ import {
 } from "~/app/_lib/i18n";
 import type { SupportedLocale } from "~/app/_lib/i18n";
 import { Button } from "@acme/ui/button";
-import { OpenBriefMark } from "@acme/ui/openbrief-mark";
 
 interface MarketingNavProps {
   sectionBaseHref?: "" | "/";
@@ -38,9 +38,14 @@ export function MarketingNav({
           className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3"
           aria-label="OpenBrief"
         >
-          <span className="bg-primary text-primary-foreground grid size-9 shrink-0 place-items-center rounded-lg font-semibold shadow sm:size-10">
-            <OpenBriefMark className="size-5" />
-          </span>
+          <Image
+            src="/openbrief-icon.png"
+            alt=""
+            width={40}
+            height={40}
+            className="size-9 shrink-0 rounded-lg shadow sm:size-10"
+            priority
+          />
           <span className="text-base font-semibold">OpenBrief</span>
         </Link>
         <nav
@@ -84,9 +89,13 @@ function MarketingFooter({
             className="inline-flex items-center gap-2"
             aria-label="OpenBrief"
           >
-            <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-lg font-semibold shadow">
-              <OpenBriefMark className="size-4" />
-            </span>
+            <Image
+              src="/openbrief-icon.png"
+              alt=""
+              width={32}
+              height={32}
+              className="size-8 rounded-lg shadow"
+            />
             <span className="font-semibold">OpenBrief</span>
           </Link>
           <p className="text-muted-foreground mt-3 max-w-md leading-6">
@@ -111,7 +120,7 @@ function MarketingFooter({
             {copy.nav.download}
           </Link>
           <Link
-            href="https://github.com/tantara/openclip"
+            href="https://github.com/tantara/openbrief"
             className="text-muted-foreground hover:text-foreground"
           >
             {copy.nav.github}

@@ -1,25 +1,18 @@
 import type { Metadata } from "next";
 
-import { MarketingShell } from "~/app/_components/marketing-shell";
-import { defaultLocale, getMarketingCopy } from "~/app/_lib/i18n";
-import type { SupportedLocale } from "~/app/_lib/i18n";
-import { buildMarketingMetadata } from "~/app/_lib/seo";
 import { Button } from "@acme/ui/button";
 
+import type { SupportedLocale } from "~/app/_lib/i18n";
+import { MarketingShell } from "~/app/_components/marketing-shell";
+import { defaultLocale, getMarketingCopy } from "~/app/_lib/i18n";
+import { buildMarketingMetadata } from "~/app/_lib/seo";
+
+const releaseUrl = "https://github.com/tantara/openbrief/releases/tag/v0.4.0";
+
 const releaseDownloads = [
-  [
-    "https://github.com/tantara/openbrief/releases/download/v0.2.3/OpenBrief_0.2.3_aarch64.dmg",
-    "https://github.com/tantara/openbrief/releases/download/v0.2.3/OpenBrief_0.2.3_x64.dmg",
-  ],
-  [
-    "https://github.com/tantara/openbrief/releases/download/v0.2.3/OpenBrief_0.2.3_x64-setup.exe",
-    undefined,
-  ],
-  [
-    undefined,
-    "https://github.com/tantara/openbrief/releases/download/v0.2.3/OpenBrief_0.2.3_amd64.deb",
-    undefined,
-  ],
+  [releaseUrl, releaseUrl],
+  [releaseUrl, undefined],
+  [undefined, releaseUrl, undefined],
 ] as const;
 
 export function generateMetadata(): Metadata {
@@ -132,11 +125,7 @@ export default function DownloadPage({
               {copy.download.openSource.cardTitle}
             </p>
             <p className="text-muted-foreground mt-2 text-sm leading-6">
-              {copy.download.openSource.cardBodyStart}{" "}
-              <code className="text-foreground rounded-sm bg-muted px-1 py-0.5">
-                tantara/openbrief
-              </code>{" "}
-              {copy.download.openSource.cardBodyEnd}
+              {copy.download.openSource.body}
             </p>
             <Button asChild className="mt-5">
               <a

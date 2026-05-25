@@ -97,8 +97,6 @@ export interface MarketingCopy {
       title: string;
       body: string;
       cardTitle: string;
-      cardBodyStart: string;
-      cardBodyEnd: string;
       cta: string;
     };
     requirements: {
@@ -124,8 +122,7 @@ const englishCopy: MarketingCopy = {
       badge: "Local-first briefing workspace",
       title: "Turn long videos into briefs you can act on.",
       bodyStrong: "OpenBrief",
-      body:
-        "turns long videos, audio, and recordings into clear briefs—without the busywork. Import a source, get a transcript, ask questions that stay grounded in what was said, and export only the notes you need.",
+      body: "turns long videos, audio, and recordings into clear briefs—without the busywork. Import a source, get a transcript, ask questions that stay grounded in what was said, and export only the notes you need.",
       secondary:
         "Perfect for research calls, lectures, product demos, interviews, and screen recordings you need to remember long after they end.",
       cta: "Download OpenBrief",
@@ -149,53 +146,45 @@ const englishCopy: MarketingCopy = {
     features: {
       badge: "Features",
       title: "The real work starts when playback ends.",
-      body:
-        "Source, transcript, summary, chat, and export all live together—so a quick recap never turns into a mess of tabs and scattered notes.",
+      body: "Source, transcript, summary, chat, and export all live together—so a quick recap never turns into a mess of tabs and scattered notes.",
       items: [
         {
           title: "Every source in one place",
-          body:
-            "Open recordings, demos, lectures, and web videos from a single view.",
+          body: "Open recordings, demos, lectures, and web videos from a single view.",
         },
         {
           title: "Captions first",
-          body:
-            "OpenBrief uses existing captions when they're there, and only transcribes when it has to.",
+          body: "OpenBrief uses existing captions when they're there, and only transcribes when it has to.",
         },
         {
           title: "Answers you can trust",
-          body:
-            "Ask a question and get an answer tied straight back to the transcript—no guessing.",
+          body: "Ask a question and get an answer tied straight back to the transcript—no guessing.",
         },
         {
           title: "Export to Markdown",
-          body:
-            "Send summaries, decisions, timestamps, and notes to a clean file you can take anywhere.",
+          body: "Send summaries, decisions, timestamps, and notes to a clean file you can take anywhere.",
         },
         {
           title: "Private by default",
-          body:
-            "Your files and generated notes never leave your device.",
+          body: "Your files and generated notes never leave your device.",
         },
         {
           title: "No account required",
-          body:
-            "Download the app and start summarizing—no sign-up, no login.",
+          body: "Download the app and start summarizing—no sign-up, no login.",
         },
       ],
     },
     workflow: {
       badge: "How it works",
       title: "From source to summary, without losing the thread.",
-      body:
-        "Start in your library, then open a source the moment you're ready to transcribe, summarize, and chat with it.",
+      body: "Start in your library, then open a source the moment you're ready to transcribe, summarize, and chat with it.",
       libraryTitle: "Library",
       libraryBody:
         "Add a local file or a supported web link, keep every source detail attached, and line up a clean queue before you dig in.",
       libraryLabel: "OpenBrief library view",
-      noteTitle: "Note page",
+      noteTitle: "Transcribe, summarize, and chat",
       noteBody:
-        "Open a source to generate a transcript, write a focused summary, and ask grounded questions—all without leaving the player.",
+        "Generate a transcript, write a focused summary, and ask grounded questions from the same workspace.",
       noteLabel: "OpenBrief note page",
     },
   },
@@ -203,8 +192,7 @@ const englishCopy: MarketingCopy = {
     hero: {
       badge: "Desktop builds & open source",
       title: "Download OpenBrief for desktop",
-      body:
-        "Install the app, bring your own provider keys, and keep every transcript, summary, and exported note under your control.",
+      body: "Install the app, bring your own provider keys, and keep every transcript, summary, and exported note under your control.",
       availabilitySuffix: "available",
       platforms: ["Mac", "Windows", "Linux"],
     },
@@ -223,25 +211,21 @@ const englishCopy: MarketingCopy = {
       },
     ],
     releaseDescription:
-      "Verified v0.2.3 installers are available from the public GitHub release.",
+      "Verified v0.4.0 installers are available from the public GitHub release.",
     comingSoon: "Coming soon",
     openSource: {
       title: "Open source, if you want it",
-      body:
-        "OpenBrief is built in the open. Read the code, follow packaging progress, or build it yourself whenever you want to see exactly what ships.",
-      cardTitle: "GitHub repository",
-      cardBodyStart: "The code lives at",
-      cardBodyEnd:
-        "—browse it, follow along, or build from source while we wire up public downloads.",
-      cta: "View on GitHub",
+      body: "OpenBrief is built in the open. Read the code, follow packaging progress, or build it yourself whenever you want to see exactly what ships.",
+      cardTitle: "Open source",
+      cta: "View source on GitHub",
     },
     requirements: {
       title: "Requirements",
-      body:
-        "OpenBrief runs media processing locally, with optional cloud AI providers you choose yourself.",
+      body: "OpenBrief runs media processing locally, with optional cloud AI providers you choose yourself.",
       items: [
         "macOS 13, Windows 11, or a current Linux desktop",
         "Local disk space for imported media and generated transcripts",
+        "Local inference stack for transcription, voice generation, and voice cloning",
         "An optional API key for OpenAI, Anthropic, Gemini, or OpenRouter",
         "Optional bundled tools for YouTube and offline transcription",
       ],
@@ -264,8 +248,7 @@ const chineseCopy: MarketingCopy = {
       badge: "在本地运行的简报工作空间",
       title: "把长视频变成能直接用的简报。",
       bodyStrong: "OpenBrief",
-      body:
-        "帮你把冗长的视频、音频和录屏整理成干净利落的简报，省去繁琐步骤。导入来源、生成文字稿、获得有出处的回答，再把需要的笔记导出来。",
+      body: "帮你把冗长的视频、音频和录屏整理成干净利落的简报，省去繁琐步骤。导入来源、生成文字稿、获得有出处的回答，再把需要的笔记导出来。",
       secondary:
         "适合研究通话、课程、产品演示、采访和录屏——那些结束后还得记很久的内容。",
       cta: "下载 OpenBrief",
@@ -289,8 +272,7 @@ const chineseCopy: MarketingCopy = {
     features: {
       badge: "功能",
       title: "播放结束，才是重点开始。",
-      body:
-        "来源、文字稿、摘要、对话和导出都集中在一起，简单回顾不会变成一堆散落的标签页和零碎笔记。",
+      body: "来源、文字稿、摘要、对话和导出都集中在一起，简单回顾不会变成一堆散落的标签页和零碎笔记。",
       items: [
         {
           title: "所有来源，一处打开",
@@ -321,15 +303,13 @@ const chineseCopy: MarketingCopy = {
     workflow: {
       badge: "使用方式",
       title: "从来源到摘要，思路不中断。",
-      body:
-        "先在资料库里整理，准备好后打开来源，当场转写、总结、对话。",
+      body: "先在资料库里整理，准备好后打开来源，当场转写、总结、对话。",
       libraryTitle: "资料库",
       libraryBody:
         "添加本地文件或支持的网页链接，保留每条来源的信息，开工前先把队列理得清清楚楚。",
       libraryLabel: "OpenBrief 资料库界面",
-      noteTitle: "笔记页",
-      noteBody:
-        "打开来源，就能生成文字稿、写出聚焦的摘要，还能提出有出处的问题——全程不用离开播放器。",
+      noteTitle: "转写、总结和对话",
+      noteBody: "在同一个工作区生成文字稿、撰写聚焦摘要，并基于内容提问。",
       noteLabel: "OpenBrief 笔记页",
     },
   },
@@ -337,8 +317,7 @@ const chineseCopy: MarketingCopy = {
     hero: {
       badge: "桌面版 · 开源",
       title: "下载桌面版 OpenBrief",
-      body:
-        "安装应用，接入你自己的服务商密钥，文字稿、摘要和导出的笔记都牢牢握在自己手里。",
+      body: "安装应用，接入你自己的服务商密钥，文字稿、摘要和导出的笔记都牢牢握在自己手里。",
       availabilitySuffix: "可用",
       platforms: ["Mac", "Windows", "Linux"],
     },
@@ -356,24 +335,22 @@ const chineseCopy: MarketingCopy = {
         builds: ["x64 AppImage", "Debian 软件包", "RPM 软件包"],
       },
     ],
-    releaseDescription: "已验证的 v0.2.3 安装包可从公开的 GitHub Release 下载。",
+    releaseDescription:
+      "已验证的 v0.4.0 安装包可从公开的 GitHub Release 下载。",
     comingSoon: "即将推出",
     openSource: {
       title: "想要的话，也可以开源",
-      body:
-        "OpenBrief 在公开开发。你可以阅读代码、关注打包进度，想亲眼确认发布内容时，也能自己从源码构建。",
-      cardTitle: "GitHub 仓库",
-      cardBodyStart: "代码就在",
-      cardBodyEnd: "上。在我们打通公开下载之前，欢迎来看看、关注，或自己从源码构建。",
-      cta: "在 GitHub 查看",
+      body: "OpenBrief 在公开开发。你可以阅读代码、关注打包进度，想亲眼确认发布内容时，也能自己从源码构建。",
+      cardTitle: "开源",
+      cta: "在 GitHub 查看源码",
     },
     requirements: {
       title: "系统要求",
-      body:
-        "OpenBrief 在本地处理媒体，云端 AI 服务商则由你按需自行选择接入。",
+      body: "OpenBrief 在本地处理媒体，云端 AI 服务商则由你按需自行选择接入。",
       items: [
         "macOS 13、Windows 11，或较新的 Linux 桌面系统",
         "用于存放导入媒体和生成文字稿的本地磁盘空间",
+        "用于转写、语音生成和声音克隆的本地推理栈",
         "OpenAI、Anthropic、Gemini 或 OpenRouter 的 API 密钥（可选）",
         "用于 YouTube 和离线转写的内置工具（可选）",
       ],
@@ -396,8 +373,7 @@ const koreanCopy: MarketingCopy = {
       badge: "로컬에서 도는 브리핑 워크스페이스",
       title: "긴 영상을 바로 쓰는 브리핑으로.",
       bodyStrong: "OpenBrief",
-      body:
-        "하나로 긴 영상과 음성, 녹화를 군더더기 없이 깔끔한 브리핑으로 정리해요. 소스를 불러오고, 스크립트를 만들고, 실제 발언에 근거한 답을 받고, 필요한 노트만 골라 내보내세요.",
+      body: "하나로 긴 영상과 음성, 녹화를 군더더기 없이 깔끔한 브리핑으로 정리해요. 소스를 불러오고, 스크립트를 만들고, 실제 발언에 근거한 답을 받고, 필요한 노트만 골라 내보내세요.",
       secondary:
         "리서치 콜, 강의, 제품 데모, 인터뷰, 화면 녹화처럼 끝나고 나서도 오래 기억해야 하는 자료에 딱이에요.",
       cta: "OpenBrief 다운로드",
@@ -421,13 +397,11 @@ const koreanCopy: MarketingCopy = {
     features: {
       badge: "기능",
       title: "재생이 끝난 다음이 진짜예요.",
-      body:
-        "소스, 스크립트, 요약, 채팅, 내보내기가 한곳에 모여 있어요. 잠깐 정리하려다 탭과 메모가 사방에 흩어지는 일이 없어요.",
+      body: "소스, 스크립트, 요약, 채팅, 내보내기가 한곳에 모여 있어요. 잠깐 정리하려다 탭과 메모가 사방에 흩어지는 일이 없어요.",
       items: [
         {
           title: "모든 소스를 한 화면에",
-          body:
-            "녹음, 데모, 강의, 웹 영상을 한 화면에서 열어요.",
+          body: "녹음, 데모, 강의, 웹 영상을 한 화면에서 열어요.",
         },
         {
           title: "자막부터 먼저",
@@ -454,15 +428,14 @@ const koreanCopy: MarketingCopy = {
     workflow: {
       badge: "사용 방법",
       title: "소스에서 요약까지, 흐름이 끊기지 않아요.",
-      body:
-        "라이브러리에서 시작하고, 준비되면 소스를 열어 바로 스크립트를 만들고 요약하고 대화하세요.",
+      body: "라이브러리에서 시작하고, 준비되면 소스를 열어 바로 스크립트를 만들고 요약하고 대화하세요.",
       libraryTitle: "라이브러리",
       libraryBody:
         "로컬 파일이나 지원하는 웹 링크를 추가하고, 소스 정보를 그대로 붙여 둔 채로 작업 전에 깔끔하게 줄 세워 두세요.",
       libraryLabel: "OpenBrief 라이브러리 화면",
-      noteTitle: "노트 페이지",
+      noteTitle: "전사, 요약, 채팅",
       noteBody:
-        "소스를 열면 스크립트를 만들고, 핵심만 추린 요약을 쓰고, 근거 있는 질문까지 해요. 플레이어를 벗어날 필요가 없어요.",
+        "같은 작업 공간에서 스크립트를 만들고, 핵심 요약을 작성하고, 근거 있는 질문을 해보세요.",
       noteLabel: "OpenBrief 노트 페이지",
     },
   },
@@ -470,35 +443,34 @@ const koreanCopy: MarketingCopy = {
     hero: {
       badge: "데스크톱 빌드 · 오픈 소스",
       title: "데스크톱용 OpenBrief 다운로드",
-      body:
-        "앱을 설치하고, 직접 발급한 제공자 키를 연결하면 스크립트와 요약, 내보낸 노트까지 모두 내 손안에 있어요.",
+      body: "앱을 설치하고, 직접 발급한 제공자 키를 연결하면 스크립트와 요약, 내보낸 노트까지 모두 내 손안에 있어요.",
       availabilitySuffix: "지원",
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["x64 설치 프로그램", "ARM64 설치 프로그램"] },
-      { name: "Linux", builds: ["x64 AppImage", "Debian 패키지", "RPM 패키지"] },
+      {
+        name: "Linux",
+        builds: ["x64 AppImage", "Debian 패키지", "RPM 패키지"],
+      },
     ],
     releaseDescription:
-      "검증된 v0.2.3 설치 파일은 공개 GitHub 릴리스에서 받을 수 있어요.",
+      "검증된 v0.4.0 설치 파일은 공개 GitHub 릴리스에서 받을 수 있어요.",
     comingSoon: "곧 제공",
     openSource: {
       title: "원한다면, 오픈 소스로",
-      body:
-        "OpenBrief는 공개적으로 만들고 있어요. 코드를 직접 보고, 패키징 진행 상황을 따라가고, 무엇이 배포되는지 확인하고 싶을 때 직접 빌드해 보세요.",
-      cardTitle: "GitHub 저장소",
-      cardBodyStart: "코드는",
-      cardBodyEnd: "에 있어요. 공개 다운로드를 준비하는 동안 살펴보고, 따라오고, 직접 빌드해 보세요.",
-      cta: "GitHub에서 보기",
+      body: "OpenBrief는 공개적으로 만들고 있어요. 코드를 직접 보고, 패키징 진행 상황을 따라가고, 무엇이 배포되는지 확인하고 싶을 때 직접 빌드해 보세요.",
+      cardTitle: "오픈 소스",
+      cta: "GitHub에서 소스 보기",
     },
     requirements: {
       title: "요구 사항",
-      body:
-        "OpenBrief는 미디어 처리를 기기 안에서 직접 하고, 클라우드 AI 제공자는 원할 때 직접 골라 연결해요.",
+      body: "OpenBrief는 미디어 처리를 기기 안에서 직접 하고, 클라우드 AI 제공자는 원할 때 직접 골라 연결해요.",
       items: [
         "macOS 13, Windows 11, 또는 최신 Linux 데스크톱",
         "가져온 미디어와 생성된 스크립트를 둘 로컬 디스크 공간",
+        "전사, 음성 생성, 음성 클로닝을 위한 로컬 추론 스택",
         "OpenAI, Anthropic, Gemini, OpenRouter용 API 키(선택)",
         "YouTube와 오프라인 받아쓰기를 위한 번들 도구(선택)",
       ],
@@ -521,8 +493,7 @@ const japaneseCopy: MarketingCopy = {
       badge: "ローカルで動くブリーフィング・ワークスペース",
       title: "長い動画を、すぐ使えるブリーフに。",
       bodyStrong: "OpenBrief",
-      body:
-        "は、長い動画や音声、録画を、無駄なくすっきりしたブリーフにまとめます。ソースを取り込み、文字起こしを作り、実際に話された内容に基づいた回答をもらい、必要なノートだけを書き出せます。",
+      body: "は、長い動画や音声、録画を、無駄なくすっきりしたブリーフにまとめます。ソースを取り込み、文字起こしを作り、実際に話された内容に基づいた回答をもらい、必要なノートだけを書き出せます。",
       secondary:
         "リサーチ通話、講義、製品デモ、インタビュー、画面録画など、終わったあとも長く覚えておきたい場面にぴったりです。",
       cta: "OpenBrief をダウンロード",
@@ -530,15 +501,23 @@ const japaneseCopy: MarketingCopy = {
       demoLabel: "OpenBrief 製品デモ動画",
     },
     stats: [
-      { title: "無料", body: "デスクトップアプリは無料。有料プランも試用期限もありません。" },
-      { title: "登録なしで", body: "アプリを開いてすぐに要約。アカウントは不要です。" },
-      { title: "データは手元に", body: "あなたのファイルも、OpenBrief が作った成果物も、すべて自分のマシンに残ります。" },
+      {
+        title: "無料",
+        body: "デスクトップアプリは無料。有料プランも試用期限もありません。",
+      },
+      {
+        title: "登録なしで",
+        body: "アプリを開いてすぐに要約。アカウントは不要です。",
+      },
+      {
+        title: "データは手元に",
+        body: "あなたのファイルも、OpenBrief が作った成果物も、すべて自分のマシンに残ります。",
+      },
     ],
     features: {
       badge: "機能",
       title: "本番は、再生が終わったあとです。",
-      body:
-        "ソース、文字起こし、要約、チャット、書き出しがひとつにまとまります。ちょっと振り返るだけのはずが、タブとメモで散らかることはありません。",
+      body: "ソース、文字起こし、要約、チャット、書き出しがひとつにまとまります。ちょっと振り返るだけのはずが、タブとメモで散らかることはありません。",
       items: [
         {
           title: "すべてのソースをひとつに",
@@ -569,15 +548,14 @@ const japaneseCopy: MarketingCopy = {
     workflow: {
       badge: "使い方",
       title: "ソースから要約まで、流れを途切れさせません。",
-      body:
-        "ライブラリから始めて、準備ができたらソースを開き、その場で文字起こし・要約・チャットができます。",
+      body: "ライブラリから始めて、準備ができたらソースを開き、その場で文字起こし・要約・チャットができます。",
       libraryTitle: "ライブラリ",
       libraryBody:
         "ローカルファイルや対応するWebリンクを追加し、ソース情報をひもづけたまま、取りかかる前にきれいに並べておけます。",
       libraryLabel: "OpenBrief ライブラリ画面",
-      noteTitle: "ノートページ",
+      noteTitle: "文字起こし、要約、チャット",
       noteBody:
-        "ソースを開けば、文字起こしを作り、要点を絞った要約を書き、根拠のある質問までできます。プレイヤーから離れる必要はありません。",
+        "同じワークスペースで文字起こしを生成し、要点を絞った要約を書き、根拠のある質問ができます。",
       noteLabel: "OpenBrief ノートページ",
     },
   },
@@ -585,35 +563,37 @@ const japaneseCopy: MarketingCopy = {
     hero: {
       badge: "デスクトップ版・オープンソース",
       title: "デスクトップ版 OpenBrief をダウンロード",
-      body:
-        "アプリをインストールし、自分で用意したプロバイダーキーをつなげば、文字起こしも要約も書き出したノートも、すべて自分の管理下に。",
+      body: "アプリをインストールし、自分で用意したプロバイダーキーをつなげば、文字起こしも要約も書き出したノートも、すべて自分の管理下に。",
       availabilitySuffix: "対応",
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
-      { name: "Windows", builds: ["x64 インストーラー", "ARM64 インストーラー"] },
-      { name: "Linux", builds: ["x64 AppImage", "Debian パッケージ", "RPM パッケージ"] },
+      {
+        name: "Windows",
+        builds: ["x64 インストーラー", "ARM64 インストーラー"],
+      },
+      {
+        name: "Linux",
+        builds: ["x64 AppImage", "Debian パッケージ", "RPM パッケージ"],
+      },
     ],
     releaseDescription:
-      "検証済みの v0.2.3 インストーラーは公開 GitHub リリースから入手できます。",
+      "検証済みの v0.4.0 インストーラーは公開 GitHub リリースから入手できます。",
     comingSoon: "近日公開",
     openSource: {
       title: "オープンソースという選択肢も",
-      body:
-        "OpenBrief は公開の場で開発しています。コードを読み、パッケージングの進み具合を追い、何が配布されるのか自分の目で確かめたいときはソースからビルドできます。",
-      cardTitle: "GitHub リポジトリ",
-      cardBodyStart: "コードは",
-      cardBodyEnd: "にあります。公開ダウンロードを準備する間、のぞいて、追いかけて、自分でビルドしてみてください。",
-      cta: "GitHub で見る",
+      body: "OpenBrief は公開の場で開発しています。コードを読み、パッケージングの進み具合を追い、何が配布されるのか自分の目で確かめたいときはソースからビルドできます。",
+      cardTitle: "オープンソース",
+      cta: "GitHub でソースを見る",
     },
     requirements: {
       title: "動作環境",
-      body:
-        "OpenBrief はメディア処理を手元で行い、クラウドAIプロバイダーは必要に応じて自分で選んでつなげます。",
+      body: "OpenBrief はメディア処理を手元で行い、クラウドAIプロバイダーは必要に応じて自分で選んでつなげます。",
       items: [
         "macOS 13、Windows 11、または最新の Linux デスクトップ",
         "取り込んだメディアと生成した文字起こしを置くローカルディスク容量",
+        "文字起こし、音声生成、音声クローン用のローカル推論スタック",
         "OpenAI、Anthropic、Gemini、OpenRouter の API キー（任意）",
         "YouTube とオフライン文字起こし用の同梱ツール（任意）",
       ],
@@ -636,8 +616,7 @@ const spanishCopy: MarketingCopy = {
       badge: "Espacio de briefings que funciona en local",
       title: "Convierte vídeos largos en resúmenes que puedes usar.",
       bodyStrong: "OpenBrief",
-      body:
-        "convierte vídeos, audio y grabaciones largos en resúmenes claros, sin trabajo de más. Importa una fuente, obtén una transcripción, haz preguntas con respuestas ancladas a lo que se dijo y exporta solo las notas que necesitas.",
+      body: "convierte vídeos, audio y grabaciones largos en resúmenes claros, sin trabajo de más. Importa una fuente, obtén una transcripción, haz preguntas con respuestas ancladas a lo que se dijo y exporta solo las notas que necesitas.",
       secondary:
         "Ideal para llamadas de investigación, clases, demos de producto, entrevistas y grabaciones de pantalla que necesitas recordar mucho después de que terminen.",
       cta: "Descargar OpenBrief",
@@ -645,15 +624,23 @@ const spanishCopy: MarketingCopy = {
       demoLabel: "Vídeo de demostración de OpenBrief",
     },
     stats: [
-      { title: "Gratis", body: "La app de escritorio es gratis: sin plan de pago ni prueba con cuenta atrás." },
-      { title: "Sin registro", body: "Abre la app y empieza a resumir. No hace falta cuenta." },
-      { title: "Tus datos, en tu equipo", body: "Tus archivos y todo lo que genera OpenBrief se quedan en tu máquina." },
+      {
+        title: "Gratis",
+        body: "La app de escritorio es gratis: sin plan de pago ni prueba con cuenta atrás.",
+      },
+      {
+        title: "Sin registro",
+        body: "Abre la app y empieza a resumir. No hace falta cuenta.",
+      },
+      {
+        title: "Tus datos, en tu equipo",
+        body: "Tus archivos y todo lo que genera OpenBrief se quedan en tu máquina.",
+      },
     ],
     features: {
       badge: "Funciones",
       title: "Lo importante empieza cuando termina el vídeo.",
-      body:
-        "Fuente, transcripción, resumen, chat y exportación viven juntos, así que repasar algo nunca acaba en un caos de pestañas y notas sueltas.",
+      body: "Fuente, transcripción, resumen, chat y exportación viven juntos, así que repasar algo nunca acaba en un caos de pestañas y notas sueltas.",
       items: [
         {
           title: "Todas tus fuentes en un sitio",
@@ -684,15 +671,14 @@ const spanishCopy: MarketingCopy = {
     workflow: {
       badge: "Cómo funciona",
       title: "De la fuente al resumen sin perder el hilo.",
-      body:
-        "Empieza en tu biblioteca y abre una fuente justo cuando quieras transcribir, resumir y chatear con ella.",
+      body: "Empieza en tu biblioteca y abre una fuente justo cuando quieras transcribir, resumir y chatear con ella.",
       libraryTitle: "Biblioteca",
       libraryBody:
         "Añade un archivo local o un enlace web compatible, conserva cada detalle de la fuente y prepara una cola ordenada antes de ponerte a ello.",
       libraryLabel: "Vista de biblioteca de OpenBrief",
-      noteTitle: "Página de notas",
+      noteTitle: "Transcribe, resume y chatea",
       noteBody:
-        "Abre una fuente para generar una transcripción, escribir un resumen al grano y hacer preguntas fundamentadas, todo sin salir del reproductor.",
+        "Genera una transcripción, escribe un resumen enfocado y haz preguntas fundamentadas desde el mismo espacio de trabajo.",
       noteLabel: "Página de notas de OpenBrief",
     },
   },
@@ -700,35 +686,34 @@ const spanishCopy: MarketingCopy = {
     hero: {
       badge: "Versiones de escritorio y código abierto",
       title: "Descarga OpenBrief para escritorio",
-      body:
-        "Instala la app, usa tus propias claves de proveedor y mantén cada transcripción, resumen y nota exportada bajo tu control.",
+      body: "Instala la app, usa tus propias claves de proveedor y mantén cada transcripción, resumen y nota exportada bajo tu control.",
       availabilitySuffix: "disponible",
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Instalador x64", "Instalador ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Paquete Debian", "Paquete RPM"] },
+      {
+        name: "Linux",
+        builds: ["AppImage x64", "Paquete Debian", "Paquete RPM"],
+      },
     ],
     releaseDescription:
-      "Los instaladores verificados de v0.2.3 están disponibles en la release pública de GitHub.",
+      "Los instaladores verificados de v0.4.0 están disponibles en la release pública de GitHub.",
     comingSoon: "Próximamente",
     openSource: {
       title: "Código abierto, si lo quieres",
-      body:
-        "OpenBrief se desarrolla a la vista de todos. Lee el código, sigue el avance del empaquetado o compila tú mismo cuando quieras ver exactamente qué se publica.",
-      cardTitle: "Repositorio de GitHub",
-      cardBodyStart: "El código está en",
-      cardBodyEnd: "y puedes verlo, seguirlo o compilarlo tú mismo mientras preparamos las descargas públicas.",
-      cta: "Ver en GitHub",
+      body: "OpenBrief se desarrolla a la vista de todos. Lee el código, sigue el avance del empaquetado o compila tú mismo cuando quieras ver exactamente qué se publica.",
+      cardTitle: "Código abierto",
+      cta: "Ver código fuente en GitHub",
     },
     requirements: {
       title: "Requisitos",
-      body:
-        "OpenBrief procesa los medios en local y los proveedores de IA en la nube los eliges tú, si los quieres.",
+      body: "OpenBrief procesa los medios en local y los proveedores de IA en la nube los eliges tú, si los quieres.",
       items: [
         "macOS 13, Windows 11 o un escritorio Linux actual",
         "Espacio en disco local para los medios importados y las transcripciones generadas",
+        "Stack de inferencia local para transcripción, generación de voz y clonación de voz",
         "Una clave API opcional de OpenAI, Anthropic, Gemini u OpenRouter",
         "Herramientas integradas opcionales para YouTube y transcripción sin conexión",
       ],
@@ -751,8 +736,7 @@ const germanCopy: MarketingCopy = {
       badge: "Briefing-Workspace, der lokal läuft",
       title: "Mach aus langen Videos Briefings, mit denen du arbeiten kannst.",
       bodyStrong: "OpenBrief",
-      body:
-        "verwandelt lange Videos, Audio und Aufnahmen in klare Briefings – ganz ohne Drumherum. Quelle importieren, Transkript erhalten, Fragen stellen, deren Antworten am Gesagten verankert bleiben, und nur die Notizen exportieren, die du brauchst.",
+      body: "verwandelt lange Videos, Audio und Aufnahmen in klare Briefings – ganz ohne Drumherum. Quelle importieren, Transkript erhalten, Fragen stellen, deren Antworten am Gesagten verankert bleiben, und nur die Notizen exportieren, die du brauchst.",
       secondary:
         "Ideal für Research-Calls, Vorlesungen, Produktdemos, Interviews und Bildschirmaufnahmen, an die du dich noch lange danach erinnern musst.",
       cta: "OpenBrief herunterladen",
@@ -760,15 +744,23 @@ const germanCopy: MarketingCopy = {
       demoLabel: "OpenBrief Produktdemo-Video",
     },
     stats: [
-      { title: "Kostenlos", body: "Die Desktop-App ist kostenlos – kein Bezahlplan, kein Testzeit-Countdown." },
-      { title: "Ohne Anmeldung", body: "App öffnen und loslegen. Kein Konto nötig." },
-      { title: "Deine Daten, dein Gerät", body: "Deine Dateien und alles, was OpenBrief erzeugt, bleiben auf deinem Rechner." },
+      {
+        title: "Kostenlos",
+        body: "Die Desktop-App ist kostenlos – kein Bezahlplan, kein Testzeit-Countdown.",
+      },
+      {
+        title: "Ohne Anmeldung",
+        body: "App öffnen und loslegen. Kein Konto nötig.",
+      },
+      {
+        title: "Deine Daten, dein Gerät",
+        body: "Deine Dateien und alles, was OpenBrief erzeugt, bleiben auf deinem Rechner.",
+      },
     ],
     features: {
       badge: "Funktionen",
       title: "Spannend wird's, wenn das Video zu Ende ist.",
-      body:
-        "Quelle, Transkript, Zusammenfassung, Chat und Export liegen zusammen – kurz nachschauen wird nie zum Chaos aus Tabs und losen Notizen.",
+      body: "Quelle, Transkript, Zusammenfassung, Chat und Export liegen zusammen – kurz nachschauen wird nie zum Chaos aus Tabs und losen Notizen.",
       items: [
         {
           title: "Alle Quellen an einem Ort",
@@ -799,15 +791,14 @@ const germanCopy: MarketingCopy = {
     workflow: {
       badge: "So funktioniert's",
       title: "Von der Quelle zur Zusammenfassung, ohne den Faden zu verlieren.",
-      body:
-        "Starte in deiner Bibliothek und öffne eine Quelle genau dann, wenn du transkribieren, zusammenfassen und mit ihr chatten willst.",
+      body: "Starte in deiner Bibliothek und öffne eine Quelle genau dann, wenn du transkribieren, zusammenfassen und mit ihr chatten willst.",
       libraryTitle: "Bibliothek",
       libraryBody:
         "Füge eine lokale Datei oder einen unterstützten Weblink hinzu, behalte jedes Quelldetail bei und stell dir eine saubere Warteschlange zusammen, bevor du loslegst.",
       libraryLabel: "OpenBrief Bibliotheksansicht",
-      noteTitle: "Notizseite",
+      noteTitle: "Transkribieren, zusammenfassen und chatten",
       noteBody:
-        "Öffne eine Quelle, um ein Transkript zu erzeugen, eine fokussierte Zusammenfassung zu schreiben und fundierte Fragen zu stellen – ohne den Player zu verlassen.",
+        "Erzeuge ein Transkript, schreibe eine fokussierte Zusammenfassung und stelle fundierte Fragen im selben Arbeitsbereich.",
       noteLabel: "OpenBrief Notizseite",
     },
   },
@@ -815,8 +806,7 @@ const germanCopy: MarketingCopy = {
     hero: {
       badge: "Desktop-Versionen & Open Source",
       title: "OpenBrief für den Desktop herunterladen",
-      body:
-        "Installier die App, bring deine eigenen Provider-Schlüssel mit und behalte jedes Transkript, jede Zusammenfassung und jede exportierte Notiz unter deiner Kontrolle.",
+      body: "Installier die App, bring deine eigenen Provider-Schlüssel mit und behalte jedes Transkript, jede Zusammenfassung und jede exportierte Notiz unter deiner Kontrolle.",
       availabilitySuffix: "verfügbar",
       platforms: ["Mac", "Windows", "Linux"],
     },
@@ -826,24 +816,21 @@ const germanCopy: MarketingCopy = {
       { name: "Linux", builds: ["x64 AppImage", "Debian-Paket", "RPM-Paket"] },
     ],
     releaseDescription:
-      "Verifizierte v0.2.3-Installer sind im öffentlichen GitHub-Release verfügbar.",
+      "Verifizierte v0.4.0-Installer sind im öffentlichen GitHub-Release verfügbar.",
     comingSoon: "Bald verfügbar",
     openSource: {
       title: "Open Source, wenn du willst",
-      body:
-        "OpenBrief entsteht offen. Lies den Code, verfolge den Packaging-Fortschritt oder bau es selbst, wann immer du genau sehen willst, was ausgeliefert wird.",
-      cardTitle: "GitHub-Repository",
-      cardBodyStart: "Der Code liegt unter",
-      cardBodyEnd: "– schau rein, bleib dran oder bau aus dem Quellcode, während wir die öffentlichen Downloads vorbereiten.",
-      cta: "Auf GitHub ansehen",
+      body: "OpenBrief entsteht offen. Lies den Code, verfolge den Packaging-Fortschritt oder bau es selbst, wann immer du genau sehen willst, was ausgeliefert wird.",
+      cardTitle: "Open Source",
+      cta: "Quellcode auf GitHub ansehen",
     },
     requirements: {
       title: "Voraussetzungen",
-      body:
-        "OpenBrief verarbeitet Medien lokal; Cloud-KI-Provider wählst du bei Bedarf selbst.",
+      body: "OpenBrief verarbeitet Medien lokal; Cloud-KI-Provider wählst du bei Bedarf selbst.",
       items: [
         "macOS 13, Windows 11 oder ein aktueller Linux-Desktop",
         "Lokaler Speicherplatz für importierte Medien und erzeugte Transkripte",
+        "Lokaler Inferenz-Stack für Transkription, Spracherzeugung und Stimmklonen",
         "Optionaler API-Schlüssel für OpenAI, Anthropic, Gemini oder OpenRouter",
         "Optionale mitgelieferte Tools für YouTube und Offline-Transkription",
       ],
@@ -866,8 +853,7 @@ const frenchCopy: MarketingCopy = {
       badge: "Espace de briefing qui tourne en local",
       title: "Transforme tes longues vidéos en briefings exploitables.",
       bodyStrong: "OpenBrief",
-      body:
-        "transforme tes longues vidéos, fichiers audio et enregistrements en briefings clairs, sans corvée. Importe une source, obtiens une transcription, pose des questions dont les réponses restent ancrées dans ce qui a été dit, et exporte uniquement les notes utiles.",
+      body: "transforme tes longues vidéos, fichiers audio et enregistrements en briefings clairs, sans corvée. Importe une source, obtiens une transcription, pose des questions dont les réponses restent ancrées dans ce qui a été dit, et exporte uniquement les notes utiles.",
       secondary:
         "Parfait pour les appels de recherche, cours, démos produit, entretiens et captures d'écran dont tu dois te souvenir bien après la fin.",
       cta: "Télécharger OpenBrief",
@@ -875,15 +861,23 @@ const frenchCopy: MarketingCopy = {
       demoLabel: "Vidéo de démonstration d'OpenBrief",
     },
     stats: [
-      { title: "Gratuit", body: "L'app de bureau est gratuite : pas d'abonnement, pas de compte à rebours d'essai." },
-      { title: "Sans inscription", body: "Ouvre l'app et commence à résumer. Aucun compte requis." },
-      { title: "Tes données, sur ta machine", body: "Tes fichiers et tout ce que produit OpenBrief restent sur ton ordinateur." },
+      {
+        title: "Gratuit",
+        body: "L'app de bureau est gratuite : pas d'abonnement, pas de compte à rebours d'essai.",
+      },
+      {
+        title: "Sans inscription",
+        body: "Ouvre l'app et commence à résumer. Aucun compte requis.",
+      },
+      {
+        title: "Tes données, sur ta machine",
+        body: "Tes fichiers et tout ce que produit OpenBrief restent sur ton ordinateur.",
+      },
     ],
     features: {
       badge: "Fonctionnalités",
       title: "Le plus important commence quand la vidéo se termine.",
-      body:
-        "Source, transcription, résumé, chat et export au même endroit : un simple récap ne vire jamais au chaos d'onglets et de notes éparpillées.",
+      body: "Source, transcription, résumé, chat et export au même endroit : un simple récap ne vire jamais au chaos d'onglets et de notes éparpillées.",
       items: [
         {
           title: "Toutes tes sources au même endroit",
@@ -914,15 +908,14 @@ const frenchCopy: MarketingCopy = {
     workflow: {
       badge: "Comment ça marche",
       title: "De la source au résumé, sans perdre le fil.",
-      body:
-        "Commence dans ta bibliothèque, puis ouvre une source dès que tu veux la transcrire, la résumer et discuter avec.",
+      body: "Commence dans ta bibliothèque, puis ouvre une source dès que tu veux la transcrire, la résumer et discuter avec.",
       libraryTitle: "Bibliothèque",
       libraryBody:
         "Ajoute un fichier local ou un lien web pris en charge, garde chaque détail de la source et prépare une file bien rangée avant de t'y mettre.",
       libraryLabel: "Vue bibliothèque d'OpenBrief",
-      noteTitle: "Page de notes",
+      noteTitle: "Transcrire, résumer et discuter",
       noteBody:
-        "Ouvre une source pour générer une transcription, rédiger un résumé ciblé et poser des questions fondées, le tout sans quitter le lecteur.",
+        "Génère une transcription, rédige un résumé ciblé et pose des questions fondées depuis le même espace de travail.",
       noteLabel: "Page de notes d'OpenBrief",
     },
   },
@@ -930,35 +923,34 @@ const frenchCopy: MarketingCopy = {
     hero: {
       badge: "Versions bureau et open source",
       title: "Télécharge OpenBrief pour ton ordinateur",
-      body:
-        "Installe l'app, branche tes propres clés de fournisseur et garde chaque transcription, résumé et note exportée sous ton contrôle.",
+      body: "Installe l'app, branche tes propres clés de fournisseur et garde chaque transcription, résumé et note exportée sous ton contrôle.",
       availabilitySuffix: "disponible",
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Installateur x64", "Installateur ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Paquet Debian", "Paquet RPM"] },
+      {
+        name: "Linux",
+        builds: ["AppImage x64", "Paquet Debian", "Paquet RPM"],
+      },
     ],
     releaseDescription:
-      "Les installateurs vérifiés v0.2.3 sont disponibles dans la release GitHub publique.",
+      "Les installateurs vérifiés v0.4.0 sont disponibles dans la release GitHub publique.",
     comingSoon: "Bientôt disponible",
     openSource: {
       title: "Open source, si tu veux",
-      body:
-        "OpenBrief se développe au grand jour. Lis le code, suis l'avancement du packaging ou compile toi-même quand tu veux voir exactement ce qui est publié.",
-      cardTitle: "Dépôt GitHub",
-      cardBodyStart: "Le code se trouve sur",
-      cardBodyEnd: "— jette un œil, suis le projet ou compile-le toi-même pendant qu'on prépare les téléchargements publics.",
-      cta: "Voir sur GitHub",
+      body: "OpenBrief se développe au grand jour. Lis le code, suis l'avancement du packaging ou compile toi-même quand tu veux voir exactement ce qui est publié.",
+      cardTitle: "Open source",
+      cta: "Voir le code source sur GitHub",
     },
     requirements: {
       title: "Prérequis",
-      body:
-        "OpenBrief traite les médias en local, et c'est toi qui choisis les fournisseurs d'IA cloud, si tu en veux.",
+      body: "OpenBrief traite les médias en local, et c'est toi qui choisis les fournisseurs d'IA cloud, si tu en veux.",
       items: [
         "macOS 13, Windows 11 ou un bureau Linux récent",
         "De l'espace disque local pour les médias importés et les transcriptions générées",
+        "Pile d'inférence locale pour la transcription, la génération vocale et le clonage vocal",
         "Une clé API facultative pour OpenAI, Anthropic, Gemini ou OpenRouter",
         "Des outils intégrés facultatifs pour YouTube et la transcription hors ligne",
       ],
@@ -981,8 +973,7 @@ const indonesianCopy: MarketingCopy = {
       badge: "Ruang kerja briefing yang berjalan di lokal",
       title: "Ubah video panjang jadi briefing yang siap dipakai.",
       bodyStrong: "OpenBrief",
-      body:
-        "mengubah video, audio, dan rekaman panjang menjadi briefing yang rapi, tanpa ribet. Impor sumber, dapatkan transkrip, ajukan pertanyaan dengan jawaban yang berpijak pada isi aslinya, dan ekspor hanya catatan yang kamu butuhkan.",
+      body: "mengubah video, audio, dan rekaman panjang menjadi briefing yang rapi, tanpa ribet. Impor sumber, dapatkan transkrip, ajukan pertanyaan dengan jawaban yang berpijak pada isi aslinya, dan ekspor hanya catatan yang kamu butuhkan.",
       secondary:
         "Pas untuk panggilan riset, kuliah, demo produk, wawancara, dan rekaman layar yang harus kamu ingat lama setelah selesai.",
       cta: "Unduh OpenBrief",
@@ -990,15 +981,23 @@ const indonesianCopy: MarketingCopy = {
       demoLabel: "Video demo produk OpenBrief",
     },
     stats: [
-      { title: "Gratis", body: "Aplikasi desktop gratis—tanpa paket berbayar, tanpa hitung mundur masa coba." },
-      { title: "Tanpa daftar", body: "Buka aplikasi dan langsung meringkas. Tidak perlu akun." },
-      { title: "Datamu, di perangkatmu", body: "Berkasmu dan semua yang dibuat OpenBrief tetap ada di komputermu." },
+      {
+        title: "Gratis",
+        body: "Aplikasi desktop gratis—tanpa paket berbayar, tanpa hitung mundur masa coba.",
+      },
+      {
+        title: "Tanpa daftar",
+        body: "Buka aplikasi dan langsung meringkas. Tidak perlu akun.",
+      },
+      {
+        title: "Datamu, di perangkatmu",
+        body: "Berkasmu dan semua yang dibuat OpenBrief tetap ada di komputermu.",
+      },
     ],
     features: {
       badge: "Fitur",
       title: "Yang penting justru setelah video selesai.",
-      body:
-        "Sumber, transkrip, ringkasan, chat, dan ekspor menyatu di satu tempat—sekadar mengulas tak pernah berubah jadi tumpukan tab dan catatan berserakan.",
+      body: "Sumber, transkrip, ringkasan, chat, dan ekspor menyatu di satu tempat—sekadar mengulas tak pernah berubah jadi tumpukan tab dan catatan berserakan.",
       items: [
         {
           title: "Semua sumber di satu tempat",
@@ -1029,15 +1028,14 @@ const indonesianCopy: MarketingCopy = {
     workflow: {
       badge: "Cara kerja",
       title: "Dari sumber ke ringkasan, tanpa kehilangan alur.",
-      body:
-        "Mulai dari pustaka, lalu buka sumber begitu kamu siap menyalin, meringkas, dan mengobrol dengannya.",
+      body: "Mulai dari pustaka, lalu buka sumber begitu kamu siap menyalin, meringkas, dan mengobrol dengannya.",
       libraryTitle: "Pustaka",
       libraryBody:
         "Tambahkan berkas lokal atau tautan web yang didukung, simpan tiap detail sumber, dan susun antrean yang rapi sebelum mulai.",
       libraryLabel: "Tampilan pustaka OpenBrief",
-      noteTitle: "Halaman catatan",
+      noteTitle: "Transkripsi, ringkas, dan chat",
       noteBody:
-        "Buka sumber untuk membuat transkrip, menulis ringkasan yang fokus, dan mengajukan pertanyaan berdasar—semua tanpa meninggalkan pemutar.",
+        "Buat transkrip, tulis ringkasan yang fokus, dan ajukan pertanyaan berdasar dari ruang kerja yang sama.",
       noteLabel: "Halaman catatan OpenBrief",
     },
   },
@@ -1045,8 +1043,7 @@ const indonesianCopy: MarketingCopy = {
     hero: {
       badge: "Versi desktop & open source",
       title: "Unduh OpenBrief untuk desktop",
-      body:
-        "Pasang aplikasinya, pakai kunci penyedia milikmu sendiri, dan simpan setiap transkrip, ringkasan, serta catatan ekspor dalam kendalimu.",
+      body: "Pasang aplikasinya, pakai kunci penyedia milikmu sendiri, dan simpan setiap transkrip, ringkasan, serta catatan ekspor dalam kendalimu.",
       availabilitySuffix: "tersedia",
       platforms: ["Mac", "Windows", "Linux"],
     },
@@ -1056,24 +1053,21 @@ const indonesianCopy: MarketingCopy = {
       { name: "Linux", builds: ["AppImage x64", "Paket Debian", "Paket RPM"] },
     ],
     releaseDescription:
-      "Installer v0.2.3 yang sudah diverifikasi tersedia di rilis publik GitHub.",
+      "Installer v0.4.0 yang sudah diverifikasi tersedia di rilis publik GitHub.",
     comingSoon: "Segera hadir",
     openSource: {
       title: "Open source, kalau kamu mau",
-      body:
-        "OpenBrief dikembangkan secara terbuka. Baca kodenya, ikuti perkembangan packaging, atau bangun sendiri kapan pun kamu ingin tahu persis apa yang dirilis.",
-      cardTitle: "Repositori GitHub",
-      cardBodyStart: "Kodenya ada di",
-      cardBodyEnd: "—lihat-lihat, ikuti, atau bangun dari sumber sementara kami menyiapkan unduhan publik.",
-      cta: "Lihat di GitHub",
+      body: "OpenBrief dikembangkan secara terbuka. Baca kodenya, ikuti perkembangan packaging, atau bangun sendiri kapan pun kamu ingin tahu persis apa yang dirilis.",
+      cardTitle: "Open source",
+      cta: "Lihat sumber di GitHub",
     },
     requirements: {
       title: "Persyaratan",
-      body:
-        "OpenBrief memproses media secara lokal, sementara penyedia AI cloud kamu pilih sendiri kalau perlu.",
+      body: "OpenBrief memproses media secara lokal, sementara penyedia AI cloud kamu pilih sendiri kalau perlu.",
       items: [
         "macOS 13, Windows 11, atau desktop Linux terkini",
         "Ruang disk lokal untuk media yang diimpor dan transkrip yang dibuat",
+        "Stack inferensi lokal untuk transkripsi, pembuatan suara, dan kloning suara",
         "Kunci API opsional untuk OpenAI, Anthropic, Gemini, atau OpenRouter",
         "Alat bawaan opsional untuk YouTube dan transkripsi offline",
       ],
@@ -1096,8 +1090,7 @@ const italianCopy: MarketingCopy = {
       badge: "Spazio di briefing che gira in locale",
       title: "Trasforma i video lunghi in briefing pronti all'uso.",
       bodyStrong: "OpenBrief",
-      body:
-        "trasforma video, audio e registrazioni lunghi in briefing chiari, senza fatica inutile. Importa una fonte, ottieni una trascrizione, fai domande con risposte ancorate a ciò che è stato detto ed esporta solo le note che ti servono.",
+      body: "trasforma video, audio e registrazioni lunghi in briefing chiari, senza fatica inutile. Importa una fonte, ottieni una trascrizione, fai domande con risposte ancorate a ciò che è stato detto ed esporta solo le note che ti servono.",
       secondary:
         "Perfetto per call di ricerca, lezioni, demo di prodotto, interviste e registrazioni dello schermo che devi ricordare a lungo dopo la fine.",
       cta: "Scarica OpenBrief",
@@ -1105,15 +1098,23 @@ const italianCopy: MarketingCopy = {
       demoLabel: "Video demo di OpenBrief",
     },
     stats: [
-      { title: "Gratis", body: "L'app desktop è gratis: niente piano a pagamento, niente conto alla rovescia di prova." },
-      { title: "Senza registrazione", body: "Apri l'app e inizia a riassumere. Nessun account richiesto." },
-      { title: "I tuoi dati, sul tuo dispositivo", body: "I tuoi file e tutto ciò che OpenBrief genera restano sul tuo computer." },
+      {
+        title: "Gratis",
+        body: "L'app desktop è gratis: niente piano a pagamento, niente conto alla rovescia di prova.",
+      },
+      {
+        title: "Senza registrazione",
+        body: "Apri l'app e inizia a riassumere. Nessun account richiesto.",
+      },
+      {
+        title: "I tuoi dati, sul tuo dispositivo",
+        body: "I tuoi file e tutto ciò che OpenBrief genera restano sul tuo computer.",
+      },
     ],
     features: {
       badge: "Funzionalità",
       title: "Il bello inizia quando il video finisce.",
-      body:
-        "Fonte, trascrizione, riassunto, chat ed esportazione stanno insieme: un rapido ripasso non diventa mai un caos di schede e note sparse.",
+      body: "Fonte, trascrizione, riassunto, chat ed esportazione stanno insieme: un rapido ripasso non diventa mai un caos di schede e note sparse.",
       items: [
         {
           title: "Tutte le fonti in un posto",
@@ -1144,15 +1145,14 @@ const italianCopy: MarketingCopy = {
     workflow: {
       badge: "Come funziona",
       title: "Dalla fonte al riassunto, senza perdere il filo.",
-      body:
-        "Parti dalla libreria e apri una fonte appena vuoi trascriverla, riassumerla e chattarci.",
+      body: "Parti dalla libreria e apri una fonte appena vuoi trascriverla, riassumerla e chattarci.",
       libraryTitle: "Libreria",
       libraryBody:
         "Aggiungi un file locale o un link web supportato, conserva ogni dettaglio della fonte e prepara una coda ordinata prima di iniziare.",
       libraryLabel: "Vista libreria di OpenBrief",
-      noteTitle: "Pagina note",
+      noteTitle: "Trascrivi, riassumi e chatta",
       noteBody:
-        "Apri una fonte per generare una trascrizione, scrivere un riassunto mirato e fare domande fondate, senza mai lasciare il player.",
+        "Genera una trascrizione, scrivi un riassunto mirato e fai domande fondate dallo stesso workspace.",
       noteLabel: "Pagina note di OpenBrief",
     },
   },
@@ -1160,35 +1160,34 @@ const italianCopy: MarketingCopy = {
     hero: {
       badge: "Versioni desktop e open source",
       title: "Scarica OpenBrief per il desktop",
-      body:
-        "Installa l'app, usa le tue chiavi provider e tieni ogni trascrizione, riassunto e nota esportata sotto il tuo controllo.",
+      body: "Installa l'app, usa le tue chiavi provider e tieni ogni trascrizione, riassunto e nota esportata sotto il tuo controllo.",
       availabilitySuffix: "disponibile",
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Installer x64", "Installer ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Pacchetto Debian", "Pacchetto RPM"] },
+      {
+        name: "Linux",
+        builds: ["AppImage x64", "Pacchetto Debian", "Pacchetto RPM"],
+      },
     ],
     releaseDescription:
-      "Gli installer verificati v0.2.3 sono disponibili nella release GitHub pubblica.",
+      "Gli installer verificati v0.4.0 sono disponibili nella release GitHub pubblica.",
     comingSoon: "In arrivo",
     openSource: {
       title: "Open source, se vuoi",
-      body:
-        "OpenBrief si sviluppa allo scoperto. Leggi il codice, segui i progressi del packaging o compila da te quando vuoi vedere esattamente cosa viene rilasciato.",
-      cardTitle: "Repository GitHub",
-      cardBodyStart: "Il codice è su",
-      cardBodyEnd: "— dagli un'occhiata, seguilo o compilalo da te mentre prepariamo i download pubblici.",
-      cta: "Vedi su GitHub",
+      body: "OpenBrief si sviluppa allo scoperto. Leggi il codice, segui i progressi del packaging o compila da te quando vuoi vedere esattamente cosa viene rilasciato.",
+      cardTitle: "Open source",
+      cta: "Vedi il codice sorgente su GitHub",
     },
     requirements: {
       title: "Requisiti",
-      body:
-        "OpenBrief elabora i media in locale, mentre i provider AI cloud li scegli tu, se vuoi.",
+      body: "OpenBrief elabora i media in locale, mentre i provider AI cloud li scegli tu, se vuoi.",
       items: [
         "macOS 13, Windows 11 o un desktop Linux attuale",
         "Spazio su disco locale per i media importati e le trascrizioni generate",
+        "Stack di inferenza locale per trascrizione, generazione vocale e clonazione vocale",
         "Una chiave API opzionale per OpenAI, Anthropic, Gemini o OpenRouter",
         "Strumenti integrati opzionali per YouTube e la trascrizione offline",
       ],
@@ -1211,8 +1210,7 @@ const portugueseCopy: MarketingCopy = {
       badge: "Espaço de briefing que roda local",
       title: "Transforme vídeos longos em briefings prontos para usar.",
       bodyStrong: "OpenBrief",
-      body:
-        "transforma vídeos, áudios e gravações longos em briefings claros, sem trabalho à toa. Importe uma fonte, gere uma transcrição, faça perguntas com respostas ancoradas no que foi dito e exporte só as notas que você precisa.",
+      body: "transforma vídeos, áudios e gravações longos em briefings claros, sem trabalho à toa. Importe uma fonte, gere uma transcrição, faça perguntas com respostas ancoradas no que foi dito e exporte só as notas que você precisa.",
       secondary:
         "Perfeito para chamadas de pesquisa, aulas, demos de produto, entrevistas e gravações de tela que você precisa lembrar muito depois de acabarem.",
       cta: "Baixar OpenBrief",
@@ -1220,15 +1218,23 @@ const portugueseCopy: MarketingCopy = {
       demoLabel: "Vídeo de demonstração do OpenBrief",
     },
     stats: [
-      { title: "Grátis", body: "O app de desktop é grátis: sem plano pago, sem contagem regressiva de teste." },
-      { title: "Sem cadastro", body: "Abra o app e comece a resumir. Não precisa de conta." },
-      { title: "Seus dados, no seu aparelho", body: "Seus arquivos e tudo o que o OpenBrief gera ficam no seu computador." },
+      {
+        title: "Grátis",
+        body: "O app de desktop é grátis: sem plano pago, sem contagem regressiva de teste.",
+      },
+      {
+        title: "Sem cadastro",
+        body: "Abra o app e comece a resumir. Não precisa de conta.",
+      },
+      {
+        title: "Seus dados, no seu aparelho",
+        body: "Seus arquivos e tudo o que o OpenBrief gera ficam no seu computador.",
+      },
     ],
     features: {
       badge: "Recursos",
       title: "O que importa começa quando o vídeo acaba.",
-      body:
-        "Fonte, transcrição, resumo, chat e exportação ficam juntos—uma revisão rápida nunca vira uma bagunça de abas e notas soltas.",
+      body: "Fonte, transcrição, resumo, chat e exportação ficam juntos—uma revisão rápida nunca vira uma bagunça de abas e notas soltas.",
       items: [
         {
           title: "Todas as fontes em um lugar",
@@ -1259,15 +1265,14 @@ const portugueseCopy: MarketingCopy = {
     workflow: {
       badge: "Como funciona",
       title: "Da fonte ao resumo, sem perder o fio.",
-      body:
-        "Comece na sua biblioteca e abra uma fonte assim que quiser transcrever, resumir e conversar com ela.",
+      body: "Comece na sua biblioteca e abra uma fonte assim que quiser transcrever, resumir e conversar com ela.",
       libraryTitle: "Biblioteca",
       libraryBody:
         "Adicione um arquivo local ou um link da web compatível, mantenha cada detalhe da fonte e organize uma fila limpa antes de começar.",
       libraryLabel: "Tela de biblioteca do OpenBrief",
-      noteTitle: "Página de notas",
+      noteTitle: "Transcreva, resuma e converse",
       noteBody:
-        "Abra uma fonte para gerar uma transcrição, escrever um resumo direto ao ponto e fazer perguntas fundamentadas, tudo sem sair do player.",
+        "Gere uma transcrição, escreva um resumo focado e faça perguntas fundamentadas no mesmo espaço de trabalho.",
       noteLabel: "Página de notas do OpenBrief",
     },
   },
@@ -1275,35 +1280,34 @@ const portugueseCopy: MarketingCopy = {
     hero: {
       badge: "Versões desktop e código aberto",
       title: "Baixe o OpenBrief para desktop",
-      body:
-        "Instale o app, use suas próprias chaves de provedor e mantenha cada transcrição, resumo e nota exportada sob o seu controle.",
+      body: "Instale o app, use suas próprias chaves de provedor e mantenha cada transcrição, resumo e nota exportada sob o seu controle.",
       availabilitySuffix: "disponível",
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
       { name: "macOS", builds: ["Apple Silicon", "Intel"] },
       { name: "Windows", builds: ["Instalador x64", "Instalador ARM64"] },
-      { name: "Linux", builds: ["AppImage x64", "Pacote Debian", "Pacote RPM"] },
+      {
+        name: "Linux",
+        builds: ["AppImage x64", "Pacote Debian", "Pacote RPM"],
+      },
     ],
     releaseDescription:
-      "Os instaladores verificados da v0.2.3 estão disponíveis na release pública do GitHub.",
+      "Os instaladores verificados da v0.4.0 estão disponíveis na release pública do GitHub.",
     comingSoon: "Em breve",
     openSource: {
       title: "Código aberto, se você quiser",
-      body:
-        "O OpenBrief é desenvolvido às claras. Leia o código, acompanhe o progresso do empacotamento ou compile você mesmo sempre que quiser ver exatamente o que é publicado.",
-      cardTitle: "Repositório no GitHub",
-      cardBodyStart: "O código está em",
-      cardBodyEnd: "— dê uma olhada, acompanhe ou compile você mesmo enquanto preparamos os downloads públicos.",
-      cta: "Ver no GitHub",
+      body: "O OpenBrief é desenvolvido às claras. Leia o código, acompanhe o progresso do empacotamento ou compile você mesmo sempre que quiser ver exatamente o que é publicado.",
+      cardTitle: "Código aberto",
+      cta: "Ver código-fonte no GitHub",
     },
     requirements: {
       title: "Requisitos",
-      body:
-        "O OpenBrief processa as mídias localmente, e os provedores de IA na nuvem você escolhe, se quiser.",
+      body: "O OpenBrief processa as mídias localmente, e os provedores de IA na nuvem você escolhe, se quiser.",
       items: [
         "macOS 13, Windows 11 ou um desktop Linux atual",
         "Espaço em disco local para as mídias importadas e as transcrições geradas",
+        "Stack de inferência local para transcrição, geração de voz e clonagem de voz",
         "Uma chave de API opcional para OpenAI, Anthropic, Gemini ou OpenRouter",
         "Ferramentas integradas opcionais para YouTube e transcrição offline",
       ],
@@ -1326,8 +1330,7 @@ const vietnameseCopy: MarketingCopy = {
       badge: "Không gian briefing chạy ngay trên máy",
       title: "Biến video dài thành bản tóm tắt dùng được ngay.",
       bodyStrong: "OpenBrief",
-      body:
-        "biến video, âm thanh và bản ghi dài thành bản tóm tắt gọn gàng, không rườm rà. Nhập nguồn, lấy bản chép lời, đặt câu hỏi với câu trả lời bám sát nội dung gốc, và chỉ xuất những ghi chú bạn cần.",
+      body: "biến video, âm thanh và bản ghi dài thành bản tóm tắt gọn gàng, không rườm rà. Nhập nguồn, lấy bản chép lời, đặt câu hỏi với câu trả lời bám sát nội dung gốc, và chỉ xuất những ghi chú bạn cần.",
       secondary:
         "Hợp với cuộc gọi nghiên cứu, bài giảng, demo sản phẩm, phỏng vấn và bản ghi màn hình mà bạn cần nhớ rất lâu sau khi kết thúc.",
       cta: "Tải OpenBrief",
@@ -1335,15 +1338,23 @@ const vietnameseCopy: MarketingCopy = {
       demoLabel: "Video demo sản phẩm OpenBrief",
     },
     stats: [
-      { title: "Miễn phí", body: "Ứng dụng desktop miễn phí—không gói trả phí, không đếm ngược dùng thử." },
-      { title: "Không cần đăng ký", body: "Mở ứng dụng và bắt đầu tóm tắt. Không cần tài khoản." },
-      { title: "Dữ liệu nằm trên máy bạn", body: "Tệp của bạn và mọi thứ OpenBrief tạo ra đều ở lại trên máy bạn." },
+      {
+        title: "Miễn phí",
+        body: "Ứng dụng desktop miễn phí—không gói trả phí, không đếm ngược dùng thử.",
+      },
+      {
+        title: "Không cần đăng ký",
+        body: "Mở ứng dụng và bắt đầu tóm tắt. Không cần tài khoản.",
+      },
+      {
+        title: "Dữ liệu nằm trên máy bạn",
+        body: "Tệp của bạn và mọi thứ OpenBrief tạo ra đều ở lại trên máy bạn.",
+      },
     ],
     features: {
       badge: "Tính năng",
       title: "Điều quan trọng bắt đầu khi video kết thúc.",
-      body:
-        "Nguồn, bản chép lời, tóm tắt, chat và xuất nằm cùng một chỗ—xem lại nhanh không bao giờ biến thành mớ tab và ghi chú rải rác.",
+      body: "Nguồn, bản chép lời, tóm tắt, chat và xuất nằm cùng một chỗ—xem lại nhanh không bao giờ biến thành mớ tab và ghi chú rải rác.",
       items: [
         {
           title: "Mọi nguồn ở một nơi",
@@ -1374,15 +1385,14 @@ const vietnameseCopy: MarketingCopy = {
     workflow: {
       badge: "Cách hoạt động",
       title: "Từ nguồn đến tóm tắt, không đứt mạch.",
-      body:
-        "Bắt đầu trong thư viện, rồi mở một nguồn ngay khi bạn muốn chép lời, tóm tắt và trò chuyện với nó.",
+      body: "Bắt đầu trong thư viện, rồi mở một nguồn ngay khi bạn muốn chép lời, tóm tắt và trò chuyện với nó.",
       libraryTitle: "Thư viện",
       libraryBody:
         "Thêm tệp cục bộ hoặc liên kết web được hỗ trợ, giữ nguyên mọi chi tiết nguồn và sắp một hàng đợi gọn gàng trước khi bắt tay vào.",
       libraryLabel: "Màn hình thư viện OpenBrief",
-      noteTitle: "Trang ghi chú",
+      noteTitle: "Chép lời, tóm tắt và trò chuyện",
       noteBody:
-        "Mở một nguồn để tạo bản chép lời, viết bản tóm tắt tập trung và đặt câu hỏi có căn cứ—tất cả mà không rời trình phát.",
+        "Tạo bản chép lời, viết phần tóm tắt tập trung và đặt câu hỏi có căn cứ trong cùng một không gian làm việc.",
       noteLabel: "Trang ghi chú OpenBrief",
     },
   },
@@ -1390,8 +1400,7 @@ const vietnameseCopy: MarketingCopy = {
     hero: {
       badge: "Bản desktop & mã nguồn mở",
       title: "Tải OpenBrief cho desktop",
-      body:
-        "Cài ứng dụng, dùng khóa nhà cung cấp của riêng bạn và giữ mọi bản chép lời, tóm tắt cùng ghi chú đã xuất trong tầm kiểm soát của bạn.",
+      body: "Cài ứng dụng, dùng khóa nhà cung cấp của riêng bạn và giữ mọi bản chép lời, tóm tắt cùng ghi chú đã xuất trong tầm kiểm soát của bạn.",
       availabilitySuffix: "khả dụng",
       platforms: ["Mac", "Windows", "Linux"],
     },
@@ -1401,24 +1410,21 @@ const vietnameseCopy: MarketingCopy = {
       { name: "Linux", builds: ["x64 AppImage", "Gói Debian", "Gói RPM"] },
     ],
     releaseDescription:
-      "Bộ cài v0.2.3 đã xác minh có trong bản phát hành GitHub công khai.",
+      "Bộ cài v0.4.0 đã xác minh có trong bản phát hành GitHub công khai.",
     comingSoon: "Sắp ra mắt",
     openSource: {
       title: "Mã nguồn mở, nếu bạn muốn",
-      body:
-        "OpenBrief được phát triển công khai. Đọc mã, theo dõi tiến độ đóng gói, hoặc tự build bất cứ khi nào bạn muốn thấy chính xác những gì được phát hành.",
-      cardTitle: "Kho GitHub",
-      cardBodyStart: "Mã nguồn nằm ở",
-      cardBodyEnd: "— ghé xem, theo dõi hoặc tự build trong khi chúng tôi chuẩn bị bản tải công khai.",
-      cta: "Xem trên GitHub",
+      body: "OpenBrief được phát triển công khai. Đọc mã, theo dõi tiến độ đóng gói, hoặc tự build bất cứ khi nào bạn muốn thấy chính xác những gì được phát hành.",
+      cardTitle: "Mã nguồn mở",
+      cta: "Xem mã nguồn trên GitHub",
     },
     requirements: {
       title: "Yêu cầu",
-      body:
-        "OpenBrief xử lý media ngay trên máy, còn nhà cung cấp AI đám mây thì bạn tự chọn nếu muốn.",
+      body: "OpenBrief xử lý media ngay trên máy, còn nhà cung cấp AI đám mây thì bạn tự chọn nếu muốn.",
       items: [
         "macOS 13, Windows 11 hoặc desktop Linux hiện đại",
         "Dung lượng đĩa cục bộ cho media đã nhập và bản chép lời được tạo",
+        "Ngăn xếp suy luận cục bộ cho chép lời, tạo giọng nói và nhân bản giọng nói",
         "Khóa API tùy chọn cho OpenAI, Anthropic, Gemini hoặc OpenRouter",
         "Công cụ tích hợp tùy chọn cho YouTube và chép lời ngoại tuyến",
       ],
@@ -1441,8 +1447,7 @@ const arabicCopy: MarketingCopy = {
       badge: "مساحة موجزات تعمل محليًا",
       title: "حوّل الفيديوهات الطويلة إلى موجزات جاهزة للاستخدام.",
       bodyStrong: "OpenBrief",
-      body:
-        "يحوّل فيديوهاتك وصوتياتك وتسجيلاتك الطويلة إلى موجزات واضحة بلا عناء. استورد مصدرًا، واحصل على تفريغ، واطرح أسئلة تبقى إجاباتها مرتبطة بما قيل فعلًا، وصدّر الملاحظات التي تحتاجها فقط.",
+      body: "يحوّل فيديوهاتك وصوتياتك وتسجيلاتك الطويلة إلى موجزات واضحة بلا عناء. استورد مصدرًا، واحصل على تفريغ، واطرح أسئلة تبقى إجاباتها مرتبطة بما قيل فعلًا، وصدّر الملاحظات التي تحتاجها فقط.",
       secondary:
         "مثالي لمكالمات البحث والمحاضرات وعروض المنتجات والمقابلات وتسجيلات الشاشة التي تحتاج إلى تذكّرها بعد انتهائها بوقت طويل.",
       cta: "تنزيل OpenBrief",
@@ -1450,15 +1455,23 @@ const arabicCopy: MarketingCopy = {
       demoLabel: "فيديو توضيحي لمنتج OpenBrief",
     },
     stats: [
-      { title: "مجاني", body: "تطبيق سطح المكتب مجاني—بلا خطة مدفوعة ولا عدّاد تجربة." },
-      { title: "بلا تسجيل", body: "افتح التطبيق وابدأ التلخيص فورًا. لا حاجة إلى حساب." },
-      { title: "بياناتك على جهازك", body: "تبقى ملفاتك وكل ما ينتجه OpenBrief على جهازك." },
+      {
+        title: "مجاني",
+        body: "تطبيق سطح المكتب مجاني—بلا خطة مدفوعة ولا عدّاد تجربة.",
+      },
+      {
+        title: "بلا تسجيل",
+        body: "افتح التطبيق وابدأ التلخيص فورًا. لا حاجة إلى حساب.",
+      },
+      {
+        title: "بياناتك على جهازك",
+        body: "تبقى ملفاتك وكل ما ينتجه OpenBrief على جهازك.",
+      },
     ],
     features: {
       badge: "الميزات",
       title: "المهم يبدأ بعد انتهاء الفيديو.",
-      body:
-        "المصدر والتفريغ والملخص والمحادثة والتصدير في مكان واحد—فلا تتحول المراجعة السريعة إلى فوضى من التبويبات والملاحظات المبعثرة.",
+      body: "المصدر والتفريغ والملخص والمحادثة والتصدير في مكان واحد—فلا تتحول المراجعة السريعة إلى فوضى من التبويبات والملاحظات المبعثرة.",
       items: [
         {
           title: "كل مصادرك في مكان واحد",
@@ -1489,15 +1502,14 @@ const arabicCopy: MarketingCopy = {
     workflow: {
       badge: "كيف يعمل",
       title: "من المصدر إلى الملخص، دون أن يفلت الخيط.",
-      body:
-        "ابدأ من مكتبتك، ثم افتح المصدر فور أن تكون جاهزًا لتفريغه وتلخيصه ومحادثته.",
+      body: "ابدأ من مكتبتك، ثم افتح المصدر فور أن تكون جاهزًا لتفريغه وتلخيصه ومحادثته.",
       libraryTitle: "المكتبة",
       libraryBody:
         "أضف ملفًا محليًا أو رابط ويب مدعومًا، واحتفظ بكل تفاصيل المصدر، ورتّب قائمة نظيفة قبل أن تبدأ.",
       libraryLabel: "واجهة مكتبة OpenBrief",
-      noteTitle: "صفحة الملاحظات",
+      noteTitle: "فرّغ، لخّص، ودردش",
       noteBody:
-        "افتح مصدرًا لإنشاء تفريغ وكتابة ملخص مركّز وطرح أسئلة موثقة—كل ذلك دون مغادرة المشغّل.",
+        "أنشئ تفريغًا، واكتب ملخصًا مركّزًا، واطرح أسئلة موثقة من مساحة العمل نفسها.",
       noteLabel: "صفحة ملاحظات OpenBrief",
     },
   },
@@ -1505,8 +1517,7 @@ const arabicCopy: MarketingCopy = {
     hero: {
       badge: "إصدارات سطح المكتب والمصدر المفتوح",
       title: "نزّل OpenBrief لسطح المكتب",
-      body:
-        "ثبّت التطبيق، واربط مفاتيح المزوّد الخاصة بك، واحتفظ بكل تفريغ وملخص وملاحظة مصدّرة تحت سيطرتك.",
+      body: "ثبّت التطبيق، واربط مفاتيح المزوّد الخاصة بك، واحتفظ بكل تفريغ وملخص وملاحظة مصدّرة تحت سيطرتك.",
       availabilitySuffix: "متاح",
       platforms: ["Mac", "Windows", "Linux"],
     },
@@ -1516,24 +1527,21 @@ const arabicCopy: MarketingCopy = {
       { name: "Linux", builds: ["x64 AppImage", "حزمة Debian", "حزمة RPM"] },
     ],
     releaseDescription:
-      "تتوفر مثبتات v0.2.3 التي تم التحقق منها في إصدار GitHub العام.",
+      "تتوفر مثبتات v0.4.0 التي تم التحقق منها في إصدار GitHub العام.",
     comingSoon: "قريبًا",
     openSource: {
       title: "المصدر المفتوح، إن أردت",
-      body:
-        "يُطوَّر OpenBrief على المكشوف. اقرأ الكود، وتابع تقدّم التغليف، أو ابنِه بنفسك متى أردت أن ترى بالضبط ما يُطرح.",
-      cardTitle: "مستودع GitHub",
-      cardBodyStart: "الكود موجود في",
-      cardBodyEnd: "— ألقِ نظرة، أو تابعه، أو ابنه من المصدر بينما نجهّز التنزيلات العامة.",
-      cta: "عرض على GitHub",
+      body: "يُطوَّر OpenBrief على المكشوف. اقرأ الكود، وتابع تقدّم التغليف، أو ابنِه بنفسك متى أردت أن ترى بالضبط ما يُطرح.",
+      cardTitle: "المصدر المفتوح",
+      cta: "عرض المصدر على GitHub",
     },
     requirements: {
       title: "المتطلبات",
-      body:
-        "يعالج OpenBrief الوسائط محليًا، أما مزودو الذكاء الاصطناعي السحابيون فتختارهم بنفسك عند الحاجة.",
+      body: "يعالج OpenBrief الوسائط محليًا، أما مزودو الذكاء الاصطناعي السحابيون فتختارهم بنفسك عند الحاجة.",
       items: [
         "macOS 13 أو Windows 11 أو سطح مكتب Linux حديث",
         "مساحة قرص محلية للوسائط المستوردة والتفريغات المُنشأة",
+        "حزمة استدلال محلية للتفريغ وتوليد الصوت واستنساخ الصوت",
         "مفتاح API اختياري لـ OpenAI أو Anthropic أو Gemini أو OpenRouter",
         "أدوات مرفقة اختيارية لـ YouTube والتفريغ دون اتصال",
       ],
