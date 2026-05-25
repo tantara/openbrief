@@ -288,8 +288,13 @@ jobs:
         working-directory: client/apps/tauri
         run: |
           media_tools_dir="src-tauri/resources/media-tools/${{ matrix.rust_target }}"
+          pyinstaller_entitlements="src-tauri/entitlements/macos-pyinstaller-sidecars.plist"
           if [[ ! -d "$media_tools_dir" ]]; then
             echo "Missing media tools directory: $media_tools_dir" >&2
+            exit 1
+          fi
+          if [[ ! -f "$pyinstaller_entitlements" ]]; then
+            echo "Missing PyInstaller entitlements: $pyinstaller_entitlements" >&2
             exit 1
           fi
 
@@ -306,18 +311,7 @@ jobs:
               --sign "$APPLE_SIGNING_IDENTITY"
             )
             if [[ "$tool" == "yt-dlp" ]]; then
-              entitlements_path="$RUNNER_TEMP/openbrief-ytdlp-entitlements.plist"
-              cat > "$entitlements_path" <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>com.apple.security.cs.disable-library-validation</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
-              codesign_args+=(--entitlements "$entitlements_path")
+              codesign_args+=(--entitlements "$pyinstaller_entitlements")
             fi
             codesign "${codesign_args[@]}" "$tool_path"
             codesign --verify --verbose=2 "$tool_path"
@@ -339,11 +333,19 @@ jobs:
             export APPLE_PASSWORD="$APPLE_PASSWORD_SECRET"
             export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
             build_config="$(
-              node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:false,macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY,hardenedRuntime:true}}}))'
+              node -e 'process.stdout.write(JSON.stringify({bundle:{createUpdaterArtifacts:false,macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY,hardenedRuntime:true,entitlements:"entitlements/macos-pyinstaller-sidecars.plist"}}}))'
             )"
           fi
 
           pnpm tauri build ${{ matrix.tauri_args }} --config "$build_config"
+
+      - name: Smoke signed macOS PyInstaller sidecars
+        if: runner.os == 'macOS' && inputs.notarize_macos == true
+        shell: bash
+        run: |
+          app_path="client/apps/tauri/src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos/OpenBrief.app"
+          "$app_path/Contents/MacOS/openbrief-localai" runtime
+          "$app_path/Contents/MacOS/openbrief-supertonic" --help
 
       - name: Notarize macOS DMG
         if: runner.os == 'macOS' && inputs.notarize_macos == true
