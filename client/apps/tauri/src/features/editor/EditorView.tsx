@@ -12,6 +12,7 @@ import { resolveLibraryAssetUrl } from "@/services/libraryAssetUrl";
 import { useI18n } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Clapperboard, FileText, Loader2, Play, Sparkles } from "lucide-react";
+import "@hyperframes/player";
 
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
@@ -278,11 +279,20 @@ export function EditorView({
       <section className="grid min-h-0 grid-rows-[minmax(0,1fr)_220px] gap-4">
         <div className="border-border bg-card/40 min-h-0 overflow-hidden rounded-md border">
           {activeComposition ? (
-            <iframe
-              title={t("editor.preview")}
-              className="h-full w-full bg-black"
-              sandbox="allow-scripts"
-              srcDoc={activeComposition.html}
+            <hyperframes-player
+              className="block h-full w-full bg-black"
+              srcdoc={activeComposition.html}
+              width={activeComposition.aspectRatio === "9:16" ? 1080 : 1920}
+              height={
+                activeComposition.aspectRatio === "9:16"
+                  ? 1920
+                  : activeComposition.aspectRatio === "1:1"
+                    ? 1080
+                    : 1080
+              }
+              controls
+              muted
+              aria-label={t("editor.preview")}
             />
           ) : (
             <div className="text-muted-foreground flex h-full items-center justify-center text-sm">

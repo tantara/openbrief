@@ -59,6 +59,11 @@ describe("video generation domain", () => {
     expect(composition.html).toContain("script-src 'none'");
     expect(composition.html).not.toContain("script-src 'unsafe-inline'");
     expect(composition.html).toContain("connect-src 'none'");
+    expect(composition.html).toContain(
+      'data-composition-id="video-1-20260525000200"',
+    );
+    expect(composition.html).toContain('data-width="1920"');
+    expect(composition.html).toContain('data-height="1080"');
     expect(composition.html).toContain("Strategy Review");
   });
 });

@@ -27,6 +27,7 @@
     "@acme/model-card": "workspace:*",
     "@acme/openbrief-content": "workspace:*",
     "@acme/ui": "workspace:*",
+    "@hyperframes/player": "0.6.42",
     "@lobehub/icons": "^5.8.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-cli": "^2.4.1",

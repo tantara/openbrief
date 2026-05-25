@@ -11,6 +11,7 @@ import {
 
 export const videoGenerationAdapter = "deno-hyperframes" as const;
 export const hyperframesNpmPackage = "hyperframes@0.6.42" as const;
+export const hyperframesPlayerPackage = "@hyperframes/player@0.6.42" as const;
 
 export type VideoGenerationAdapter = typeof videoGenerationAdapter;
 export type VideoGenerationScenario =
@@ -110,6 +111,7 @@ export function createSummaryVideoGenerationComposition({
       ? "Create a concise pitch video from this PDF summary."
       : "Create a concise briefing video from this summary.");
   const html = createHyperframesCompositionHtml({
+    compositionId,
     title,
     content,
     prompt: resolvedPrompt,
@@ -177,12 +179,14 @@ function summarizeForScript(
 }
 
 function createHyperframesCompositionHtml({
+  compositionId,
   title,
   content,
   prompt,
   durationSeconds,
   aspectRatio,
 }: {
+  compositionId: string;
   title: string;
   content: string;
   prompt: string;
@@ -191,6 +195,7 @@ function createHyperframesCompositionHtml({
 }) {
   const aspectClass =
     aspectRatio === "9:16" ? "portrait" : aspectRatio === "1:1" ? "square" : "landscape";
+  const dimensions = dimensionsForAspectRatio(aspectRatio);
   const words = content.split(/\s+/).filter(Boolean).slice(0, 34);
   const caption = words.join(" ");
 
@@ -225,7 +230,16 @@ function createHyperframesCompositionHtml({
     </style>
   </head>
   <body>
-    <main class="scene" data-hyperframes-composition data-duration="${durationSeconds}">
+    <main
+      id="stage"
+      class="scene"
+      data-composition-id="${escapeHtml(compositionId)}"
+      data-start="0"
+      data-duration="${durationSeconds}"
+      data-track-index="0"
+      data-width="${dimensions.width}"
+      data-height="${dimensions.height}"
+    >
       <section class="frame ${aspectClass}">
         <div>
           <div class="kicker">OpenBrief</div>
@@ -244,6 +258,13 @@ function createHyperframesCompositionHtml({
   </body>
 </html>
 `;
+}
+
+function dimensionsForAspectRatio(aspectRatio: VideoGenerationAspectRatio) {
+  if (aspectRatio === "9:16") return { width: 1080, height: 1920 };
+  if (aspectRatio === "1:1") return { width: 1080, height: 1080 };
+
+  return { width: 1920, height: 1080 };
 }
 
 function escapeHtml(value: string) {
