@@ -5,8 +5,8 @@ import type {
 } from "@/domain/editor-agent";
 import type { ProviderKind } from "@/domain/media-library";
 import type { TranslationKey } from "@/i18n";
-import type { ReactNode } from "react";
 import type { AiWorkflowProviderConfig } from "@/services/aiProviderPreferencesService";
+import type { ReactNode } from "react";
 import { ProviderIcon } from "@/components/provider/ProviderIcon";
 import {
   defaultProviderModels,
@@ -15,6 +15,8 @@ import {
   providerOptions,
 } from "@/domain/provider";
 import { useI18n } from "@/i18n";
+import { Bot, Loader2, Scissors, Send } from "lucide-react";
+
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
@@ -33,7 +35,6 @@ import {
   SelectTrigger,
 } from "@acme/ui/select";
 import { Textarea } from "@acme/ui/textarea";
-import { Bot, Loader2, Scissors, Send } from "lucide-react";
 
 export type EditorAgentPanelProps = {
   messages: EditorAgentMessage[];
@@ -65,7 +66,8 @@ const quickPrompts: Array<{
   {
     key: "editor.agent.quick.cuts",
     kind: "transcript-edit",
-    instruction: "Draft conservative transcript cuts for filler and low-signal lines.",
+    instruction:
+      "Draft conservative transcript cuts for filler and low-signal lines.",
   },
 ];
 
@@ -89,9 +91,11 @@ export function EditorAgentPanel({
           <Bot className="h-4 w-4" aria-hidden="true" />
           {t("editor.agent.title")}
         </CardTitle>
-        <p className="text-muted-foreground text-sm">{t("editor.agent.subtitle")}</p>
+        <p className="text-muted-foreground text-sm">
+          {t("editor.agent.subtitle")}
+        </p>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <EditorAgentProviderDialog
           config={providerConfig}
           onChange={onProviderConfigChange}
@@ -111,7 +115,7 @@ export function EditorAgentPanel({
           ))}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border p-3">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-md border p-3">
           {messages.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               {disabled ? t("editor.agent.noSource") : t("editor.agent.empty")}
@@ -148,7 +152,7 @@ export function EditorAgentPanel({
             id="editor-agent-input"
             value={input}
             placeholder={t("editor.agent.input.placeholder")}
-            className="min-h-24 resize-none"
+            className="h-20 min-h-0 resize-none"
             disabled={disabled || isDrafting}
             onChange={(event) => onInputChange(event.target.value)}
           />
@@ -159,7 +163,10 @@ export function EditorAgentPanel({
               onClick={() => onSubmit("composition")}
             >
               {isDrafting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                <Loader2
+                  className="mr-2 h-4 w-4 animate-spin"
+                  aria-hidden="true"
+                />
               ) : (
                 <Send className="mr-2 h-4 w-4" aria-hidden="true" />
               )}
@@ -192,7 +199,7 @@ function EditorAgentPlanCard({
 
   return (
     <div
-      className="border-border space-y-2 rounded-md border bg-background px-3 py-2 text-sm"
+      className="border-border bg-background space-y-2 rounded-md border px-3 py-2 text-sm"
       data-active={active}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -327,8 +334,14 @@ function ProviderSelect({
   const { t } = useI18n();
 
   return (
-    <Select value={value} onValueChange={(value) => onChange(value as ProviderKind)}>
-      <SelectTrigger aria-label={t("setup.provider.provider")} className="w-full">
+    <Select
+      value={value}
+      onValueChange={(value) => onChange(value as ProviderKind)}
+    >
+      <SelectTrigger
+        aria-label={t("setup.provider.provider")}
+        className="w-full"
+      >
         <SelectTriggerContent
           icon={<ProviderIcon provider={value} size={18} decorative />}
           label={providerLabels[value]}

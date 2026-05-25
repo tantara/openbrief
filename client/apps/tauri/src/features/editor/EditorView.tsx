@@ -359,7 +359,7 @@ export function EditorView({
         : t("editor.scenario.summary");
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-6.5rem)] flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4">
       <div
         className="bg-muted/40 border-border inline-flex w-fit rounded-md border p-1"
         role="tablist"
@@ -424,8 +424,8 @@ export function EditorView({
                   {t("editor.subtitle")}
                 </p>
               </CardHeader>
-              <CardContent className="min-h-0 flex-1 overflow-y-auto">
-                <div className="space-y-4">
+              <CardContent className="min-h-0 flex-1 overflow-hidden">
+                <div className="flex h-full min-h-0 flex-col gap-3">
                   <div className="space-y-2">
                     <label
                       className="text-sm font-medium"
@@ -498,7 +498,7 @@ export function EditorView({
                       value={prompt}
                       placeholder={t("editor.prompt.placeholder")}
                       onChange={(event) => setPrompt(event.target.value)}
-                      className="min-h-28 resize-none"
+                      className="h-24 min-h-0 resize-none"
                     />
                   </div>
 
@@ -570,11 +570,11 @@ export function EditorView({
                   </div>
 
                   {compositionHistory.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="min-h-0 space-y-2 overflow-hidden">
                       <div className="text-sm font-medium">
                         {t("editor.compositions")}
                       </div>
-                      <div className="space-y-2">
+                      <div className="min-h-0 space-y-2 overflow-hidden">
                         {compositionHistory.map((composition) => (
                           <button
                             key={composition.id}
@@ -710,7 +710,7 @@ function GeneratedVideoLibrary({
 
   if (compositions.length === 0) {
     return (
-      <Card className="flex min-h-96 flex-1 items-center justify-center border-dashed">
+      <Card className="flex min-h-0 flex-1 items-center justify-center border-dashed">
         <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
           <Film className="text-muted-foreground h-8 w-8" aria-hidden="true" />
           <div className="text-sm font-medium">{t("editor.library.empty")}</div>
@@ -723,7 +723,7 @@ function GeneratedVideoLibrary({
   }
 
   return (
-    <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid min-h-0 flex-1 auto-rows-fr gap-4 overflow-hidden sm:grid-cols-2 xl:grid-cols-3">
       {compositions.map((composition) => {
         const latestRender = rendersByCompositionId[composition.id]?.[0];
         const source = sourcesById.get(composition.sourceId);

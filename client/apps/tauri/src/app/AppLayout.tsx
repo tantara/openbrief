@@ -243,8 +243,21 @@ export function AppLayout({
             </div>
           ) : null}
         </header>
-        <main className="h-full overflow-y-auto overscroll-contain pt-16">
-          <section className="min-h-full p-6">{children}</section>
+        <main
+          className={cn(
+            "h-full pt-16",
+            activeView === "editor"
+              ? "overflow-hidden overscroll-none"
+              : "overflow-y-auto overscroll-contain",
+          )}
+        >
+          <section
+            className={cn(
+              activeView === "editor" ? "h-full min-h-0 p-0" : "min-h-full p-6",
+            )}
+          >
+            {children}
+          </section>
         </main>
       </div>
     </div>
