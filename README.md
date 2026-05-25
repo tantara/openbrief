@@ -11,9 +11,9 @@ Import a video or audio file, extract its transcript, generate a grounded summar
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)
 [![Stars](https://img.shields.io/github/stars/tantara/openbrief?style=social)](https://github.com/tantara/openbrief/stargazers)
 
-[Features](#features) · [Model Support](#model-support) · [Setup](#setup) · [Development](#local-development) · [Roadmap](#roadmap)
+[Watch the demo](https://youtu.be/OnS3EViayRo) · [Features](#features) · [Model Support](#model-support) · [Setup](#setup) · [Development](#local-development) · [Roadmap](#roadmap)
 
-![OpenBrief — Open Source YouTube Summarizer](docs/assets/openbrief_thumbnail.png)
+[![OpenBrief — Open Source YouTube Summarizer](docs/assets/openbrief_thumbnail.png)](https://youtu.be/OnS3EViayRo)
 
 </div>
 
