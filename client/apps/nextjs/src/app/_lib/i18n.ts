@@ -199,15 +199,15 @@ const englishCopy: MarketingCopy = {
     platformGroups: [
       {
         name: "macOS",
-        builds: ["Apple Silicon", "Intel"],
+        builds: ["Apple Silicon", "Intel (x64)"],
       },
       {
         name: "Windows",
-        builds: ["x64 installer", "ARM64 installer"],
+        builds: ["64-bit"],
       },
       {
         name: "Linux",
-        builds: ["x64 AppImage", "Debian package", "RPM package"],
+        builds: ["Debian", "Build from source"],
       },
     ],
     releaseDescription:
@@ -324,15 +324,15 @@ const chineseCopy: MarketingCopy = {
     platformGroups: [
       {
         name: "macOS",
-        builds: ["Apple Silicon", "Intel"],
+        builds: ["Apple Silicon", "Intel (x64)"],
       },
       {
         name: "Windows",
-        builds: ["x64 安装程序", "ARM64 安装程序"],
+        builds: ["64 位"],
       },
       {
         name: "Linux",
-        builds: ["x64 AppImage", "Debian 软件包", "RPM 软件包"],
+        builds: ["Debian 软件包", "从源码构建"],
       },
     ],
     releaseDescription:
@@ -448,11 +448,11 @@ const koreanCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
-      { name: "Windows", builds: ["x64 설치 프로그램", "ARM64 설치 프로그램"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
+      { name: "Windows", builds: ["64비트"] },
       {
         name: "Linux",
-        builds: ["x64 AppImage", "Debian 패키지", "RPM 패키지"],
+        builds: ["Debian 패키지", "소스에서 빌드"],
       },
     ],
     releaseDescription:
@@ -568,14 +568,14 @@ const japaneseCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       {
         name: "Windows",
-        builds: ["x64 インストーラー", "ARM64 インストーラー"],
+        builds: ["64ビット"],
       },
       {
         name: "Linux",
-        builds: ["x64 AppImage", "Debian パッケージ", "RPM パッケージ"],
+        builds: ["Debian パッケージ", "ソースからビルド"],
       },
     ],
     releaseDescription:
@@ -691,11 +691,11 @@ const spanishCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
-      { name: "Windows", builds: ["Instalador x64", "Instalador ARM64"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
+      { name: "Windows", builds: ["64 bits"] },
       {
         name: "Linux",
-        builds: ["AppImage x64", "Paquete Debian", "Paquete RPM"],
+        builds: ["Paquete Debian", "Compilar desde el código"],
       },
     ],
     releaseDescription:
@@ -811,9 +811,9 @@ const germanCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
-      { name: "Windows", builds: ["x64-Installer", "ARM64-Installer"] },
-      { name: "Linux", builds: ["x64 AppImage", "Debian-Paket", "RPM-Paket"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
+      { name: "Windows", builds: ["64-Bit"] },
+      { name: "Linux", builds: ["Debian-Paket", "Aus Quellcode bauen"] },
     ],
     releaseDescription:
       "Verifizierte v0.4.0-Installer sind im öffentlichen GitHub-Release verfügbar.",
@@ -928,7 +928,7 @@ const frenchCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       { name: "Windows", builds: ["Installateur x64", "Installateur ARM64"] },
       {
         name: "Linux",
@@ -1048,7 +1048,7 @@ const indonesianCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       { name: "Windows", builds: ["Installer x64", "Installer ARM64"] },
       { name: "Linux", builds: ["AppImage x64", "Paket Debian", "Paket RPM"] },
     ],
@@ -1165,7 +1165,7 @@ const italianCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       { name: "Windows", builds: ["Installer x64", "Installer ARM64"] },
       {
         name: "Linux",
@@ -1285,7 +1285,7 @@ const portugueseCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       { name: "Windows", builds: ["Instalador x64", "Instalador ARM64"] },
       {
         name: "Linux",
@@ -1405,7 +1405,7 @@ const vietnameseCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       { name: "Windows", builds: ["Trình cài đặt x64", "Trình cài đặt ARM64"] },
       { name: "Linux", builds: ["x64 AppImage", "Gói Debian", "Gói RPM"] },
     ],
@@ -1522,7 +1522,7 @@ const arabicCopy: MarketingCopy = {
       platforms: ["Mac", "Windows", "Linux"],
     },
     platformGroups: [
-      { name: "macOS", builds: ["Apple Silicon", "Intel"] },
+      { name: "macOS", builds: ["Apple Silicon", "Intel (x64)"] },
       { name: "Windows", builds: ["مثبّت x64", "مثبّت ARM64"] },
       { name: "Linux", builds: ["x64 AppImage", "حزمة Debian", "حزمة RPM"] },
     ],

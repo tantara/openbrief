@@ -7,12 +7,20 @@ import { MarketingShell } from "~/app/_components/marketing-shell";
 import { defaultLocale, getMarketingCopy } from "~/app/_lib/i18n";
 import { buildMarketingMetadata } from "~/app/_lib/seo";
 
-const releaseUrl = "https://github.com/tantara/openbrief/releases/tag/v0.4.0";
+const version = "0.4.0";
+const releaseBase = `https://github.com/tantara/openbrief/releases/download/v${version}`;
+const sourceUrl = "https://github.com/tantara/openbrief";
 
 const releaseDownloads = [
-  [releaseUrl, releaseUrl],
-  [releaseUrl, undefined],
-  [undefined, releaseUrl, undefined],
+  // macOS: Apple Silicon, Intel (x64)
+  [
+    `${releaseBase}/OpenBrief_${version}_aarch64.dmg`,
+    `${releaseBase}/OpenBrief_${version}_x64.dmg`,
+  ],
+  // Windows: 64-bit
+  [`${releaseBase}/OpenBrief_${version}_x64-setup.exe`],
+  // Linux: Debian, Build from source
+  [`${releaseBase}/OpenBrief_${version}_amd64.deb`, sourceUrl],
 ] as const;
 
 export function generateMetadata(): Metadata {
