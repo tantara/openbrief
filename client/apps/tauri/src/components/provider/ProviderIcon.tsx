@@ -3,6 +3,7 @@ import DeepSeekColor from "@lobehub/icons/es/DeepSeek/components/Color.js";
 import GeminiColor from "@lobehub/icons/es/Gemini/components/Color.js";
 import OpenAiMono from "@lobehub/icons/es/OpenAI/components/Mono.js";
 import OpenRouterMono from "@lobehub/icons/es/OpenRouter/components/Mono.js";
+import { Cpu } from "lucide-react";
 import type { ProviderKind } from "@/domain/media-library";
 import { providerLabels } from "@/domain/provider";
 import { cn } from "@acme/ui";
@@ -63,6 +64,14 @@ export function ProviderIcon({
     case "deepseek":
       return (
         <DeepSeekColor
+          {...accessibilityProps}
+          className={iconClassName}
+          size={size}
+        />
+      );
+    case "openai-compatible":
+      return (
+        <Cpu
           {...accessibilityProps}
           className={iconClassName}
           size={size}

@@ -51,6 +51,7 @@ export function extractProviderText(provider: ProviderKind, body: unknown): stri
     case "openai":
     case "openrouter":
     case "deepseek":
+    case "openai-compatible":
       return extractOpenAiCompatibleText(body);
     case "anthropic":
       return extractAnthropicText(body);
@@ -72,6 +73,7 @@ export function extractProviderFinishReason(
     case "openai":
     case "openrouter":
     case "deepseek":
+    case "openai-compatible":
       return normalizeFinishReason(
         asRecord(asArray(asRecord(body)?.choices)?.[0])?.finish_reason,
       );
@@ -92,6 +94,7 @@ export function extractProviderUsage(
     case "openai":
     case "openrouter":
     case "deepseek":
+    case "openai-compatible":
       return extractOpenAiCompatibleUsage(body);
     case "anthropic":
       return extractAnthropicUsage(body);
@@ -130,6 +133,7 @@ function createProviderAuthHeaders(
   switch (provider) {
     case "openai":
     case "deepseek":
+    case "openai-compatible":
       return { Authorization: `Bearer ${credential}` };
     case "openrouter":
       return {
@@ -337,7 +341,8 @@ function extractProviderStreamTextDelta(provider: ProviderKind, body: unknown) {
   switch (provider) {
     case "openai":
     case "openrouter":
-    case "deepseek": {
+    case "deepseek":
+    case "openai-compatible": {
       const choice = asRecord(asArray(asRecord(body)?.choices)?.[0]);
       const delta = asRecord(choice?.delta)?.content;
       return typeof delta === "string" ? delta : "";

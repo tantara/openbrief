@@ -12,7 +12,7 @@ describe("provider domain", () => {
   it("creates API-key provider account statuses without storing secrets", () => {
     const accounts = createProviderAccounts(["openai", "gemini"]);
 
-    expect(accounts).toHaveLength(5);
+    expect(accounts).toHaveLength(6);
     expect(accounts.find((account) => account.provider === "openai")).toMatchObject({
       authMode: "api-key",
       configured: true,
@@ -23,7 +23,7 @@ describe("provider domain", () => {
     });
   });
 
-  it.each<ProviderKind>(["openai", "anthropic", "gemini", "openrouter", "deepseek"])(
+  it.each<ProviderKind>(["openai", "anthropic", "gemini", "openrouter", "deepseek", "openai-compatible"])(
     "shapes %s request plans without secrets in the body",
     (provider) => {
       const plan = createProviderRequestPlan({

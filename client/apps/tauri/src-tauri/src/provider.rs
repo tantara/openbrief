@@ -166,6 +166,14 @@ fn is_allowed_provider_endpoint(provider: ProviderKind, endpoint: &str) -> bool 
                     || endpoint.ends_with(":streamGenerateContent"))
                 && !endpoint.contains([' ', '\n', '\r', '\t'])
         }
+        ProviderKind::OpenaiCompatible => {
+            let is_local = endpoint.starts_with("http://localhost:")
+                || endpoint.starts_with("http://127.0.0.1:");
+            let is_tls = endpoint.starts_with("https://");
+            (is_local || is_tls)
+                && endpoint.ends_with("/v1/chat/completions")
+                && !endpoint.contains([' ', '\n', '\r', '\t'])
+        }
     }
 }
 
@@ -174,7 +182,7 @@ fn provider_headers(provider: ProviderKind, api_key: &str) -> Result<HeaderMap, 
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
     match provider {
-        ProviderKind::Openai | ProviderKind::Deepseek => {
+        ProviderKind::Openai | ProviderKind::Deepseek | ProviderKind::OpenaiCompatible => {
             headers.insert(
                 "authorization",
                 bearer_header_value(api_key, "provider_authorization_header_invalid")?,
@@ -290,7 +298,8 @@ fn merge_stream_parse_result(
 
 fn extract_provider_stream_text_delta(provider: ProviderKind, value: &Value) -> String {
     match provider {
-        ProviderKind::Openai | ProviderKind::Openrouter | ProviderKind::Deepseek => value
+        ProviderKind::Openai | ProviderKind::Openrouter | ProviderKind::Deepseek
+        | ProviderKind::OpenaiCompatible => value
             .pointer("/choices/0/delta/content")
             .and_then(Value::as_str)
             .unwrap_or_default()
@@ -306,7 +315,8 @@ fn extract_provider_stream_text_delta(provider: ProviderKind, value: &Value) -> 
 
 fn extract_provider_finish_reason(provider: ProviderKind, value: &Value) -> Option<String> {
     let reason = match provider {
-        ProviderKind::Openai | ProviderKind::Openrouter | ProviderKind::Deepseek => {
+        ProviderKind::Openai | ProviderKind::Openrouter | ProviderKind::Deepseek
+        | ProviderKind::OpenaiCompatible => {
             value.pointer("/choices/0/finish_reason")
         }
         ProviderKind::Anthropic => value
