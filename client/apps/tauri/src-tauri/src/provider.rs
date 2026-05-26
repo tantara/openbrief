@@ -157,6 +157,7 @@ fn validate_provider_request_plan(request_plan: &ProviderRequestPlan) -> Result<
 fn is_allowed_provider_endpoint(provider: ProviderKind, endpoint: &str) -> bool {
     match provider {
         ProviderKind::Openai => endpoint == "https://api.openai.com/v1/chat/completions",
+        ProviderKind::Deepseek => endpoint == "https://api.deepseek.com/v1/chat/completions",
         ProviderKind::Anthropic => endpoint == "https://api.anthropic.com/v1/messages",
         ProviderKind::Openrouter => endpoint == "https://openrouter.ai/api/v1/chat/completions",
         ProviderKind::Gemini => {
@@ -173,7 +174,7 @@ fn provider_headers(provider: ProviderKind, api_key: &str) -> Result<HeaderMap, 
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
     match provider {
-        ProviderKind::Openai => {
+        ProviderKind::Openai | ProviderKind::Deepseek => {
             headers.insert(
                 "authorization",
                 bearer_header_value(api_key, "provider_authorization_header_invalid")?,
@@ -289,7 +290,7 @@ fn merge_stream_parse_result(
 
 fn extract_provider_stream_text_delta(provider: ProviderKind, value: &Value) -> String {
     match provider {
-        ProviderKind::Openai | ProviderKind::Openrouter => value
+        ProviderKind::Openai | ProviderKind::Openrouter | ProviderKind::Deepseek => value
             .pointer("/choices/0/delta/content")
             .and_then(Value::as_str)
             .unwrap_or_default()
@@ -305,7 +306,7 @@ fn extract_provider_stream_text_delta(provider: ProviderKind, value: &Value) -> 
 
 fn extract_provider_finish_reason(provider: ProviderKind, value: &Value) -> Option<String> {
     let reason = match provider {
-        ProviderKind::Openai | ProviderKind::Openrouter => {
+        ProviderKind::Openai | ProviderKind::Openrouter | ProviderKind::Deepseek => {
             value.pointer("/choices/0/finish_reason")
         }
         ProviderKind::Anthropic => value
