@@ -11,13 +11,14 @@ import {
   defaultColorSeed as sharedDefaultColorSeed,
 } from "@acme/ui/color-theme";
 
-export type AppTheme = "light" | "dark";
+export type AppTheme = "light" | "dark" | "auto";
+export type ResolvedAppTheme = "light" | "dark";
 export type AppColorSeed = ColorSeed;
 export type AppColorSeedOption = ColorSeedOption;
 
 const themeStorageKey = "openbrief.theme";
 const colorSeedStorageKey = "openbrief.color-seed";
-const defaultTheme: AppTheme = "light";
+const defaultTheme: AppTheme = "auto";
 const defaultColorSeed: AppColorSeed = sharedDefaultColorSeed;
 
 export const appColorSeedOptions: AppColorSeedOption[] = colorSeedOptions;
@@ -47,21 +48,40 @@ export function saveAppColorSeed(colorSeed: AppColorSeed): AppColorSeed {
   return colorSeed;
 }
 
+export function getSystemTheme(): ResolvedAppTheme {
+  if (typeof window === "undefined") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+export function resolveAppTheme(theme: AppTheme): ResolvedAppTheme {
+  return theme === "auto" ? getSystemTheme() : theme;
+}
+
 export function applyAppTheme(
   theme: AppTheme,
   colorSeed: AppColorSeed = loadAppColorSeed(),
 ) {
   if (typeof document === "undefined") return;
 
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  document.documentElement.dataset.theme = theme;
+  const resolved = resolveAppTheme(theme);
+  document.documentElement.classList.toggle("dark", resolved === "dark");
+  document.documentElement.dataset.theme = resolved;
   document.documentElement.dataset.colorSeed = colorSeed;
-  document.documentElement.style.colorScheme = theme;
-  applyColorSeedVariables(document.documentElement, theme, colorSeed);
+  document.documentElement.style.colorScheme = resolved;
+  applyColorSeedVariables(document.documentElement, resolved, colorSeed);
+}
+
+export function listenSystemThemeChange(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
 }
 
 function isAppTheme(value: string | null | undefined): value is AppTheme {
-  return value === "light" || value === "dark";
+  return value === "light" || value === "dark" || value === "auto";
 }
 
 function isAppColorSeed(

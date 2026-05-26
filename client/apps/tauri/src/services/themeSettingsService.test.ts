@@ -1,7 +1,10 @@
 import {
   applyAppTheme,
+  getSystemTheme,
+  listenSystemThemeChange,
   loadAppColorSeed,
   loadAppTheme,
+  resolveAppTheme,
   saveAppColorSeed,
   saveAppTheme,
 } from "@/services/themeSettingsService";
@@ -18,9 +21,8 @@ describe("theme settings service", () => {
     document.documentElement.removeAttribute("style");
   });
 
-  it("defaults to light theme", () => {
-    expect(loadAppTheme()).toBe("light");
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  it("defaults to auto theme", () => {
+    expect(loadAppTheme()).toBe("auto");
   });
 
   it("persists and applies dark theme", () => {
@@ -32,6 +34,18 @@ describe("theme settings service", () => {
     expect(document.documentElement.style.colorScheme).toBe("dark");
   });
 
+  it("persists and applies auto theme", () => {
+    saveAppTheme("auto");
+
+    expect(loadAppTheme()).toBe("auto");
+    const expectedResolved = getSystemTheme();
+    expect(document.documentElement.classList.contains("dark")).toBe(
+      expectedResolved === "dark",
+    );
+    expect(document.documentElement.dataset.theme).toBe(expectedResolved);
+    expect(document.documentElement.style.colorScheme).toBe(expectedResolved);
+  });
+
   it("removes dark class when light theme is applied", () => {
     applyAppTheme("dark");
     applyAppTheme("light");
@@ -39,6 +53,35 @@ describe("theme settings service", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.style.colorScheme).toBe("light");
+  });
+
+  it("resolveAppTheme returns same value for light and dark", () => {
+    expect(resolveAppTheme("light")).toBe("light");
+    expect(resolveAppTheme("dark")).toBe("dark");
+  });
+
+  it("resolveAppTheme returns system preference for auto", () => {
+    const system = getSystemTheme();
+    expect(resolveAppTheme("auto")).toBe(system);
+  });
+
+  it("getSystemTheme returns light or dark", () => {
+    const system = getSystemTheme();
+    expect(["light", "dark"]).toContain(system);
+  });
+
+  it("listenSystemThemeChange registers and returns cleanup", () => {
+    const cleanup = listenSystemThemeChange(() => {});
+    expect(typeof cleanup).toBe("function");
+    expect(() => cleanup()).not.toThrow();
+  });
+
+  it("applies auto theme matching system preference", () => {
+    applyAppTheme("auto");
+
+    const isDark = getSystemTheme() === "dark";
+    expect(document.documentElement.classList.contains("dark")).toBe(isDark);
+    expect(document.documentElement.style.colorScheme).toBe(getSystemTheme());
   });
 
   it("persists and applies the selected color seed", () => {
@@ -79,7 +122,7 @@ describe("theme settings service", () => {
 
     writeActiveWorkspaceId("research");
 
-    expect(loadAppTheme()).toBe("light");
+    expect(loadAppTheme()).toBe("auto");
     expect(loadAppColorSeed()).toBe("green");
 
     saveAppTheme("dark");

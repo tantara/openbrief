@@ -158,6 +158,7 @@ export const it_it = {
   "settings.appearance.theme": "Tema",
   "settings.appearance.light": "Chiaro",
   "settings.appearance.dark": "Scuro",
+  "settings.appearance.system": "Sistema",
   "settings.providers.configure": "Configura",
   "settings.providers.configured": "configurato",
   "settings.providers.notConfigured": "non configurato",

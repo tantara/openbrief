@@ -123,6 +123,7 @@ import {
 import { canUseTauriRuntime } from "@/services/tauriHelperClient";
 import {
   applyAppTheme,
+  listenSystemThemeChange,
   loadAppColorSeed,
   loadAppTheme,
   saveAppColorSeed,
@@ -438,6 +439,8 @@ export function AppShell() {
   const [appColorSeed, setAppColorSeed] = useState<AppColorSeed>(() =>
     loadAppColorSeed(),
   );
+  const appColorSeedRef = useRef(appColorSeed);
+  appColorSeedRef.current = appColorSeed;
   const [appNotice, setAppNotice] = useState<AppNotice | undefined>();
   const [isAddVideoDialogOpen, setIsAddVideoDialogOpen] = useState(false);
   const [addVideoPlaylistId, setAddVideoPlaylistId] = useState<
@@ -487,6 +490,13 @@ export function AppShell() {
   useEffect(() => {
     applyAppTheme(appTheme, appColorSeed);
   }, [appColorSeed, appTheme]);
+
+  useEffect(() => {
+    if (appTheme !== "auto") return;
+    return listenSystemThemeChange(() => {
+      applyAppTheme("auto", appColorSeedRef.current);
+    });
+  }, [appTheme]);
 
   useEffect(() => {
     if (!canUseTauriRuntime()) return;

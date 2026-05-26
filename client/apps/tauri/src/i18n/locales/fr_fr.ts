@@ -158,6 +158,7 @@ export const fr_fr = {
   "settings.appearance.theme": "Thème",
   "settings.appearance.light": "Clair",
   "settings.appearance.dark": "Sombre",
+  "settings.appearance.system": "Système",
   "settings.providers.configure": "Configurer",
   "settings.providers.configured": "configuré",
   "settings.providers.notConfigured": "non configuré",

@@ -158,6 +158,7 @@ export const ar_ma = {
   "settings.appearance.theme": "السمة",
   "settings.appearance.light": "فاتح",
   "settings.appearance.dark": "داكن",
+  "settings.appearance.system": "النظام",
   "settings.providers.configure": "إعداد",
   "settings.providers.configured": "مُعدّ",
   "settings.providers.notConfigured": "غير مُعدّ",
