@@ -158,6 +158,7 @@ export const ko_kr = {
   "settings.appearance.theme": "테마",
   "settings.appearance.light": "라이트",
   "settings.appearance.dark": "다크",
+  "settings.appearance.system": "시스템",
   "settings.providers.configure": "설정",
   "settings.providers.configured": "설정됨",
   "settings.providers.notConfigured": "설정되지 않음",

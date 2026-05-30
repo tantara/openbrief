@@ -158,6 +158,7 @@ export const zh_tw = {
   "settings.appearance.theme": "主題",
   "settings.appearance.light": "淺色",
   "settings.appearance.dark": "深色",
+  "settings.appearance.system": "跟隨系統",
   "settings.providers.configure": "設定",
   "settings.providers.configured": "已設定",
   "settings.providers.notConfigured": "未設定",

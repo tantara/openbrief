@@ -7,7 +7,7 @@ import type {
 export type VideoSourceKind = "local-file" | VideoProviderKind;
 export type VideoProviderKind = "youtube" | "tiktok" | "twitch" | "vimeo";
 export type TranscriptSourceKind = "youtube-captions" | "local-stt";
-export type ProviderKind = "openai" | "anthropic" | "gemini" | "openrouter";
+export type ProviderKind = "openai" | "anthropic" | "gemini" | "openrouter" | "deepseek" | "openai-compatible";
 export type ImportStatus = "importing" | "ready" | "failed";
 export type MediaSourceType = "video" | "audio" | "pdf";
 export type KnowledgeSourceKind =

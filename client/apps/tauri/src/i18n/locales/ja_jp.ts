@@ -158,6 +158,7 @@ export const ja_jp = {
   "settings.appearance.theme": "テーマ",
   "settings.appearance.light": "ライト",
   "settings.appearance.dark": "ダーク",
+  "settings.appearance.system": "システム",
   "settings.providers.configure": "設定",
   "settings.providers.configured": "設定済み",
   "settings.providers.notConfigured": "未設定",

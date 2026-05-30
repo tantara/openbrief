@@ -61,7 +61,7 @@ describe("provider service", () => {
     expect(httpClient).not.toHaveBeenCalled();
   });
 
-  it.each<ProviderKind>(["openai", "anthropic", "gemini", "openrouter"])(
+  it.each<ProviderKind>(["openai", "anthropic", "gemini", "openrouter", "deepseek", "openai-compatible"])(
     "sends %s live requests with provider-specific endpoint, headers, and body",
     async (provider) => {
       const secret = `${provider}-live-secret`;
@@ -273,6 +273,8 @@ function createProviderResponse(provider: ProviderKind, text: string): unknown {
   switch (provider) {
     case "openai":
     case "openrouter":
+    case "deepseek":
+    case "openai-compatible":
       return { choices: [{ message: { content: text } }] };
     case "anthropic":
       return { content: [{ type: "text", text }] };
@@ -295,6 +297,34 @@ function expectProviderRequestShape(
       expect(request.headers.Authorization).toBe(`Bearer ${secret}`);
       expect(request.body).toMatchObject({
         model: "gpt-5.4-mini",
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 2048,
+        messages: [
+          { role: "system", content: "System instructions" },
+          { role: "user", content: "User question" },
+        ],
+      });
+      break;
+    case "deepseek":
+      expect(request.endpoint).toBe("https://api.deepseek.com/v1/chat/completions");
+      expect(request.headers.Authorization).toBe(`Bearer ${secret}`);
+      expect(request.body).toMatchObject({
+        model: "deepseek-v4-flash",
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 2048,
+        messages: [
+          { role: "system", content: "System instructions" },
+          { role: "user", content: "User question" },
+        ],
+      });
+      break;
+    case "openai-compatible":
+      expect(request.endpoint).toBe("http://localhost:1234/v1/chat/completions");
+      expect(request.headers.Authorization).toBe(`Bearer ${secret}`);
+      expect(request.body).toMatchObject({
+        model: "gpt-4o-mini",
         temperature: 0.2,
         top_p: 0.9,
         max_tokens: 2048,

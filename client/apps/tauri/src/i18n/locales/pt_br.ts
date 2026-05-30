@@ -158,6 +158,7 @@ export const pt_br = {
   "settings.appearance.theme": "Tema",
   "settings.appearance.light": "Claro",
   "settings.appearance.dark": "Escuro",
+  "settings.appearance.system": "Sistema",
   "settings.providers.configure": "Configurar",
   "settings.providers.configured": "configurado",
   "settings.providers.notConfigured": "não configurado",

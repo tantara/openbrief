@@ -158,6 +158,7 @@ export const uk_ua = {
   "settings.appearance.theme": "Тема",
   "settings.appearance.light": "Світла",
   "settings.appearance.dark": "Темна",
+  "settings.appearance.system": "Система",
   "settings.providers.configure": "Налаштувати",
   "settings.providers.configured": "налаштовано",
   "settings.providers.notConfigured": "не налаштовано",

@@ -74,6 +74,7 @@ import {
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
+import { Input } from "@acme/ui/input";
 import { Textarea } from "@acme/ui/textarea";
 
 type SettingsViewProps = {
@@ -381,7 +382,7 @@ export function SettingsView({
                     <p className="font-medium">
                       {t("settings.appearance.theme")}
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <Button
                         type="button"
                         variant={appTheme === "light" ? "default" : "outline"}
@@ -395,6 +396,13 @@ export function SettingsView({
                         onClick={() => onThemeChange?.("dark")}
                       >
                         {t("settings.appearance.dark")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={appTheme === "auto" ? "default" : "outline"}
+                        onClick={() => onThemeChange?.("auto")}
+                      >
+                        {t("settings.appearance.system")}
                       </Button>
                     </div>
                   </div>
@@ -1764,24 +1772,39 @@ function ProviderPreferenceCard({
         <span className="text-muted-foreground text-xs font-medium">
           {t("setup.provider.model")}
         </span>
-        <select
-          id={`${id}-model`}
-          aria-label={`${title} ${t("setup.provider.model")}`}
-          value={config.model}
-          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-          onChange={(event) =>
-            onChange({
-              ...config,
-              model: event.target.value,
-            })
-          }
-        >
-          {providerModelOptions[config.provider].map((model) => (
-            <option key={model} value={model}>
-              {model}
-            </option>
-          ))}
-        </select>
+        {config.provider === "openai-compatible" ? (
+          <Input
+            id={`${id}-model`}
+            aria-label={`${title} ${t("setup.provider.model")}`}
+            value={config.model}
+            className="h-10 w-full"
+            onChange={(event) =>
+              onChange({
+                ...config,
+                model: event.target.value,
+              })
+            }
+          />
+        ) : (
+          <select
+            id={`${id}-model`}
+            aria-label={`${title} ${t("setup.provider.model")}`}
+            value={config.model}
+            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            onChange={(event) =>
+              onChange({
+                ...config,
+                model: event.target.value,
+              })
+            }
+          >
+            {providerModelOptions[config.provider].map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+        )}
       </label>
       <div className="grid gap-1">
         <span className="text-muted-foreground text-xs font-medium">
@@ -1901,9 +1924,9 @@ function localeLabel(
 }
 
 function themeLabel(theme: AppTheme, t: ReturnType<typeof useI18n>["t"]) {
-  return theme === "dark"
-    ? t("settings.appearance.dark")
-    : t("settings.appearance.light");
+  if (theme === "dark") return t("settings.appearance.dark");
+  if (theme === "auto") return t("settings.appearance.system");
+  return t("settings.appearance.light");
 }
 
 function colorSeedLabel(colorSeed: AppColorSeed) {

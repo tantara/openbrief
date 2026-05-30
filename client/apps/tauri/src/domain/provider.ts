@@ -6,7 +6,8 @@ export type ProviderOperation =
   | "podcast_script"
   | "quiz"
   | "transcript_review"
-  | "transcript_translate";
+  | "transcript_translate"
+  | "transcript_resegment";
 
 export type ProviderRequestPlan = {
   provider: ProviderKind;
@@ -43,6 +44,8 @@ export const providerOptions: ProviderKind[] = [
   "anthropic",
   "gemini",
   "openrouter",
+  "deepseek",
+  "openai-compatible",
 ];
 
 export const providerLabels: Record<ProviderKind, string> = {
@@ -50,6 +53,8 @@ export const providerLabels: Record<ProviderKind, string> = {
   anthropic: "Claude",
   gemini: "Gemini",
   openrouter: "OpenRouter",
+  deepseek: "DeepSeek",
+  "openai-compatible": "OpenAI Compatible",
 };
 
 const providerEndpoints: Record<ProviderKind, string> = {
@@ -57,6 +62,8 @@ const providerEndpoints: Record<ProviderKind, string> = {
   anthropic: "https://api.anthropic.com/v1/messages",
   gemini: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
   openrouter: "https://openrouter.ai/api/v1/chat/completions",
+  deepseek: "https://api.deepseek.com/v1/chat/completions",
+  "openai-compatible": "http://localhost:1234/v1/chat/completions",
 };
 
 export const providerModelOptions: Record<ProviderKind, string[]> = {
@@ -70,6 +77,8 @@ export const providerModelOptions: Record<ProviderKind, string[]> = {
     "gemini-3-flash-preview",
   ],
   openrouter: ["deepseek/deepseek-v4-flash", "deepseek/deepseek-v4-pro"],
+  deepseek: ["deepseek-v4-pro", "deepseek-v4-flash"],
+  "openai-compatible": ["gpt-4o", "gpt-4o-mini", "llama-3.2-3b-instruct"],
 };
 
 export const defaultProviderModels: Record<ProviderKind, string> = {
@@ -77,6 +86,8 @@ export const defaultProviderModels: Record<ProviderKind, string> = {
   anthropic: "claude-sonnet-4-6",
   gemini: "gemini-3.1-flash-lite",
   openrouter: "deepseek/deepseek-v4-flash",
+  deepseek: "deepseek-v4-flash",
+  "openai-compatible": "gpt-4o-mini",
 };
 
 export const defaultGenerationParamsByOperation: Record<
@@ -89,6 +100,7 @@ export const defaultGenerationParamsByOperation: Record<
   quiz: { temperature: 0.35, topP: 0.9, maxTokens: 4096 },
   transcript_review: { temperature: 0.1, topP: 0.9, maxTokens: 4096 },
   transcript_translate: { temperature: 0.1, topP: 0.9, maxTokens: 4096 },
+  transcript_resegment: { temperature: 0.2, topP: 0.9, maxTokens: 4096 },
 };
 
 const forbiddenSecretKeyFragments = [
@@ -223,6 +235,8 @@ function createRedactedHeaderPlan(provider: ProviderKind): Record<string, string
   switch (provider) {
     case "openai":
     case "openrouter":
+    case "deepseek":
+    case "openai-compatible":
       return { Authorization: "[TAURI_SECRET:api-key]" };
     case "anthropic":
       return {
@@ -239,8 +253,11 @@ function createProviderEndpoint(
   model: string,
   streamingMode: boolean,
 ) {
-  if (provider !== "gemini") {
+  if (provider !== "gemini" && provider !== "openai-compatible") {
     return providerEndpoints[provider];
+  }
+  if (provider === "openai-compatible") {
+    return getOpenaiCompatibleEndpoint();
   }
 
   const method = streamingMode ? "streamGenerateContent" : "generateContent";
@@ -269,6 +286,8 @@ function createProviderBody({
   switch (provider) {
     case "openai":
     case "openrouter":
+    case "deepseek":
+    case "openai-compatible":
       return {
         model,
         temperature: generationParams.temperature,
@@ -413,4 +432,30 @@ function redactSecretText(value: string, additionalSecrets: string[]) {
         .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
         .replace(/\bsk-[A-Za-z0-9_-]+\b/g, "[REDACTED]"),
     );
+}
+
+const OPENAI_COMPATIBLE_ENDPOINT_KEY = "openbrief.openai-compatible-endpoint";
+
+export function getOpenaiCompatibleEndpoint(): string {
+  try {
+    return (
+      localStorage.getItem(OPENAI_COMPATIBLE_ENDPOINT_KEY) ||
+      providerEndpoints["openai-compatible"]
+    );
+  } catch {
+    return providerEndpoints["openai-compatible"];
+  }
+}
+
+export function setOpenaiCompatibleEndpoint(url: string): void {
+  try {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      localStorage.removeItem(OPENAI_COMPATIBLE_ENDPOINT_KEY);
+      return;
+    }
+    localStorage.setItem(OPENAI_COMPATIBLE_ENDPOINT_KEY, trimmed);
+  } catch {
+    // localStorage unavailable (SSR / test environment), silently ignore.
+  }
 }

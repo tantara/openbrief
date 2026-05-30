@@ -14,6 +14,8 @@ pub enum ProviderKind {
     Anthropic,
     Gemini,
     Openrouter,
+    Deepseek,
+    OpenaiCompatible,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -58,6 +60,8 @@ pub fn credential_storage_contract() -> CredentialStorageContract {
             ProviderKind::Anthropic,
             ProviderKind::Gemini,
             ProviderKind::Openrouter,
+            ProviderKind::Deepseek,
+            ProviderKind::OpenaiCompatible,
         ],
     }
 }
@@ -150,6 +154,8 @@ impl ProviderKind {
             ProviderKind::Anthropic => "anthropic",
             ProviderKind::Gemini => "gemini",
             ProviderKind::Openrouter => "openrouter",
+            ProviderKind::Deepseek => "deepseek",
+            ProviderKind::OpenaiCompatible => "openai-compatible",
         }
     }
 }
@@ -168,6 +174,8 @@ fn provider_api_key_statuses_for_dir(credentials_dir: &Path) -> Vec<ProviderApiK
         ProviderKind::Anthropic,
         ProviderKind::Gemini,
         ProviderKind::Openrouter,
+        ProviderKind::Deepseek,
+        ProviderKind::OpenaiCompatible,
     ]
     .iter()
     .copied()
@@ -295,7 +303,7 @@ mod tests {
         assert_eq!(contract.preferred_store, "os-keychain");
         assert!(!contract.renderer_receives_secret_values);
         assert!(!contract.helper_receives_secret_values);
-        assert_eq!(contract.supported_providers.len(), 4);
+        assert_eq!(contract.supported_providers.len(), 6);
     }
 
     #[test]

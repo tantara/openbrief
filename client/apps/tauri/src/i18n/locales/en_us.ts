@@ -236,6 +236,10 @@ export const en_us = {
   "workbench.transcript.review.tooltip":
     "Proofread and improve the transcription",
   "workbench.transcript.review.running": "Reviewing...",
+  "workbench.transcript.resegment": "Resegment",
+  "workbench.transcript.resegment.tooltip":
+    "Improve sentence boundaries by merging and splitting segments",
+  "workbench.transcript.resegment.running": "Resegmenting...",
   "workbench.transcript.translate": "Translate",
   "workbench.transcript.translate.tooltip":
     "Translate the transcript to a new language",
@@ -591,6 +595,7 @@ export const en_us = {
   "settings.appearance.theme": "Theme",
   "settings.appearance.light": "Light",
   "settings.appearance.dark": "Dark",
+  "settings.appearance.system": "System",
   "settings.appearance.color": "Color",
   "settings.version.title": "Version Info",
   "settings.compatibility.title": "Compatibility",
@@ -794,6 +799,8 @@ export const en_us = {
     "Store a provider API key in the trusted app credential store.",
   "setup.provider.apiKey": "API key",
   "setup.provider.apiKeyPlaceholder": "{provider} API key",
+  "setup.provider.endpoint": "Endpoint URL",
+  "setup.provider.endpointPlaceholder": "https://your-server/v1/chat/completions",
   "setup.provider.save": "Save",
   "setup.provider.oauth": "OAuth subscription",
   "setup.provider.oauthStatus": "planned",

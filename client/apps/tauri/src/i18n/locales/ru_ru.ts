@@ -158,6 +158,7 @@ export const ru_ru = {
   "settings.appearance.theme": "Тема",
   "settings.appearance.light": "Светлая",
   "settings.appearance.dark": "Тёмная",
+  "settings.appearance.system": "Система",
   "settings.providers.configure": "Настроить",
   "settings.providers.configured": "настроено",
   "settings.providers.notConfigured": "не настроено",

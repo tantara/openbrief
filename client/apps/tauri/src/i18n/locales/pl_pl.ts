@@ -158,6 +158,7 @@ export const pl_pl = {
   "settings.appearance.theme": "Motyw",
   "settings.appearance.light": "Jasny",
   "settings.appearance.dark": "Ciemny",
+  "settings.appearance.system": "System",
   "settings.providers.configure": "Skonfiguruj",
   "settings.providers.configured": "skonfigurowano",
   "settings.providers.notConfigured": "nie skonfigurowano",

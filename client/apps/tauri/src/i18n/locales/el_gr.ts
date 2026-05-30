@@ -158,6 +158,7 @@ export const el_gr = {
   "settings.appearance.theme": "Θέμα",
   "settings.appearance.light": "Φωτεινό",
   "settings.appearance.dark": "Σκούρο",
+  "settings.appearance.system": "Σύστημα",
   "settings.providers.configure": "Ρύθμιση",
   "settings.providers.configured": "ρυθμισμένο",
   "settings.providers.notConfigured": "μη ρυθμισμένο",
