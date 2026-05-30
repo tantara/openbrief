@@ -5,9 +5,11 @@ import type { SttModelDownloadOptions } from "@/services/setupService";
 import { useEffect, useMemo, useState } from "react";
 import { getSttModelCompatibility } from "@/domain/compatibility";
 import {
+  getOpenaiCompatibleEndpoint,
   providerLabels,
   providerModelOptions,
   providerOptions,
+  setOpenaiCompatibleEndpoint,
 } from "@/domain/provider";
 import { formatModelSize, isSttModelUsable } from "@/domain/settings";
 import { useI18n } from "@/i18n";
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { isLocalSttModelVisible } from "@acme/model-card";
+import { cn } from "@acme/ui";
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
 import {
@@ -515,10 +518,14 @@ function ProviderSetup({
     () => providerModelOptions[provider] ?? [providerModel],
     [provider, providerModel],
   );
+  const isOpenaiCompatible = provider === "openai-compatible";
+  const [endpoint, setEndpoint] = useState(() =>
+    getOpenaiCompatibleEndpoint(),
+  );
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={cn("grid gap-3", !isOpenaiCompatible && "sm:grid-cols-2")}>
         <label className="space-y-1 text-sm">
           <span className="font-medium">{t("setup.provider.provider")}</span>
           <select
@@ -537,19 +544,47 @@ function ProviderSetup({
         </label>
         <label className="space-y-1 text-sm">
           <span className="font-medium">{t("setup.provider.model")}</span>
-          <select
-            value={providerModel}
-            onChange={(event) => onProviderModelChange(event.target.value)}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-          >
-            {modelOptions.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
+          {isOpenaiCompatible ? (
+            <Input
+              value={providerModel}
+              onChange={(event) =>
+                onProviderModelChange(event.target.value)
+              }
+              placeholder={t("setup.provider.model")}
+              className="h-10 w-full"
+            />
+          ) : (
+            <select
+              value={providerModel}
+              onChange={(event) => onProviderModelChange(event.target.value)}
+              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+            >
+              {modelOptions.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
       </div>
+
+      {isOpenaiCompatible ? (
+        <label className="space-y-1 text-sm">
+          <span className="font-medium">{t("setup.provider.endpoint")}</span>
+          <Input
+            value={endpoint}
+            onChange={(event) => {
+              setEndpoint(event.target.value);
+              setOpenaiCompatibleEndpoint(event.target.value);
+            }}
+            type="url"
+            autoComplete="off"
+            placeholder={t("setup.provider.endpointPlaceholder")}
+            className="h-10 w-full"
+          />
+        </label>
+      ) : null}
 
       {supportsSubscriptionAuth ? (
         <div className="space-y-2">
@@ -642,9 +677,24 @@ function ApiKeyAuthPanel({
         <span className="text-sm font-medium">
           {t("setup.provider.apiKey")}
         </span>
-        <Badge>
+        <span
+          role="switch"
+          aria-checked={configured}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+            configured
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          <span
+            className={cn(
+              "h-2 w-2 rounded-full",
+              configured ? "bg-primary" : "bg-muted-foreground/40",
+            )}
+          />
           {configured ? t("status.configured") : t("status.notConfigured")}
-        </Badge>
+        </span>
       </div>
       <div className="flex gap-2">
         <label className="sr-only" htmlFor="provider-api-key">

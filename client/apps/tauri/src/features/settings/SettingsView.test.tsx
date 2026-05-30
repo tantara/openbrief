@@ -105,6 +105,8 @@ const settings: SettingsSnapshot = {
       anthropic: "claude-sonnet-4-6",
       gemini: "gemini-3.1-flash-lite",
       openrouter: "deepseek/deepseek-v4-flash",
+      deepseek: "deepseek-v4-flash",
+      "openai-compatible": "gpt-4o-mini",
     },
     accounts: [
       {

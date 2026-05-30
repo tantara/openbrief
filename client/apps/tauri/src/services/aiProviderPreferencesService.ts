@@ -91,7 +91,9 @@ function normalizeWorkflowConfig(
     : fallback.provider;
   const model =
     typeof candidate.model === "string" &&
-    providerModelOptions[provider].includes(candidate.model)
+    candidate.model.length > 0 &&
+    (provider === "openai-compatible" ||
+      providerModelOptions[provider].includes(candidate.model))
       ? candidate.model
       : defaultProviderModels[provider];
 

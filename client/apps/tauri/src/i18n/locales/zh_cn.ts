@@ -160,6 +160,8 @@ export const zh_cn = {
   "settings.appearance.dark": "深色",
   "settings.appearance.system": "跟随系统",
   "settings.providers.configure": "配置",
+  "settings.providers.accounts": "提供商管理",
+  "settings.providers.customModel": "自定义模型",
   "settings.providers.configured": "已配置",
   "settings.providers.notConfigured": "未配置",
   "setup.provider.authMethod": "选择认证方式",
