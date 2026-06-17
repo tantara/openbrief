@@ -14,6 +14,7 @@ mod storage_usage;
 mod stt_models;
 mod supertonic;
 mod trusted_paths;
+mod video_download_access;
 mod workspace;
 
 use serde::{Deserialize, Serialize};
@@ -190,6 +191,9 @@ pub fn run() {
             media_tools::yt_dlp_update_status,
             media_tools::set_yt_dlp_update_policy,
             media_tools::update_yt_dlp_now,
+            video_download_access::video_download_access_status,
+            video_download_access::set_video_download_cookies_file,
+            video_download_access::clear_video_download_cookies_file,
             platform_plugins::platform_plugin_contract,
             provider::complete_provider_request,
             provider::complete_provider_stream_request,
