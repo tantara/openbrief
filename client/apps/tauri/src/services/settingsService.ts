@@ -25,6 +25,7 @@ import {
   createPlatformPluginService,
   type PlatformPluginService,
 } from "@/services/platformPluginService";
+import { loadVideoDownloadAccessStatus } from "@/services/videoDownloadAccessService";
 
 type HelperProtocolContract = {
   protocolVersion: number;
@@ -71,6 +72,7 @@ export async function loadSettingsSnapshot(
     providerStatuses,
     ytdlpUpdate,
     storage,
+    access,
   ] =
     await Promise.all([
       getName(),
@@ -81,6 +83,7 @@ export async function loadSettingsSnapshot(
       invokeCommand<RawProviderApiKeyStatus[]>("provider_api_key_statuses"),
       invokeCommand<YtDlpUpdateStatus>("yt_dlp_update_status"),
       loadStorageUsageSnapshot(invokeCommand),
+      loadVideoDownloadAccessStatusOrDefault(invokeCommand),
     ]);
 
   const updater = options.checkAppUpdate
@@ -100,7 +103,7 @@ export async function loadSettingsSnapshot(
       : "unavailable",
     protocolVersion: helperContract.protocolVersion,
     ytdlpUpdate,
-    access: createDefaultVideoDownloadAccessStatus(),
+    access,
     mediaTools: helperContract.mediaTools.map((tool) => ({
       tool: tool.tool,
       status: "configured",
@@ -215,6 +218,16 @@ async function loadStorageUsageSnapshot(
     const message =
       error instanceof Error ? error.message : String(error ?? "storage_usage_failed");
     return createZeroStorageUsageSnapshot(new Date().toISOString(), message);
+  }
+}
+
+async function loadVideoDownloadAccessStatusOrDefault(
+  invokeCommand: TauriInvoke,
+) {
+  try {
+    return await loadVideoDownloadAccessStatus(invokeCommand);
+  } catch {
+    return createDefaultVideoDownloadAccessStatus();
   }
 }
 

@@ -559,6 +559,10 @@ export const en_us = {
     "Browser-cookie import for {target} is not enabled in this build yet. Offline tests only verify the planned --cookies-from-browser contract; no browser data is read.",
   "notice.downloadAccess.cookiesFile":
     "cookies.txt setup for {target} is not enabled in this build yet. Offline tests only verify the planned --cookies contract; no file is selected or stored.",
+  "notice.downloadAccess.cookiesFileSet":
+    "Using cookies.txt for video downloads: {path}",
+  "notice.downloadAccess.cookiesFileFailed":
+    "Could not set cookies.txt: {message}",
   "notice.downloadAccess.poToken":
     "YouTube PO token setup is planned for the trusted Rust settings flow. The renderer will only show configured status, never the token value.",
   "notice.downloadAccess.extractorArgs":

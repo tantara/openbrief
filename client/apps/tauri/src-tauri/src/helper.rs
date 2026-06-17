@@ -398,6 +398,10 @@ fn run_streaming_helper_command<R: Runtime>(
         .map_err(|error| format!("helper_plan_failed:{error}"))?;
     plan.program = resolve_streaming_plan_program(&app, plan.tool, plan.program);
     attach_ffmpeg_location_to_download_plan(&mut plan, media_tools_dir_for_app(&app));
+    attach_cookie_args_to_download_plan(
+        &mut plan,
+        &crate::video_download_access::config_for_app(&app),
+    );
     push_helper_event(
         &app,
         &library_root,
@@ -760,6 +764,28 @@ fn attach_ffmpeg_location_to_download_plan(
             media_tools_dir.to_string_lossy().into_owned(),
         ],
     );
+}
+
+fn attach_cookie_args_to_download_plan(
+    plan: &mut helper_sidecar::CommandPlan,
+    config: &crate::video_download_access::VideoDownloadAccessConfig,
+) {
+    if plan.tool != "yt-dlp"
+        || plan
+            .args
+            .iter()
+            .any(|arg| arg == "--cookies" || arg == "--cookies-from-browser")
+    {
+        return;
+    }
+
+    let extra = crate::video_download_access::cookie_yt_dlp_args(config);
+    if extra.is_empty() {
+        return;
+    }
+
+    let insert_at = plan.args.len().saturating_sub(1);
+    plan.args.splice(insert_at..insert_at, extra);
 }
 
 fn media_tool_executable_name(tool_name: &str) -> String {
@@ -1213,6 +1239,57 @@ Provider captions text
             plan.args.last().map(String::as_str),
             Some("https://www.youtube.com/watch?v=abc")
         );
+    }
+
+    #[test]
+    fn streaming_download_passes_cookies_file_before_url() {
+        let mut plan = helper_sidecar::CommandPlan {
+            tool: "yt-dlp",
+            program: PathBuf::from("yt-dlp"),
+            args: vec![
+                "--newline".to_string(),
+                "-o".to_string(),
+                "%(title)s.%(ext)s".to_string(),
+                "https://www.youtube.com/watch?v=abc".to_string(),
+            ],
+        };
+
+        attach_cookie_args_to_download_plan(
+            &mut plan,
+            &crate::video_download_access::VideoDownloadAccessConfig {
+                cookies_file: Some("/tmp/cookies.txt".to_string()),
+            },
+        );
+
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|pair| pair == ["--cookies", "/tmp/cookies.txt"]));
+        assert_eq!(
+            plan.args.last().map(String::as_str),
+            Some("https://www.youtube.com/watch?v=abc")
+        );
+    }
+
+    #[test]
+    fn streaming_download_without_access_config_is_unchanged() {
+        let mut plan = helper_sidecar::CommandPlan {
+            tool: "yt-dlp",
+            program: PathBuf::from("yt-dlp"),
+            args: vec![
+                "-o".to_string(),
+                "%(title)s.%(ext)s".to_string(),
+                "https://www.youtube.com/watch?v=abc".to_string(),
+            ],
+        };
+        let before = plan.args.clone();
+
+        attach_cookie_args_to_download_plan(
+            &mut plan,
+            &crate::video_download_access::VideoDownloadAccessConfig::default(),
+        );
+
+        assert_eq!(plan.args, before);
     }
 
     #[test]

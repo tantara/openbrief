@@ -144,6 +144,10 @@ import {
   ttsEngineForModel,
 } from "@/services/ttsSettingsService";
 import { describeVideoDownloadAccessAction } from "@/services/videoDownloadAccessNoticeService";
+import {
+  selectCookiesFile,
+  setVideoDownloadCookiesFile,
+} from "@/services/videoDownloadAccessService";
 import { createVideoFrameService } from "@/services/videoFrameService";
 import { listen } from "@tauri-apps/api/event";
 import { ExternalLink, Info, Loader2, Search, Volume2 } from "lucide-react";
@@ -1532,9 +1536,33 @@ export function AppShell() {
     }
   }
 
-  function handleVideoDownloadAccessAction(action: VideoDownloadAccessAction) {
+  async function handleVideoDownloadAccessAction(
+    action: VideoDownloadAccessAction,
+  ) {
+    if (action === "choose-cookies-file") {
+      await chooseVideoDownloadCookiesFile();
+      return;
+    }
+
     const notice = describeVideoDownloadAccessAction(action);
     setAppNotice(t(notice.noticeKey, notice.values));
+  }
+
+  async function chooseVideoDownloadCookiesFile() {
+    try {
+      const path = await selectCookiesFile();
+      if (!path) return;
+
+      await setVideoDownloadCookiesFile(path);
+      await refreshSettings();
+      setAppNotice(t("notice.downloadAccess.cookiesFileSet", { path }));
+    } catch (error) {
+      setAppNotice(
+        t("notice.downloadAccess.cookiesFileFailed", {
+          message: caughtErrorMessage(error, "cookies_file_failed"),
+        }),
+      );
+    }
   }
 
   async function downloadVideoArtifact(
