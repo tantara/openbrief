@@ -47,10 +47,12 @@ import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
 import { MarkdownSummaryEditor } from "@/components/markdown/MarkdownSummaryEditor";
 import { AudioPlayer } from "@/components/media/AudioPlayer";
 import { PdfViewer } from "@/components/media/PdfViewer";
+import { OpenaiCompatibleModelInput } from "@/components/provider/OpenaiCompatibleModelInput";
 import { ProviderIcon } from "@/components/provider/ProviderIcon";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { mediaSourceTypeForAsset } from "@/domain/media-library";
 import {
+  defaultModelForProvider,
   defaultProviderModels,
   providerLabels,
   providerModelOptions,
@@ -1344,7 +1346,7 @@ export function WorkbenchView({
                   onProviderChange={(nextProvider) => {
                     updateSummaryProviderPreference({
                       provider: nextProvider,
-                      model: defaultProviderModels[nextProvider],
+                      model: defaultModelForProvider(nextProvider),
                       streamingMode: summaryProviderConfig.streamingMode,
                     });
                   }}
@@ -1487,7 +1489,7 @@ export function WorkbenchView({
                             : undefined
                         }
                       />
-                    ) : !summaryJob ? (
+                    ) : summaryJob?.status !== "running" ? (
                       <BriefEmptyState
                         action={
                           <SummaryGenerateDialog
@@ -1694,6 +1696,24 @@ export function WorkbenchView({
                     job={chatJob}
                     runningLabel={t("workbench.chat.sending")}
                     failedLabel={t("workbench.chat.failed")}
+                    action={
+                      chatJob.question ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isSendingChat}
+                          onClick={() => {
+                            if (chatJob.question) {
+                              void submitChat(chatJob.question);
+                            }
+                          }}
+                        >
+                          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                          {t("workbench.chat.retry")}
+                        </Button>
+                      ) : undefined
+                    }
                   />
                 ) : null}
               </div>
@@ -1705,7 +1725,7 @@ export function WorkbenchView({
                   onProviderChange={(nextProvider) => {
                     updateChatProviderPreference({
                       provider: nextProvider,
-                      model: defaultProviderModels[nextProvider],
+                      model: defaultModelForProvider(nextProvider),
                       streamingMode: chatProviderConfig.streamingMode,
                     });
                   }}
@@ -4055,10 +4075,12 @@ function AiGenerationStatus({
   job,
   runningLabel,
   failedLabel,
+  action,
 }: {
   job: AiGenerationJob;
   runningLabel: string;
   failedLabel: string;
+  action?: ReactNode;
 }) {
   return (
     <div
@@ -4077,6 +4099,7 @@ function AiGenerationStatus({
       {job.errorMessage ? (
         <p className="text-destructive mt-1 text-xs">{job.errorMessage}</p>
       ) : null}
+      {action ? <div className="mt-2 flex justify-end">{action}</div> : null}
     </div>
   );
 }
@@ -4119,6 +4142,17 @@ function ProviderModelSelect({
   onChange(value: string): void;
 }) {
   const { t } = useI18n();
+
+  if (provider === "openai-compatible") {
+    return (
+      <OpenaiCompatibleModelInput
+        ariaLabel={t("workbench.summary.model")}
+        value={value}
+        className={triggerClassName}
+        onCommit={onChange}
+      />
+    );
+  }
 
   return (
     <WorkbenchSelect

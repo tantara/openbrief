@@ -459,3 +459,36 @@ export function setOpenaiCompatibleEndpoint(url: string): void {
     // localStorage unavailable (SSR / test environment), silently ignore.
   }
 }
+
+const OPENAI_COMPATIBLE_MODEL_KEY = "openbrief.openai-compatible-model";
+
+export function getOpenaiCompatibleModel(): string {
+  try {
+    return (
+      localStorage.getItem(OPENAI_COMPATIBLE_MODEL_KEY) ||
+      defaultProviderModels["openai-compatible"]
+    );
+  } catch {
+    return defaultProviderModels["openai-compatible"];
+  }
+}
+
+export function setOpenaiCompatibleModel(model: string): void {
+  try {
+    const trimmed = model.trim();
+    if (!trimmed) return;
+    localStorage.setItem(OPENAI_COMPATIBLE_MODEL_KEY, trimmed);
+  } catch {
+    // localStorage unavailable (SSR / test environment), silently ignore.
+  }
+}
+
+/**
+ * Model to preselect when switching to a provider. The OpenAI-compatible
+ * provider has no fixed catalog, so it reuses the last model the user chose.
+ */
+export function defaultModelForProvider(provider: ProviderKind): string {
+  return provider === "openai-compatible"
+    ? getOpenaiCompatibleModel()
+    : defaultProviderModels[provider];
+}

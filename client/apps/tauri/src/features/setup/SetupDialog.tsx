@@ -3,6 +3,7 @@ import type { ProviderKind } from "@/domain/media-library";
 import type { ProviderAuthMode, SettingsSnapshot } from "@/domain/settings";
 import type { SttModelDownloadOptions } from "@/services/setupService";
 import { useEffect, useMemo, useState } from "react";
+import { OpenaiCompatibleModelInput } from "@/components/provider/OpenaiCompatibleModelInput";
 import { getSttModelCompatibility } from "@/domain/compatibility";
 import {
   getOpenaiCompatibleEndpoint,
@@ -545,13 +546,9 @@ function ProviderSetup({
         <label className="space-y-1 text-sm">
           <span className="font-medium">{t("setup.provider.model")}</span>
           {isOpenaiCompatible ? (
-            <Input
+            <OpenaiCompatibleModelInput
               value={providerModel}
-              onChange={(event) =>
-                onProviderModelChange(event.target.value)
-              }
-              placeholder={t("setup.provider.model")}
-              className="h-10 w-full"
+              onCommit={onProviderModelChange}
             />
           ) : (
             <select

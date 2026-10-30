@@ -79,4 +79,37 @@ describe("aiProviderPreferencesService", () => {
       chat: defaultAiProviderPreferences.chat,
     });
   });
+
+  it("keeps custom OpenAI-compatible models and never stores an empty one", () => {
+    const storage = createMemoryStorage();
+
+    expect(
+      saveAiProviderPreferences(
+        {
+          summary: {
+            provider: "openai-compatible",
+            model: " qwen3-32b ",
+            streamingMode: false,
+          },
+          chat: {
+            provider: "openai-compatible",
+            model: "",
+            streamingMode: false,
+          },
+        },
+        storage,
+      ),
+    ).toEqual({
+      summary: {
+        provider: "openai-compatible",
+        model: "qwen3-32b",
+        streamingMode: false,
+      },
+      chat: {
+        provider: "openai-compatible",
+        model: "gpt-4o-mini",
+        streamingMode: false,
+      },
+    });
+  });
 });

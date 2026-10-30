@@ -56,7 +56,10 @@ import {
   mediaSourceTypeFromFileName,
 } from "@/domain/ingest";
 import { mediaSourceTypeForAsset } from "@/domain/media-library";
-import { defaultProviderModels } from "@/domain/provider";
+import {
+  defaultModelForProvider,
+  defaultProviderModels,
+} from "@/domain/provider";
 import {
   formatModelSize,
   isSttModelUsable,
@@ -1013,8 +1016,10 @@ export function AppShell() {
 
   function configureProvider(provider: ProviderKind) {
     const model =
-      effectiveSettings?.llm.defaultModels[provider] ??
-      defaultProviderModels[provider];
+      provider === "openai-compatible"
+        ? defaultModelForProvider(provider)
+        : (effectiveSettings?.llm.defaultModels[provider] ??
+          defaultProviderModels[provider]);
     setSetupProvider(provider);
     setSetupProviderModel(model);
     setPendingAction({ mode: "provider", provider, model });
@@ -2792,7 +2797,7 @@ export function AppShell() {
         onWhisperModelChange={setSelectedWhisperModelId}
         onProviderChange={(provider) => {
           setSetupProvider(provider);
-          setSetupProviderModel(defaultProviderModels[provider]);
+          setSetupProviderModel(defaultModelForProvider(provider));
         }}
         onProviderModelChange={setSetupProviderModel}
         onDownloadWhisperModel={async (modelId, options) => {

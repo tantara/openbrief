@@ -1049,6 +1049,55 @@ describe("WorkbenchView", () => {
     expect(screen.getByText("Streaming chat answer")).toBeInTheDocument();
   });
 
+  it("keeps summary generation available after a failed summary job", () => {
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          transcript: transcriptFixture,
+          summaryJob: {
+            ...summaryJobFixture,
+            status: "failed",
+            errorMessage: "provider_http_500",
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("provider_http_500")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^summarize$/i }),
+    ).toBeEnabled();
+  });
+
+  it("retries the failed chat question with the current provider", async () => {
+    const onSendChat = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <WorkbenchView
+        {...defaultProps({
+          onSendChat,
+          chatJob: {
+            ...chatJobFixture,
+            status: "failed",
+            errorMessage: "provider_http_500",
+            question: "What mattered?",
+          },
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^retry$/i }));
+    await waitFor(() =>
+      expect(onSendChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "What mattered?",
+          provider: "openai",
+          model: "gpt-5.4-mini",
+        }),
+      ),
+    );
+  });
+
   it("submits transcript extraction, summary generation, chat, and markdown save", async () => {
     const onExtractTranscript = vi.fn().mockResolvedValue(undefined);
     const onGenerateSummary = vi.fn().mockResolvedValue(undefined);

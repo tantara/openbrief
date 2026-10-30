@@ -1,5 +1,6 @@
 import type { ProviderKind } from "@/domain/media-library";
 import {
+  defaultModelForProvider,
   defaultProviderModels,
   providerModelOptions,
   providerOptions,
@@ -89,13 +90,14 @@ function normalizeWorkflowConfig(
   const provider = providerOptions.includes(candidate.provider as ProviderKind)
     ? (candidate.provider as ProviderKind)
     : fallback.provider;
+  const candidateModel =
+    typeof candidate.model === "string" ? candidate.model.trim() : "";
   const model =
-    typeof candidate.model === "string" &&
-    candidate.model.length > 0 &&
+    candidateModel.length > 0 &&
     (provider === "openai-compatible" ||
-      providerModelOptions[provider].includes(candidate.model))
-      ? candidate.model
-      : defaultProviderModels[provider];
+      providerModelOptions[provider].includes(candidateModel))
+      ? candidateModel
+      : defaultModelForProvider(provider);
 
   return {
     provider,

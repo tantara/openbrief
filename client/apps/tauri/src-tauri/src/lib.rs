@@ -193,6 +193,7 @@ pub fn run() {
             platform_plugins::platform_plugin_contract,
             provider::complete_provider_request,
             provider::complete_provider_stream_request,
+            provider::list_openai_compatible_models,
             show_transcript_overlay,
             stt_models::stt_model_catalog,
             stt_models::download_stt_model,

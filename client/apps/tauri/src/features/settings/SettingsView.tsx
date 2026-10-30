@@ -26,9 +26,10 @@ import {
   resolveShortcutKeys,
 } from "@/app/navigationShortcuts";
 import { ShortcutKbd } from "@/components/keyboard/ShortcutKbd";
+import { OpenaiCompatibleModelInput } from "@/components/provider/OpenaiCompatibleModelInput";
 import { ProviderIcon } from "@/components/provider/ProviderIcon";
 import {
-  defaultProviderModels,
+  defaultModelForProvider,
   providerLabels,
   providerModelOptions,
   providerOptions,
@@ -74,7 +75,6 @@ import {
 import { Badge } from "@acme/ui/badge";
 import { Button } from "@acme/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/card";
-import { Input } from "@acme/ui/input";
 import { Textarea } from "@acme/ui/textarea";
 import { cn } from "@acme/ui";
 
@@ -1759,7 +1759,7 @@ function ProviderPreferenceCard({
             const provider = event.target.value as ProviderKind;
             onChange({
               provider,
-              model: defaultProviderModels[provider],
+              model: defaultModelForProvider(provider),
               streamingMode: config.streamingMode,
             });
           }}
@@ -1776,15 +1776,14 @@ function ProviderPreferenceCard({
           {t("setup.provider.model")}
         </span>
         {config.provider === "openai-compatible" ? (
-          <Input
+          <OpenaiCompatibleModelInput
             id={`${id}-model`}
-            aria-label={`${title} ${t("setup.provider.model")}`}
+            ariaLabel={`${title} ${t("setup.provider.model")}`}
             value={config.model}
-            className="h-10 w-full"
-            onChange={(event) =>
+            onCommit={(model) =>
               onChange({
                 ...config,
-                model: event.target.value,
+                model,
               })
             }
           />

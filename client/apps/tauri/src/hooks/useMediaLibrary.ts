@@ -131,6 +131,8 @@ export type AiGenerationJob = {
   streamingMode?: boolean;
   draftText?: string;
   errorMessage?: string;
+  /** Chat question of a failed job, kept so the Workbench can retry it. */
+  question?: string;
 };
 
 export function useMediaLibrary(
@@ -619,6 +621,7 @@ export function useMediaLibrary(
         provider,
         model,
         errorMessage: error instanceof Error ? error.message : "chat_failed",
+        question,
       });
       throw error;
     }

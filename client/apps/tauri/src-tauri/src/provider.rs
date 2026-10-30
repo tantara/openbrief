@@ -142,6 +142,67 @@ pub async fn complete_provider_stream_request<R: Runtime>(
     })
 }
 
+#[tauri::command]
+pub async fn list_openai_compatible_models<R: Runtime>(
+    app: AppHandle<R>,
+    endpoint: String,
+) -> Result<Vec<String>, String> {
+    let models_endpoint = openai_compatible_models_endpoint(&endpoint)
+        .ok_or_else(|| "provider_endpoint_not_allowed".to_string())?;
+    let mut request = reqwest::Client::new().get(&models_endpoint);
+    // Local servers (LM Studio, Ollama) usually run without a key.
+    if let Some(api_key) = read_provider_api_key_for_app(&app, ProviderKind::OpenaiCompatible)? {
+        request = request.header(
+            "authorization",
+            bearer_header_value(&api_key, "provider_authorization_header_invalid")?,
+        );
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|error| format!("provider_request_failed:{error}"))?;
+    let status = response.status();
+    let body_text = response
+        .text()
+        .await
+        .map_err(|error| format!("provider_response_read_failed:{error}"))?;
+    if !status.is_success() {
+        return Err(format!(
+            "provider_models_request_failed:{}",
+            status.as_u16()
+        ));
+    }
+
+    Ok(parse_model_ids(&parse_provider_body(&body_text)))
+}
+
+fn openai_compatible_models_endpoint(chat_endpoint: &str) -> Option<String> {
+    if !is_allowed_provider_endpoint(ProviderKind::OpenaiCompatible, chat_endpoint) {
+        return None;
+    }
+
+    chat_endpoint
+        .strip_suffix("/chat/completions")
+        .map(|base| format!("{base}/models"))
+}
+
+fn parse_model_ids(body: &Value) -> Vec<String> {
+    let mut ids: Vec<String> = body
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|models| {
+            models
+                .iter()
+                .filter_map(|model| model.get("id").and_then(Value::as_str))
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
 fn validate_provider_request_plan(request_plan: &ProviderRequestPlan) -> Result<(), String> {
     if request_plan.method != "POST" {
         return Err("provider_method_not_allowed".to_string());
@@ -388,6 +449,34 @@ mod tests {
             validate_provider_request_plan(&request_plan).unwrap_err(),
             "provider_method_not_allowed"
         );
+    }
+
+    #[test]
+    fn derives_models_endpoint_only_from_allowed_chat_endpoints() {
+        assert_eq!(
+            openai_compatible_models_endpoint("http://localhost:1234/v1/chat/completions")
+                .as_deref(),
+            Some("http://localhost:1234/v1/models")
+        );
+        assert_eq!(
+            openai_compatible_models_endpoint("https://llm.example.com/v1/chat/completions")
+                .as_deref(),
+            Some("https://llm.example.com/v1/models")
+        );
+        assert!(
+            openai_compatible_models_endpoint("http://example.com/v1/chat/completions").is_none()
+        );
+    }
+
+    #[test]
+    fn parses_sorted_unique_model_ids() {
+        let body = serde_json::json!({
+            "object": "list",
+            "data": [{ "id": "qwen3" }, { "id": "llama-3.2" }, { "id": "qwen3" }, { "object": "model" }]
+        });
+
+        assert_eq!(parse_model_ids(&body), vec!["llama-3.2", "qwen3"]);
+        assert!(parse_model_ids(&Value::Null).is_empty());
     }
 
     #[test]
